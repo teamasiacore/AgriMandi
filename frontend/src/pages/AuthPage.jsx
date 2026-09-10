@@ -5,7 +5,7 @@ import {
   ArrowRight, CheckCircle2, AlertCircle, FileText, BadgeCheck, Clock
 } from 'lucide-react';
 import api from '../services/api';
-import { translations } from '../utils/translations';
+import { translations, DISTRICT_OPTIONS, CROP_OPTIONS, LICENSE_TYPE_OPTIONS } from '../utils/translations';
 
 export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) {
   const navigate = useNavigate();
@@ -379,10 +379,10 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
             <div className="space-y-4 pt-2 border-t border-[#E5DFD4]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[#1B4332] uppercase tracking-wider">
-                  शेतकरी व जमीन तपशील (Land & Crop Profile)
+                  {t.sectionFarmerLand}
                 </span>
                 <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md font-bold border border-emerald-200">
-                  ७/१२ पडताळणी प्राधान्य
+                  {t.badgeSaatBaraPriority}
                 </span>
               </div>
 
@@ -395,7 +395,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     type="text"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
-                    placeholder="उदा. ज्ञानेश्वर विठ्ठल पाटील"
+                    placeholder={t.placeholderFullName}
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                     required
                   />
@@ -410,14 +410,11 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     onChange={(e) => setDistrict(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   >
-                    <option value="Latur">Latur (लातूर)</option>
-                    <option value="Solapur">Solapur (सोलापूर)</option>
-                    <option value="Jalna">Jalna (जालना)</option>
-                    <option value="Nashik">Nashik (नाशिक)</option>
-                    <option value="Akola">Akola (अकोला)</option>
-                    <option value="Pune">Pune (पुणे)</option>
-                    <option value="Amravati">Amravati (अमरावती)</option>
-                    <option value="Nanded">Nanded (नांदेड)</option>
+                    {DISTRICT_OPTIONS.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d[currentLang] || d.en}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -425,13 +422,13 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1">
-                    {t.villageLabel} (गाव / तालुका)
+                    {t.villageLabel}
                   </label>
                   <input
                     type="text"
                     value={village}
                     onChange={(e) => setVillage(e.target.value)}
-                    placeholder="उदा. मौजे औसा, ता. औसा"
+                    placeholder={t.placeholderVillage}
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   />
                 </div>
@@ -445,7 +442,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     step="0.1"
                     value={landSize}
                     onChange={(e) => setLandSize(e.target.value)}
-                    placeholder="उदा. 5.5 एकर"
+                    placeholder={t.placeholderLandSize}
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   />
                 </div>
@@ -459,14 +456,14 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     {t.labelSaatBara}
                   </span>
                   <span className="text-[10px] text-emerald-700 font-semibold">
-                    (सत्यापित शेतकरी बॅजसाठी)
+                    {t.labelSaatBaraBadge}
                   </span>
                 </label>
                 <input
                   type="text"
                   value={saatBara}
                   onChange={(e) => setSaatBara(e.target.value)}
-                  placeholder="उदा. गट नं. 142/B, सर्व्हे नं. 88"
+                  placeholder={t.placeholderSaatBara}
                   className="w-full px-3 py-2 rounded-xl border border-emerald-300 bg-white text-xs font-semibold text-stone-900 focus:outline-hidden focus:border-emerald-600"
                 />
                 <p className="text-[11px] text-emerald-800">
@@ -480,18 +477,18 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                   {t.labelCropsGrown}
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {availableCrops.map(crop => (
+                  {CROP_OPTIONS.map(crop => (
                     <button
                       type="button"
-                      key={crop}
-                      onClick={() => toggleCrop(crop)}
+                      key={crop.id}
+                      onClick={() => toggleCrop(crop.id)}
                       className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        crops.includes(crop)
+                        crops.includes(crop.id)
                           ? 'bg-[#1B4332] text-white'
                           : 'bg-[#FAF7F2] text-stone-600 border border-[#E5DFD4] hover:border-[#1B4332]'
                       }`}
                     >
-                      {crop}
+                      {crop[currentLang] || crop.en}
                     </button>
                   ))}
                 </div>
@@ -504,10 +501,10 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
             <div className="space-y-4 pt-2 border-t border-[#E5DFD4]">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-[#1B4332] uppercase tracking-wider">
-                  संस्थात्मक खरेदीदार व परवाना तपशील (Buyer & License Verification)
+                  {t.sectionBuyerLicense}
                 </span>
                 <span className="text-[10px] px-2 py-0.5 bg-amber-50 text-amber-800 rounded-md font-bold border border-amber-200">
-                  SuperAdmin मंजुरी आवश्यक
+                  {t.badgeSuperAdminApproval}
                 </span>
               </div>
 
@@ -520,7 +517,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     type="text"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="उदा. श्री गणेश ऑइल मिल्स प्रा. लि."
+                    placeholder={t.placeholderCompanyName}
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                     required
                   />
@@ -534,7 +531,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     type="text"
                     value={repName}
                     onChange={(e) => setRepName(e.target.value)}
-                    placeholder="उदा. सचिन कुलकर्णी (खरेदी प्रमुख)"
+                    placeholder={t.placeholderRepName}
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   />
                 </div>
@@ -581,12 +578,11 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     onChange={(e) => setLicenseType(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   >
-                    <option value="Oil Mill Direct Procurement">Oil Mill Direct Procurement (ऑइल मिल थेट खरेदी)</option>
-                    <option value="Dal Mill Processor">Dal Mill Processor (डाळ मिल प्रक्रियादार)</option>
-                    <option value="Direct Purchase Exporter">Direct Purchase Exporter (थेट कृषीमाल निर्यातदार)</option>
-                    <option value="Institutional Food Processor">Food Processor (अन्न प्रक्रिया उद्योग)</option>
-                    <option value="Ginning & Pressing Unit">Cotton Ginning & Pressing (कापूस जिनिंग व प्रेसिंग)</option>
-                    <option value="State Trading Corporation">State / Semi-Govt Procurement Agency</option>
+                    {LICENSE_TYPE_OPTIONS.map((lic) => (
+                      <option key={lic.id} value={lic.id}>
+                        {lic[currentLang] || lic.en}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -598,7 +594,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     type="text"
                     value={licenseNumber}
                     onChange={(e) => setLicenseNumber(e.target.value)}
-                    placeholder="उदा. MSAMB/DIR/2024/0458"
+                    placeholder={t.placeholderLicenseNo}
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold font-mono"
                   />
                 </div>
@@ -613,7 +609,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     type="number"
                     value={dailyCapacity}
                     onChange={(e) => setDailyCapacity(e.target.value)}
-                    placeholder="उदा. 150 MT / दिवस"
+                    placeholder={t.placeholderDailyCapacity}
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   />
                 </div>
@@ -627,14 +623,11 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     onChange={(e) => setDistrict(e.target.value)}
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   >
-                    <option value="Latur">Latur (लातूर)</option>
-                    <option value="Solapur">Solapur (सोलापूर)</option>
-                    <option value="Jalna">Jalna (जालना)</option>
-                    <option value="Nashik">Nashik (नाशिक)</option>
-                    <option value="Akola">Akola (अकोला)</option>
-                    <option value="Pune">Pune (पुणे)</option>
-                    <option value="Amravati">Amravati (अमरावती)</option>
-                    <option value="Nanded">Nanded (नांदेड)</option>
+                    {DISTRICT_OPTIONS.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d[currentLang] || d.en}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
@@ -647,7 +640,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                   type="text"
                   value={factoryAddress}
                   onChange={(e) => setFactoryAddress(e.target.value)}
-                  placeholder="उदा. प्लॉट नं. ४४, अतिरिक्त एमआयडीसी, लातूर - ४१३५१२"
+                  placeholder={t.placeholderFactoryAddress}
                   className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                 />
               </div>
@@ -655,21 +648,21 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
               {/* Crop Procurement Targets */}
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1.5">
-                  खरेदीची उद्दिष्ट पिके (Target Commodities)
+                  {t.labelTargetCommodities}
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {availableCrops.map(crop => (
+                  {CROP_OPTIONS.map(crop => (
                     <button
                       type="button"
-                      key={crop}
-                      onClick={() => toggleCrop(crop)}
+                      key={crop.id}
+                      onClick={() => toggleCrop(crop.id)}
                       className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-                        crops.includes(crop)
+                        crops.includes(crop.id)
                           ? 'bg-[#1B4332] text-white'
                           : 'bg-[#FAF7F2] text-stone-600 border border-[#E5DFD4] hover:border-[#1B4332]'
                       }`}
                     >
-                      {crop}
+                      {crop[currentLang] || crop.en}
                     </button>
                   ))}
                 </div>
@@ -684,7 +677,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
             className="w-full py-3.5 px-4 rounded-xl bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold text-sm shadow-md transition-all flex items-center justify-center gap-2 mt-4 cursor-pointer disabled:opacity-50"
           >
             {loading ? (
-              <span>प्रक्रिया सुरू आहे (Processing)...</span>
+              <span>{t.btnProcessing}</span>
             ) : mode === 'login' ? (
               <>
                 {t.btnSignInAction}
