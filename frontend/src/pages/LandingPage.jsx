@@ -550,7 +550,6 @@ export default function LandingPage({ currentLang = 'mr' }) {
                 <li><Link to="/buyer" className="hover:text-white transition-colors">{t.navBuyer}</Link></li>
                 <li><Link to="/login" className="hover:text-white transition-colors">{t.signIn}</Link></li>
                 <li><Link to="/register" className="hover:text-white transition-colors">{t.register}</Link></li>
-                <li className="pt-1 border-t border-emerald-800/60"><Link to="/admin" className="hover:text-white text-emerald-300 font-semibold transition-colors flex items-center gap-1">🔐 ASIACore Admin</Link></li>
               </ul>
             </div>
 

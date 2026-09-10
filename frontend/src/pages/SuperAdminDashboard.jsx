@@ -21,8 +21,8 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
   });
 
   // Login Form State
-  const [username, setUsername] = useState('ASIACore');
-  const [password, setPassword] = useState('Satya123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState('');
 
@@ -189,8 +189,9 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                placeholder="ASIACore"
-                className="w-full px-3 py-2.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-sm font-bold font-mono text-stone-900 focus:outline-hidden focus:border-[#1B4332]"
+                placeholder="Enter admin username"
+                autoComplete="off"
+                className="w-full px-3 py-2.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-sm font-medium text-stone-900 focus:outline-hidden focus:border-[#1B4332]"
                 required
               />
             </div>
@@ -203,17 +204,11 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full px-3 py-2.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-sm font-bold font-mono text-stone-900 focus:outline-hidden focus:border-[#1B4332]"
+                placeholder="Enter secret password"
+                autoComplete="new-password"
+                className="w-full px-3 py-2.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-sm font-medium text-stone-900 focus:outline-hidden focus:border-[#1B4332]"
                 required
               />
-            </div>
-
-            <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-[11px] text-amber-900 flex items-center justify-between">
-              <span className="font-semibold">Pre-set Credentials:</span>
-              <span className="font-mono font-bold bg-white px-2 py-0.5 rounded border border-amber-200">
-                ASIACore / Satya123
-              </span>
             </div>
 
             <button

@@ -699,18 +699,12 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
           </button>
         </form>
 
-        {/* Safety & SuperAdmin Link Note */}
-        <div className="mt-6 pt-4 border-t border-[#E5DFD4] flex items-center justify-between text-[11px] text-stone-500">
-          <span className="flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+        {/* Safety Note */}
+        <div className="mt-6 pt-4 border-t border-[#E5DFD4] flex items-center justify-center text-[11px] text-stone-500">
+          <span className="flex items-center gap-1.5 font-medium">
+            <ShieldCheck className="w-4 h-4 text-emerald-600" />
             100% Encrypted & Safe
           </span>
-          <Link 
-            to="/admin" 
-            className="text-stone-400 hover:text-[#1B4332] transition-colors"
-          >
-            ASIACore Admin Desk &rarr;
-          </Link>
         </div>
 
       </div>

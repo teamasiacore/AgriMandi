@@ -4,7 +4,7 @@
 > This file tracks the exact runtime state, active ports, installed dependencies, verified database credentials, tested API endpoints, and user preferences. Read this file first to know where the project currently stands.
 
 **Last Updated:** September 10, 2026  
-**Active Project Phase:** Phase 3 Completed — SuperAdmin Verification Desk, Persistent Storage & Verification Priorities Live  
+**Active Project Phase:** Phase 4 — GitHub Repository & Vercel Automated CI/CD Setup  
 **User Working Mode:** Mentoring & Teaching Mode (Friendly Hinglish, Step-by-Step Guidance)
 
 ---
@@ -17,6 +17,7 @@ Both backend and frontend services are compiled, verified, and running live:
 | :--- | :---: | :--- | :--- | :---: |
 | **Frontend** | `5173` | `d:\AgriMandi\frontend` | `npm run dev -- --host` | 🟢 **RUNNING** (Vite v6.4, React 19, Tailwind 3.4, SuperAdmin Dashboard `/admin`) |
 | **Backend API** | `5000` | `d:\AgriMandi\backend` | `node src/server.js` | 🟢 **RUNNING** (Express v4.21, 100% Supabase PostgreSQL `eizzzlnlcdfuylnojijn.supabase.co`) |
+| **Git & CI/CD** | — | `d:\AgriMandi` | `git push -u origin main` | 🟡 **STAGED & COMMITTED** (Awaiting Collaborator access / PAT for `teamasiacore/AgriMandi`) |
 
 ---
 
