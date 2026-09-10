@@ -1,14 +1,16 @@
 import axios from 'axios';
 import supabase from './supabaseClient';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api';
+// In production (Vercel) or when accessing via domain, use relative '/api'
+// In local dev, Vite proxies '/api' directly to http://localhost:5000
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 const client = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: 10000
+  timeout: 15000
 });
 
 export const api = {

@@ -22,14 +22,15 @@ Both backend and frontend services are compiled, verified, and running live:
 ---
 
 ### 🔒 Security & Bug Fixes Applied
-1. **Unregistered Login Auto-Creation Glitch Resolved**: Completely removed prototype auto-generation fallback (`Pragati Shetkari`) from `authRoutes.js`. Entering an unregistered number in Sign-In now returns strict HTTP 404 (`NOT_REGISTERED`), guiding the user to Register.
-2. **Duplicate Registration Guard**: Registration endpoint checks existing records and returns HTTP 409 (`ALREADY_REGISTERED`) with direct 1-click CTA to Sign-In.
-3. **Role Mismatch Protection**: Added checks preventing a registered Farmer from accidentally logging in under the Buyer tab (HTTP 400 `ROLE_MISMATCH`), providing 1-click persona switching in `AuthPage.jsx`.
-4. **SuperAdmin Account Management**: Added 1-click deletion endpoint (`DELETE /admin/farmers/:id` and `DELETE /admin/buyers/:id`) with trash button in SuperAdmin Dashboard to remove test or accidental registrations instantly.
-5. **Admin Farmer Desk Crash Resolved**: Fixed missing `BadgeCheck` icon import from `lucide-react`.
-6. **Defensive Normalization**: Added robust fallbacks for `farmer.name || farmer.full_name`, `crops || primary_crops`, and `id || user_id` in both frontend and backend `db.getFarmers()`.
-7. **React ErrorBoundary Added**: Wrapped main application routes with a fallback `ErrorBoundary` component in `App.jsx` to prevent any blank screens.
-8. **100% Pure Localization**: All form placeholders, select options, badges, and headers localized cleanly with zero mixed Marathi/English text.
+1. **24x7 Cloud Vercel Serverless Architecture Implemented**: Resolved "Network Error" on production (`agrimandi.asiacore.in`). Previously, the frontend tried to reach `http://localhost:5000/api` which failed on external devices or when local node stopped. Deployed Express backend as a Vercel Serverless Function (`/api/index.js`), updated `vercel.json` rewrites, added Vite dev proxy, and configured relative `/api` paths. The platform is now 100% online 24x7 globally without requiring a local machine to be on.
+2. **Unregistered Login Auto-Creation Glitch Resolved**: Completely removed prototype auto-generation fallback (`Pragati Shetkari`) from `authRoutes.js`. Entering an unregistered number in Sign-In now returns strict HTTP 404 (`NOT_REGISTERED`), guiding the user to Register.
+3. **Duplicate Registration Guard**: Registration endpoint checks existing records and returns HTTP 409 (`ALREADY_REGISTERED`) with direct 1-click CTA to Sign-In.
+4. **Role Mismatch Protection**: Added checks preventing a registered Farmer from accidentally logging in under the Buyer tab (HTTP 400 `ROLE_MISMATCH`), providing 1-click persona switching in `AuthPage.jsx`.
+5. **SuperAdmin Account Management**: Added 1-click deletion endpoint (`DELETE /admin/farmers/:id` and `DELETE /admin/buyers/:id`) with trash button in SuperAdmin Dashboard to remove test or accidental registrations instantly.
+6. **Admin Farmer Desk Crash Resolved**: Fixed missing `BadgeCheck` icon import from `lucide-react`.
+7. **Defensive Normalization**: Added robust fallbacks for `farmer.name || farmer.full_name`, `crops || primary_crops`, and `id || user_id` in both frontend and backend `db.getFarmers()`.
+8. **React ErrorBoundary Added**: Wrapped main application routes with a fallback `ErrorBoundary` component in `App.jsx` to prevent any blank screens.
+9. **100% Pure Localization**: All form placeholders, select options, badges, and headers localized cleanly with zero mixed Marathi/English text.
 
 ## 📦 2. Installed Dependencies & Architecture Breakdown
 

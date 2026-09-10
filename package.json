@@ -1,0 +1,18 @@
+{
+  "name": "agrimandi-b2b-platform",
+  "version": "2.0.0",
+  "description": "AgriMandi 24x7 B2B Agricultural Marketplace Platform",
+  "type": "module",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "start": "node backend/src/server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.0",
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cache": "^5.1.2"
+  }
+}
