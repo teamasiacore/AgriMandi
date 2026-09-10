@@ -117,38 +117,9 @@ async function handleRealization(req, res) {
     const apmcTotalInHand = apmcNetRealization * qty;
 
     // Direct AgriMandi Route Breakdown (Farm-Gate Direct Mill Procurement)
-    let buyers = await db.getBuyers();
-    if (!buyers || buyers.length === 0) {
-      buyers = [
-        {
-          id: 'byr-1',
-          company_name: 'Shree Ganesh Agro Processing Pvt Ltd',
-          district: 'Latur',
-          city: 'Latur MIDC',
-          gstin: '27AABCS1429B1Z8',
-          rating: 4.9,
-          target_crops: ['Soybean']
-        },
-        {
-          id: 'byr-2',
-          company_name: 'Vardhman Agro & Dal Mills',
-          district: 'Akola',
-          city: 'Akola MIDC',
-          gstin: '27AABCV5521K1Z2',
-          rating: 4.8,
-          target_crops: ['Tur', 'Chana']
-        },
-        {
-          id: 'byr-3',
-          company_name: 'Sai Krishi Oil Industries',
-          district: 'Jalna',
-          city: 'Jalna MIDC',
-          gstin: '27AAACS8910F1Z4',
-          rating: 4.7,
-          target_crops: ['Soybean', 'Cotton']
-        }
-      ];
-    }
+    // ONLY fetch REAL registered verified buyers from database (Zero fake / dummy mills)
+    const rawBuyers = await db.getBuyers();
+    const buyers = Array.isArray(rawBuyers) ? rawBuyers : [];
 
     const matchingBuyers = buyers.map(b => {
       const bCoord = (b.lat && b.lng) ? { lat: Number(b.lat), lng: Number(b.lng) } :
@@ -156,7 +127,6 @@ async function handleRealization(req, res) {
       const distance = haversineDistance(fCoord.lat, fCoord.lng, bCoord.lat, bCoord.lng);
       
       // Farm-gate buyer pays directly: ₹0 APMC cess, ₹0 middleman cut
-      // Slight benchmark adjustment for gate delivery
       const buyerOfferPrice = Math.round(benchmarkPrice - 30);
       const directNetRealization = buyerOfferPrice;
       const directTotalInHand = directNetRealization * qty;
@@ -167,8 +137,8 @@ async function handleRealization(req, res) {
         company_name: b.company_name,
         district: b.district,
         city: b.city || b.district,
-        gstin: b.gstin || '27AABC1234F1Z5',
-        rating: b.rating || 4.8,
+        gstin: b.gstin || '',
+        rating: b.rating || 5.0,
         distanceKm: distance,
         offeredRate: buyerOfferPrice,
         directNetRealization,
@@ -177,8 +147,8 @@ async function handleRealization(req, res) {
       };
     }).sort((a, b) => a.distanceKm - b.distanceKm);
 
-    const recommendedBuyer = matchingBuyers[0] || null;
-    const directNetRate = recommendedBuyer ? recommendedBuyer.directNetRealization : benchmarkPrice;
+    const recommendedBuyer = matchingBuyers.length > 0 ? matchingBuyers[0] : null;
+    const directNetRate = Math.round(benchmarkPrice - 30);
     const directTotalPayout = directNetRate * qty;
     const netExtraEarning = Math.max(0, directTotalPayout - apmcTotalInHand);
     const percentageProfitGain = apmcTotalInHand > 0 ? Number(((netExtraEarning / apmcTotalInHand) * 100).toFixed(1)) : 0;

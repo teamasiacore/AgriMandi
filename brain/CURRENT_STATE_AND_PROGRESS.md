@@ -38,6 +38,10 @@ Both backend and frontend services are compiled, verified, and running live:
     - Added vehicle tariffs (Eicher Truck ₹4.20/km, Bolero Pickup ₹4.80/km, Tractor Trolley ₹5.20/km) and warehouse holding cost (₹0.50/qtl/day).
     - Added interactive UI controls with quantity pills [25] [50] [100], prominent "खरा नफा मोजा (Calculate Net Realization)" button, and live status badge 🟢.
     - Added Hero Profit Callout (+₹12,700 extra cash), side-by-side APMC vs Direct Mill route cards, and Top Matching Verified Buyers with 1-click lot listing action.
+12. **Zero Mock Buyers Policy (Strict Real-Buyer Match Only)**:
+    - Completely deleted pre-seeded dummy buyers (`Shree Ganesh`, `Vardhman`, `Sai Krishi`) from Supabase `buyer_profiles` table, `memoryCache.buyers`, and `supabase_schema.sql`.
+    - Removed hardcoded fallback buyers array from `backend/src/routes/realizationRoutes.js`.
+    - In `FarmerPortal.jsx`, if no verified direct mill has registered from the farmer's selected location yet, the UI displays a clean authentic status ("No registered direct mills in {district} yet — List your harvest lot so verified buyers across Maharashtra can bid") instead of showing fake mock mills. Real registered verified mills appear automatically once they register and are approved by Admin.
 
 ## 📦 2. Installed Dependencies & Architecture Breakdown
 

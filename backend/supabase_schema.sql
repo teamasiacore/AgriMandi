@@ -190,14 +190,3 @@ ON CONFLICT (user_id) DO UPDATE SET
     district = EXCLUDED.district,
     saat_bara_number = EXCLUDED.saat_bara_number,
     is_verified = EXCLUDED.is_verified;
-
--- Seed Verified Buyers
-INSERT INTO public.buyer_profiles (id, company_name, legal_name, representative_name, phone, gstin, pan, license_type, license_number, daily_capacity_mt, district, city, address, target_crops, status, is_verified, rating, reviews_count)
-VALUES 
-('byr-1', 'Shree Ganesh Agro Processing Pvt Ltd', 'Shree Ganesh Agro Processing Pvt Ltd', 'Ganesh Shinde', '9822012345', '27AABCS1429B1Z8', 'AABCS1429B', 'Oil Mill Direct Procurement License', 'MH-LTR-2024-8821', 150, 'Latur', 'Latur MIDC', 'Plot 42, MIDC Industrial Area, Latur, Maharashtra', ARRAY['Soybean'], 'VERIFIED', true, 4.9, 24),
-('byr-2', 'Vardhman Agro & Dal Mills', 'Vardhman Agro & Dal Mills', 'Vardhman Jain', '9822056789', '27AABCV5521K1Z2', 'AABCV5521K', 'Dal Mill Direct Procurement License', 'MH-AKL-2023-4412', 120, 'Akola', 'Akola MIDC', 'Phase 2, Food Processing Park, Akola, Maharashtra', ARRAY['Pigeon Pea (Tur)', 'Chana'], 'VERIFIED', true, 4.8, 18),
-('byr-3', 'Sai Krishi Oil Industries', 'Sai Krishi Oil Industries', 'Sunil Patil', '9822098765', '27AAACS8910F1Z4', 'AAACS8910F', 'Oil Mill Direct Procurement License', 'MH-JLN-2022-7719', 200, 'Jalna', 'Jalna MIDC', 'Industrial Corridor, Phase 1, Jalna, Maharashtra', ARRAY['Soybean'], 'VERIFIED', true, 4.7, 15)
-ON CONFLICT (gstin) DO UPDATE SET 
-    company_name = EXCLUDED.company_name,
-    status = EXCLUDED.status,
-    is_verified = EXCLUDED.is_verified;

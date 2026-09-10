@@ -825,7 +825,9 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                               {t.directRouteTitle}
                             </span>
                             <span className="text-xs text-stone-300 font-medium">
-                              {realizationData.directRoute.recommendedBuyer ? realizationData.directRoute.recommendedBuyer.company_name : 'Verified Agro Mill Partner'}
+                              {realizationData.directRoute.recommendedBuyer 
+                                ? realizationData.directRoute.recommendedBuyer.company_name 
+                                : (currentLang === 'en' ? 'Direct Farm-Gate Mill Procurement' : currentLang === 'hi' ? 'सीधी मिल खरीद दर' : 'थेट मिल खरेदीदार दर')}
                             </span>
                           </div>
                           <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold px-2 py-0.5 rounded">
@@ -891,8 +893,8 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
 
                   </div>
 
-                  {/* Top Matching Verified Buyers Nearby */}
-                  {realizationData.directRoute.matchingBuyers && realizationData.directRoute.matchingBuyers.length > 0 && (
+                  {/* Top Matching Verified Buyers Nearby (Only display real registered buyers) */}
+                  {realizationData.directRoute.matchingBuyers && realizationData.directRoute.matchingBuyers.length > 0 ? (
                     <div className="mt-8 pt-6 border-t border-[#E5DFD4]">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
                         <div>
@@ -909,12 +911,12 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                       </div>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {realizationData.directRoute.matchingBuyers.slice(0, 3).map((b) => (
+                        {realizationData.directRoute.matchingBuyers.map((b) => (
                           <div key={b.id} className="p-4 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4] hover:border-[#1B4332] transition-all flex flex-col justify-between">
                             <div>
                               <div className="flex items-center justify-between">
                                 <span className="text-xs font-bold text-[#1B4332] line-clamp-1">{b.company_name}</span>
-                                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold shrink-0">GSTIN ✓</span>
+                                {b.gstin && <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold shrink-0">GSTIN ✓</span>}
                               </div>
                               <p className="text-xs text-stone-500 mt-1 flex items-center gap-1">
                                 <MapPin className="w-3 h-3 text-[#C86432]" /> {b.city || b.district} ({b.distanceKm} km अंतर)
@@ -936,6 +938,52 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                             </button>
                           </div>
                         ))}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-8 pt-6 border-t border-[#E5DFD4]">
+                      <div className="p-5 rounded-2xl bg-[#FAF7F2] border border-[#E5DFD4] flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-stone-500 uppercase tracking-wider">
+                              {currentLang === 'en' ? 'Direct Procurement Network' : currentLang === 'hi' ? 'सीधी खरीद नेटवर्क' : 'थेट खरेदीदार नेटवर्क'}
+                            </span>
+                            <span className="text-[10px] bg-amber-100 text-amber-800 font-bold px-2 py-0.5 rounded">
+                              {currentLang === 'en' ? 'Registration Active' : 'नोंदणी सुरू'}
+                            </span>
+                          </div>
+                          <h4 className="text-sm sm:text-base font-bold font-heading text-[#1B4332] mt-1">
+                            {currentLang === 'en' 
+                              ? `No registered direct mills in ${calcDistrict} yet` 
+                              : currentLang === 'hi' 
+                              ? `${calcDistrict} में फिलहाल कोई पंजीकृत मिल नहीं है` 
+                              : `${calcDistrict} मध्ये सध्या थेट परवानाधारक खरेदीदार नोंदणी झालेली नाही`}
+                          </h4>
+                          <p className="text-xs text-stone-600 mt-1 max-w-xl">
+                            {currentLang === 'en'
+                              ? 'List your harvest lot on the marketplace. Verified buyers across Maharashtra will place competitive digital bids for your produce.'
+                              : 'शेतकरी आपला शेतीमाल बाजारात लिस्ट करू शकतात; नोंदणीकृत खरेदीदार थेट डिजिटल बोली (Bids) सादर करू शकतील.'}
+                          </p>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLotForm(prev => ({
+                              ...prev,
+                              crop: calcCrop,
+                              quantity_qtl: calcQty,
+                              expected_price_per_qtl: realizationData.directRoute.netInHandPerQtl,
+                              district: user.district || calcDistrict,
+                              farm_address: user.village ? `${user.village}, ${user.district || calcDistrict}` : (prev.farm_address || '')
+                            }));
+                            setIsListingModalOpen(true);
+                          }}
+                          className="px-4 py-2.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shrink-0 shadow-xs transition-all cursor-pointer"
+                        >
+                          <PlusCircle className="w-4 h-4 text-emerald-300" />
+                          <span>{currentLang === 'en' ? 'List Harvest Lot' : 'शेतीमाल बाजारात नोंदवा'}</span>
+                        </button>
                       </div>
                     </div>
                   )}
