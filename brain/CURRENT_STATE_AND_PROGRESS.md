@@ -21,11 +21,11 @@ Both backend and frontend services are compiled, verified, and running live:
 
 ---
 
-### 🔒 Security & Localization Updates Applied
-1. **100% Pure Localization (Zero Mixed Languages)**: In `AuthPage.jsx` and `LandingPage.jsx`, when English is selected, every label, section header, badge, dropdown option, and placeholder is strictly 100% English (zero Marathi in brackets or placeholders). When Marathi or Hindi is selected, it is strictly 100% pure Marathi or Hindi.
-2. **Future Pages Localization Policy**: As explicitly confirmed by the user, future inner portals (Farmer Portal, Buyer Portal, FPO) will be kept in standard direct English, keeping only the language selector in the header without creating extra translation dictionaries.
-3. **Public Admin Links Removed**: All direct links to `/admin` removed from public UI.
-4. **Clean Admin Form & Removed Pre-set Credentials**: Form starts blank with `autoComplete="off"` and zero revealed credential cards.
+### 🔒 Security & Bug Fixes Applied
+1. **Admin Farmer Desk Crash Resolved**: Root cause identified — `BadgeCheck` icon from `lucide-react` was used inside the verified farmer badge (`7/12 VERIFIED LANDHOLDER`), but was missing from the import list in `SuperAdminDashboard.jsx`. When a registered farmer had a 7/12 number (`is_verified: true`), clicking the tab threw an uncaught `ReferenceError: BadgeCheck is not defined` causing React to crash into a blank screen.
+2. **Defensive Normalization**: Added robust fallbacks for `farmer.name || farmer.full_name`, `crops || primary_crops`, and `id || user_id` in both frontend and backend `db.getFarmers()`.
+3. **React ErrorBoundary Added**: Wrapped main application routes with a fallback `ErrorBoundary` component in `App.jsx` to prevent any blank screens.
+4. **100% Pure Localization**: All form placeholders, select options, badges, and headers localized cleanly with zero mixed Marathi/English text.
 
 ## 📦 2. Installed Dependencies & Architecture Breakdown
 
