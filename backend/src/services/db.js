@@ -498,6 +498,21 @@ export const db = {
     return farmer;
   },
 
+  deleteUser: async (phoneOrId) => {
+    if (supabaseConnected) {
+      try {
+        await supabase.from('farmer_profiles').delete().or(`user_id.eq.${phoneOrId},phone.eq.${phoneOrId},id.eq.${phoneOrId}`);
+        await supabase.from('buyer_profiles').delete().or(`user_id.eq.${phoneOrId},phone.eq.${phoneOrId},id.eq.${phoneOrId}`);
+        await supabase.from('users').delete().or(`id.eq.${phoneOrId},phone.eq.${phoneOrId}`);
+      } catch (err) {
+        console.warn('Supabase deleteUser error:', err.message);
+      }
+    }
+    memoryCache.users = memoryCache.users.filter(u => u.id !== phoneOrId && u.phone !== phoneOrId && u.user_id !== phoneOrId);
+    memoryCache.buyers = memoryCache.buyers.filter(b => b.id !== phoneOrId && b.phone !== phoneOrId && b.user_id !== phoneOrId);
+    return true;
+  },
+
   // Admin Stats directly calculated from Supabase
   getAdminStats: async () => {
     let farmersCount = memoryCache.users.filter(u => u.role === 'FARMER').length;

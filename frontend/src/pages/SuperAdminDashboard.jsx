@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, ShieldCheck, CheckCircle2, XCircle, Clock, 
   Building2, Sprout, Database, RefreshCw, LogOut, ArrowRight,
-  UserCheck, AlertTriangle, Eye, Award, ExternalLink, Lock, BadgeCheck
+  UserCheck, AlertTriangle, Eye, Award, ExternalLink, Lock, BadgeCheck, Trash2
 } from 'lucide-react';
 import api from '../services/api';
 
@@ -143,6 +143,34 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
       loadDashboardData();
     } catch (err) {
       alert('Error updating farmer: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  // Delete Farmer Account (SuperAdmin)
+  const handleDeleteFarmer = async (farmerId, farmerName) => {
+    if (!window.confirm(`Are you sure you want to permanently delete farmer account "${farmerName}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      await api.deleteFarmer(farmerId);
+      setActionNotice(`Farmer account "${farmerName}" has been deleted.`);
+      loadDashboardData();
+    } catch (err) {
+      alert('Error deleting farmer: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  // Delete Buyer Account (SuperAdmin)
+  const handleDeleteBuyer = async (buyerId, companyName) => {
+    if (!window.confirm(`Are you sure you want to permanently delete buyer account "${companyName}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      await api.deleteBuyer(buyerId);
+      setActionNotice(`Buyer account "${companyName}" has been deleted.`);
+      loadDashboardData();
+    } catch (err) {
+      alert('Error deleting buyer: ' + (err.response?.data?.message || err.message));
     }
   };
 
@@ -548,6 +576,14 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
                               Re-Approve
                             </button>
                           )}
+
+                          <button
+                            onClick={() => handleDeleteBuyer(buyer.id || buyer.user_id, buyer.company_name)}
+                            title="Delete Buyer Account"
+                            className="p-2 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
 
@@ -669,7 +705,7 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
                           </div>
                         </div>
 
-                        <div>
+                        <div className="flex items-center gap-2 shrink-0">
                           <button
                             onClick={() => handleToggleFarmer(farmerId, farmer.is_verified, farmerName)}
                             className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer border ${
@@ -679,6 +715,13 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
                             }`}
                           >
                             {farmer.is_verified ? 'Revoke 7/12 Badge' : 'Verify 7/12 Record'}
+                          </button>
+                          <button
+                            onClick={() => handleDeleteFarmer(farmerId, farmerName)}
+                            title="Delete Farmer Account"
+                            className="p-2 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer border border-transparent hover:border-rose-200"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                       </div>

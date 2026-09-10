@@ -45,6 +45,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
   // Status & notifications
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [errorCode, setErrorCode] = useState('');
   const [infoNotice, setInfoNotice] = useState(redirectPath ? t.authProtectedNotice : '');
   const [buyerSubmittedModal, setBuyerSubmittedModal] = useState(false);
   const [registeredUser, setRegisteredUser] = useState(null);
@@ -66,9 +67,11 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
       setErrorMsg(currentLang === 'en' ? 'Please enter a valid 10-digit mobile number.' : 
                   currentLang === 'hi' ? 'कृपया वैध १०-अंकीय मोबाइल नंबर दर्ज करें।' :
                   'कृपया वैध १०-अंकी मोबाईल क्रमांक प्रविष्ट करा.');
+      setErrorCode('INVALID_PHONE');
       return;
     }
     setErrorMsg('');
+    setErrorCode('');
     setOtpSent(true);
     setOtp('123456'); // Standard demo testing code
   };
@@ -77,6 +80,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
     e.preventDefault();
     setLoading(true);
     setErrorMsg('');
+    setErrorCode('');
 
     try {
       let res;
@@ -167,6 +171,8 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
         }
       }
     } catch (err) {
+      const code = err.response?.data?.code || '';
+      setErrorCode(code);
       setErrorMsg(err.response?.data?.message || err.message || 'Authentication error.');
     } finally {
       setLoading(false);
@@ -257,7 +263,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
         <div className="grid grid-cols-2 gap-2 p-1 bg-[#FAF7F2] rounded-xl border border-[#E5DFD4] mt-6">
           <button
             type="button"
-            onClick={() => { setMode('login'); setErrorMsg(''); }}
+            onClick={() => { setMode('login'); setErrorMsg(''); setErrorCode(''); }}
             className={`py-2 rounded-lg text-xs font-bold transition-all ${
               mode === 'login' 
                 ? 'bg-[#1B4332] text-white shadow-xs' 
@@ -268,7 +274,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
           </button>
           <button
             type="button"
-            onClick={() => { setMode('register'); setErrorMsg(''); }}
+            onClick={() => { setMode('register'); setErrorMsg(''); setErrorCode(''); }}
             className={`py-2 rounded-lg text-xs font-bold transition-all ${
               mode === 'register' 
                 ? 'bg-[#1B4332] text-white shadow-xs' 
@@ -287,7 +293,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
           <div className="grid grid-cols-2 gap-3">
             <button
               type="button"
-              onClick={() => setRole('FARMER')}
+              onClick={() => { setRole('FARMER'); setErrorMsg(''); setErrorCode(''); }}
               className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 ${
                 role === 'FARMER'
                   ? 'border-[#1B4332] bg-[#FAF7F2] text-[#1B4332] shadow-xs'
@@ -301,7 +307,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
 
             <button
               type="button"
-              onClick={() => setRole('BUYER')}
+              onClick={() => { setRole('BUYER'); setErrorMsg(''); setErrorCode(''); }}
               className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 ${
                 role === 'BUYER'
                   ? 'border-[#1B4332] bg-[#FAF7F2] text-[#1B4332] shadow-xs'
@@ -315,10 +321,90 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
           </div>
         </div>
 
-        {/* Error Alert */}
+        {/* Interactive Error Alert with 1-Click Action Buttons */}
         {errorMsg && (
-          <div className="mt-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 font-medium">
-            {errorMsg}
+          <div className="mt-4 p-4 rounded-2xl bg-amber-50/90 border border-amber-300/80 text-amber-950 text-xs space-y-2.5 shadow-xs animate-in fade-in duration-200">
+            <div className="flex items-start gap-2.5">
+              <AlertCircle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+              <div className="flex-1 font-medium leading-relaxed">
+                {errorMsg}
+              </div>
+            </div>
+
+            {/* Smart Action Button: If user entered an unregistered number during Login */}
+            {errorCode === 'NOT_REGISTERED' && (
+              <div className="pt-2 border-t border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-[11px] text-amber-800 font-medium">
+                  {currentLang === 'en' 
+                    ? 'New user? Create your account with this phone number:' 
+                    : currentLang === 'hi' 
+                      ? 'नया खाता अभी बनाएं:' 
+                      : 'नवीन खाते तयार करा:'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('register');
+                    setErrorMsg('');
+                    setErrorCode('');
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <span>{currentLang === 'en' ? 'Register Now' : currentLang === 'hi' ? 'रजिस्टर करें' : 'नोंदणी करा'}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Smart Action Button: If user tries to register an already-registered number */}
+            {errorCode === 'ALREADY_REGISTERED' && (
+              <div className="pt-2 border-t border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-[11px] text-amber-800 font-medium">
+                  {currentLang === 'en' 
+                    ? 'Already have an account? Sign in directly:' 
+                    : currentLang === 'hi' 
+                      ? 'सीधे साइन इन करें:' 
+                      : 'थेट साइन इन करा:'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMode('login');
+                    setErrorMsg('');
+                    setErrorCode('');
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <span>{currentLang === 'en' ? 'Sign In Now' : currentLang === 'hi' ? 'साइन इन करें' : 'साइन इन करा'}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* Smart Action Button: Role mismatch */}
+            {errorCode === 'ROLE_MISMATCH' && (
+              <div className="pt-2 border-t border-amber-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <span className="text-[11px] text-amber-800 font-medium">
+                  {currentLang === 'en' 
+                    ? 'Switch to the correct role tab:' 
+                    : currentLang === 'hi' 
+                      ? 'सही विकल्प चुनें:' 
+                      : 'योग्य पर्याय निवडा:'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setRole(role === 'FARMER' ? 'BUYER' : 'FARMER');
+                    setErrorMsg('');
+                    setErrorCode('');
+                  }}
+                  className="px-3.5 py-1.5 rounded-lg bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                >
+                  <span>{role === 'FARMER' ? (currentLang === 'en' ? 'Switch to Buyer Portal' : 'खरेदीदार निवडा') : (currentLang === 'en' ? 'Switch to Farmer Portal' : 'शेतकरी निवडा')}</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         )}
 

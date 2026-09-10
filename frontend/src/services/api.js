@@ -45,8 +45,10 @@ export const api = {
   getAdminBuyers: () => client.get('/admin/buyers').then(res => res.data),
   verifyBuyer: (id, data = {}) => client.post(`/admin/buyers/${id}/verify`, data).then(res => res.data),
   rejectBuyer: (id, data = {}) => client.post(`/admin/buyers/${id}/reject`, data).then(res => res.data),
+  deleteBuyer: (id) => client.delete(`/admin/buyers/${id}`).then(res => res.data),
   getAdminFarmers: () => client.get('/admin/farmers').then(res => res.data),
   verifyFarmer: (id, data = {}) => client.post(`/admin/farmers/${id}/verify`, data).then(res => res.data),
+  deleteFarmer: (id) => client.delete(`/admin/farmers/${id}`).then(res => res.data),
   getAdminLots: () => client.get('/admin/lots').then(res => res.data),
   getAdminDeals: () => client.get('/admin/deals').then(res => res.data),
   getSupabaseStatus: () => client.get('/admin/supabase-status').then(res => res.data)

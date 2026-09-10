@@ -152,6 +152,34 @@ router.post('/farmers/:id/verify', async (req, res) => {
   }
 });
 
+// 7.1 Delete Farmer Record (Admin action)
+router.delete('/farmers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.deleteUser(id);
+    res.json({
+      status: 'success',
+      message: 'Farmer account deleted successfully.'
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// 7.2 Delete Buyer Record (Admin action)
+router.delete('/buyers/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    await db.deleteUser(id);
+    res.json({
+      status: 'success',
+      message: 'Buyer account deleted successfully.'
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // 8. Inspect All Produce Lots
 router.get('/lots', async (req, res) => {
   try {

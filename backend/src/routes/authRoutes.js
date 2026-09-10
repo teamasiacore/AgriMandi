@@ -43,6 +43,17 @@ router.post('/register', async (req, res) => {
       });
     }
 
+    // Guard: Prevent duplicate registration
+    const existingUser = await db.getUserByPhone(cleanPhone);
+    if (existingUser) {
+      const existingRole = existingUser.role === 'BUYER' ? 'Buyer' : 'Farmer';
+      return res.status(409).json({
+        status: 'error',
+        code: 'ALREADY_REGISTERED',
+        message: `Mobile number +91 ${cleanPhone} is already registered as a ${existingRole}. Please sign in directly.`
+      });
+    }
+
     const isFarmer = role.toUpperCase() === 'FARMER';
 
     let user;
@@ -135,16 +146,30 @@ router.post('/login', async (req, res) => {
     let user = await db.getUserByPhone(cleanPhone);
 
     if (!user) {
-      // Automatic initial profile creation if logging in directly
-      const targetRole = role ? role.toUpperCase() : 'FARMER';
-      user = await db.createUser({
-        phone: cleanPhone,
-        role: targetRole,
-        name: targetRole === 'BUYER' ? 'Agro Buyer' : 'Pragati Shetkari',
-        district: 'Latur',
-        village: 'Ausa',
-        status: targetRole === 'BUYER' ? 'PENDING_VERIFICATION' : 'ACTIVE',
-        is_verified: false
+      return res.status(404).json({
+        status: 'error',
+        code: 'NOT_REGISTERED',
+        message: `Mobile number +91 ${cleanPhone} is not registered yet. Please click Register to create your account first.`
+      });
+    }
+
+    // Role check: Ensure user is logging in under their registered role
+    if (role && user.role && user.role.toUpperCase() !== role.toUpperCase()) {
+      const registeredAs = user.role.toUpperCase() === 'BUYER' ? 'Buyer' : 'Farmer';
+      const attemptedAs = role.toUpperCase() === 'BUYER' ? 'Buyer' : 'Farmer';
+      return res.status(400).json({
+        status: 'error',
+        code: 'ROLE_MISMATCH',
+        message: `This mobile number is registered as a ${registeredAs}, not as a ${attemptedAs}. Please select the "${registeredAs}" option to sign in.`
+      });
+    }
+
+    // Demo OTP validation
+    if (otp && otp.trim() !== '123456') {
+      return res.status(401).json({
+        status: 'error',
+        code: 'INVALID_OTP',
+        message: 'Invalid 6-digit OTP code. Please enter the verification code (123456).'
       });
     }
 
