@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, ShieldCheck, CheckCircle2, XCircle, Clock, 
   Building2, Sprout, Database, RefreshCw, LogOut, ArrowRight,
-  UserCheck, AlertTriangle, Eye, Award, ExternalLink, Lock
+  UserCheck, AlertTriangle, Eye, Award, ExternalLink, Lock, BadgeCheck
 } from 'lucide-react';
 import api from '../services/api';
 
@@ -613,67 +613,77 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
                 </div>
               ) : (
                 <div className="divide-y divide-[#E5DFD4]">
-                  {farmers.map(farmer => (
-                    <div key={farmer.id} className="p-6 hover:bg-[#FAF7F2]/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-stone-900 text-base">
-                            {farmer.name}
-                          </h3>
-                          {farmer.is_verified ? (
-                            <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] flex items-center gap-1 border border-emerald-300">
-                              <BadgeCheck className="w-3.5 h-3.5" />
-                              7/12 VERIFIED LANDHOLDER
-                            </span>
-                          ) : (
-                            <span className="px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 font-semibold text-[10px]">
-                              Standard Account
-                            </span>
-                          )}
+                  {farmers.map((farmer, idx) => {
+                    const farmerName = farmer.name || farmer.full_name || 'Registered Farmer';
+                    const farmerId = farmer.id || farmer.user_id || `farmer-${idx}`;
+                    const farmerCrops = Array.isArray(farmer.crops) 
+                      ? farmer.crops 
+                      : Array.isArray(farmer.primary_crops) 
+                        ? farmer.primary_crops 
+                        : [farmer.crops || farmer.primary_crops || 'Soybean'].filter(Boolean);
+
+                    return (
+                      <div key={farmerId} className="p-6 hover:bg-[#FAF7F2]/50 transition-colors flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-bold text-stone-900 text-base">
+                              {farmerName}
+                            </h3>
+                            {farmer.is_verified ? (
+                              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px] flex items-center gap-1 border border-emerald-300">
+                                <BadgeCheck className="w-3.5 h-3.5 text-emerald-700" />
+                                7/12 VERIFIED LANDHOLDER
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-0.5 rounded-full bg-stone-100 text-stone-600 font-semibold text-[10px]">
+                                Standard Account
+                              </span>
+                            )}
+                          </div>
+
+                          <p className="text-xs text-stone-500">
+                            Phone: <strong className="text-stone-700">+91 {farmer.phone || 'N/A'}</strong> • {farmer.district || 'Maharashtra'}, {farmer.village || 'Farm Gate'}
+                          </p>
+
+                          <div className="flex flex-wrap items-center gap-4 text-xs pt-1">
+                            <div className="p-2 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
+                              <span className="text-stone-400 text-[10px] block font-bold">७/१२ गट / सर्व्हे नंबर</span>
+                              <span className="font-mono font-bold text-stone-900">
+                                {farmer.saat_bara_number || 'Not Submitted'}
+                              </span>
+                            </div>
+
+                            <div className="p-2 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
+                              <span className="text-stone-400 text-[10px] block font-bold">जमीन क्षेत्र</span>
+                              <span className="font-bold text-stone-900">
+                                {farmer.land_size_acres ? `${farmer.land_size_acres} एकर` : 'N/A'}
+                              </span>
+                            </div>
+
+                            <div className="p-2 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
+                              <span className="text-stone-400 text-[10px] block font-bold">पिके</span>
+                              <span className="font-semibold text-stone-800">
+                                {farmerCrops.join(', ')}
+                              </span>
+                            </div>
+                          </div>
                         </div>
 
-                        <p className="text-xs text-stone-500">
-                          Phone: <strong className="text-stone-700">+91 {farmer.phone}</strong> • {farmer.district}, {farmer.village || 'Farm Gate'}
-                        </p>
-
-                        <div className="flex flex-wrap items-center gap-4 text-xs pt-1">
-                          <div className="p-2 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
-                            <span className="text-stone-400 text-[10px] block font-bold">७/१२ गट / सर्व्हे नंबर</span>
-                            <span className="font-mono font-bold text-stone-900">
-                              {farmer.saat_bara_number || 'Not Submitted'}
-                            </span>
-                          </div>
-
-                          <div className="p-2 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
-                            <span className="text-stone-400 text-[10px] block font-bold">जमीन क्षेत्र</span>
-                            <span className="font-bold text-stone-900">
-                              {farmer.land_size_acres ? `${farmer.land_size_acres} एकर` : 'N/A'}
-                            </span>
-                          </div>
-
-                          <div className="p-2 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
-                            <span className="text-stone-400 text-[10px] block font-bold">पिके</span>
-                            <span className="font-semibold text-stone-800">
-                              {Array.isArray(farmer.crops) ? farmer.crops.join(', ') : 'Soybean'}
-                            </span>
-                          </div>
+                        <div>
+                          <button
+                            onClick={() => handleToggleFarmer(farmerId, farmer.is_verified, farmerName)}
+                            className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer border ${
+                              farmer.is_verified
+                                ? 'bg-stone-50 text-stone-600 border-stone-300 hover:bg-rose-50 hover:text-rose-700'
+                                : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
+                            }`}
+                          >
+                            {farmer.is_verified ? 'Revoke 7/12 Badge' : 'Verify 7/12 Record'}
+                          </button>
                         </div>
                       </div>
-
-                      <div>
-                        <button
-                          onClick={() => handleToggleFarmer(farmer.id, farmer.is_verified, farmer.name)}
-                          className={`px-4 py-2 rounded-xl text-xs font-bold transition-colors cursor-pointer border ${
-                            farmer.is_verified
-                              ? 'bg-stone-50 text-stone-600 border-stone-300 hover:bg-rose-50 hover:text-rose-700'
-                              : 'bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100'
-                          }`}
-                        >
-                          {farmer.is_verified ? 'Revoke 7/12 Badge' : 'Verify 7/12 Record'}
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

@@ -392,10 +392,31 @@ export const db = {
     if (supabaseConnected) {
       try {
         const { data, error } = await supabase.from('farmer_profiles').select('*').order('created_at', { ascending: false });
-        if (!error && data) return data;
+        if (!error && data && data.length > 0) {
+          return data.map(f => ({
+            id: f.id,
+            user_id: f.user_id,
+            name: f.full_name || f.name || 'Farmer',
+            full_name: f.full_name || f.name || 'Farmer',
+            phone: f.phone,
+            district: f.district,
+            village: f.village || f.taluka,
+            land_size_acres: f.land_size_acres,
+            saat_bara_number: f.saat_bara_number,
+            crops: f.primary_crops || f.crops || ['Soybean'],
+            primary_crops: f.primary_crops || f.crops || ['Soybean'],
+            is_verified: Boolean(f.is_verified || f.saat_bara_number),
+            created_at: f.created_at
+          }));
+        }
       } catch (err) {}
     }
-    return memoryCache.users.filter(u => u.role === 'FARMER');
+    return memoryCache.users.filter(u => u.role === 'FARMER').map(u => ({
+      ...u,
+      name: u.name || u.full_name || 'Farmer',
+      full_name: u.name || u.full_name || 'Farmer',
+      crops: u.crops || u.primary_crops || ['Soybean']
+    }));
   },
 
   getAllUsers: async () => {

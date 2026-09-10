@@ -8,6 +8,43 @@ import BuyerPortal from './pages/BuyerPortal';
 import AuthPage from './pages/AuthPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error('AgriMandi ErrorBoundary caught:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-[60vh] flex items-center justify-center p-6 text-center bg-[#FAF7F2]">
+          <div className="max-w-md p-8 bg-white rounded-3xl border border-[#E5DFD4] shadow-lg space-y-4">
+            <h3 className="text-lg font-bold text-[#1B4332]">View Update Required</h3>
+            <p className="text-xs text-stone-600 leading-relaxed">
+              A temporary interface state occurred. Click below to refresh your dashboard cleanly.
+            </p>
+            <button
+              onClick={() => { this.setState({ hasError: false }); window.location.reload(); }}
+              className="px-6 py-2.5 rounded-xl bg-[#1B4332] text-white text-xs font-bold hover:bg-[#2D6A4F] cursor-pointer"
+            >
+              Refresh View
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
   const [currentLang, setCurrentLang] = useState(() => {
     return localStorage.getItem('agri_lang') || 'mr';
@@ -27,7 +64,8 @@ export default function App() {
         />
         
         <main className="grow">
-          <Routes>
+          <ErrorBoundary>
+            <Routes>
             <Route 
               path="/" 
               element={<LandingPage currentLang={currentLang} />} 
@@ -73,6 +111,7 @@ export default function App() {
               element={<Navigate to="/" replace />} 
             />
           </Routes>
+          </ErrorBoundary>
         </main>
       </div>
     </Router>
