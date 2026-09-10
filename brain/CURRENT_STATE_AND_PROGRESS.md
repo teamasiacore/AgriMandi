@@ -30,7 +30,10 @@ Both backend and frontend services are compiled, verified, and running live:
 6. **Admin Farmer Desk Crash Resolved**: Fixed missing `BadgeCheck` icon import from `lucide-react`.
 7. **Defensive Normalization**: Added robust fallbacks for `farmer.name || farmer.full_name`, `crops || primary_crops`, and `id || user_id` in both frontend and backend `db.getFarmers()`.
 8. **React ErrorBoundary Added**: Wrapped main application routes with a fallback `ErrorBoundary` component in `App.jsx` to prevent any blank screens.
-9. **100% Pure Localization**: All form placeholders, select options, badges, and headers localized cleanly with zero mixed Marathi/English text.
+9. **100% Pure Localization Across ALL Tabs**: 
+   - **Farmer Portal (`FarmerPortal.jsx`)**: In English mode, ALL tabs (Live Mandi & AI Advisory, Net Realization Engine, My Lots & Offers) and modals are 100% pure English with zero Devanagari characters. In Hindi and Marathi, authentic local terms are shown for every badge, district dropdown, table column, status tag, and modal placeholder.
+   - **Buyer Portal (`BuyerPortal.jsx`)**: Pending verification banner, account verification alerts, marketplace filters, tonnages, bid history tables, and verified mill registry are 100% purely localized without mixed text.
+   - **Auth Page (`AuthPage.jsx`)**: Validation alerts, error messages, and persona toggles now display in pure English, Hindi, or Marathi based on the selected language.
 
 ## 📦 2. Installed Dependencies & Architecture Breakdown
 

@@ -167,7 +167,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                   {t.navFarmer}
                 </span>
                 <span className="flex items-center gap-1 text-xs text-emerald-300 font-semibold">
-                  <ShieldCheck className="w-3.5 h-3.5" /> {user.is_verified || user.saat_bara_number ? '७/१२ सत्यापित शेतकरी' : t.farmerVerified}
+                  <ShieldCheck className="w-3.5 h-3.5" /> {user.is_verified || user.saat_bara_number ? (currentLang === 'en' ? '7/12 Verified Landholder' : currentLang === 'hi' ? '७/१२ सत्यापित किसान' : '७/१२ सत्यापित शेतकरी') : t.farmerVerified}
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold font-heading mt-1">
@@ -199,7 +199,13 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
             <div className="bg-[#0F261C]/50 p-3 rounded-xl border border-[#2D6A4F]">
               <span className="text-[11px] text-stone-300 block">{t.statAiAdvice}</span>
               <span className="text-lg font-bold text-[#F4B236]">
-                {historyData ? historyData.recommendation : 'HOLD'}
+                {historyData ? (
+                  historyData.recommendation === 'HOLD'
+                    ? (currentLang === 'en' ? 'HOLD' : currentLang === 'hi' ? 'रोके रखें (HOLD)' : 'थांबा (HOLD)')
+                    : historyData.recommendation === 'SELL'
+                    ? (currentLang === 'en' ? 'SELL NOW' : currentLang === 'hi' ? 'तुरंत बेचें (SELL)' : 'विक्री करा (SELL)')
+                    : (currentLang === 'en' ? 'MONITOR' : currentLang === 'hi' ? 'निगरानी रखें (MONITOR)' : 'निरीक्षण करा (MONITOR)')
+                ) : (currentLang === 'en' ? 'HOLD' : currentLang === 'hi' ? 'रोके रखें (HOLD)' : 'थांबा (HOLD)')}
               </span>
               <span className="text-[10px] text-stone-300 block mt-0.5">{t.statHoldingProfitable}</span>
             </div>
@@ -230,8 +236,8 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                   {t.dealLockedBannerTitle}
                 </h4>
                 <p className="text-xs text-emerald-800 mt-1">
-                  ID: <strong>{dealNotification.id}</strong> | Buyer: <strong>{dealNotification.buyer_name}</strong> | 
-                  Price: <strong>₹{dealNotification.price_per_qtl}/Qtl</strong> | Total: <strong>₹{dealNotification.total_deal_value.toLocaleString()}</strong>
+                  ID: <strong>{dealNotification.id}</strong> | {currentLang === 'en' ? 'Buyer:' : currentLang === 'hi' ? 'खरीदार:' : 'खरेदीदार:'} <strong>{dealNotification.buyer_name}</strong> | 
+                  {currentLang === 'en' ? ' Price:' : currentLang === 'hi' ? ' भाव:' : ' दर:'} <strong>₹{dealNotification.price_per_qtl}/Qtl</strong> | {currentLang === 'en' ? ' Total:' : currentLang === 'hi' ? ' कुल:' : ' एकूण:'} <strong>₹{dealNotification.total_deal_value.toLocaleString()}</strong>
                 </p>
                 <p className="text-[11px] text-stone-600 mt-1">
                   {t.dealLockedBannerSub}
@@ -303,7 +309,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                     data.gov.in Agmarknet Feed
                   </div>
                   <h3 className="text-xl font-bold font-heading text-[#1B4332] mt-0.5">
-                    {historyCrop} — 30-Day Price Trend & AI Advisory
+                    {historyCrop} — {currentLang === 'en' ? '30-Day Price Trend & AI Advisory' : currentLang === 'hi' ? '३०-दिवसीय मूल्य रुझान और AI सलाह' : '३० दिवसांचा दर कल व AI विक्री सल्ला'}
                   </h3>
                 </div>
 
@@ -340,11 +346,33 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                         <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
                           historyData.recommendation === 'HOLD' ? 'bg-amber-200 text-amber-900' : 'bg-red-200 text-red-900'
                         }`}>
-                          {historyData.recommendation}
+                          {historyData.recommendation === 'HOLD' 
+                            ? (currentLang === 'en' ? 'HOLD' : currentLang === 'hi' ? 'रोके रखें (HOLD)' : 'थांबा (HOLD)')
+                            : historyData.recommendation === 'SELL'
+                            ? (currentLang === 'en' ? 'SELL NOW' : currentLang === 'hi' ? 'तुरंत बेचें (SELL)' : 'विक्री करा (SELL)')
+                            : (currentLang === 'en' ? 'MONITOR' : currentLang === 'hi' ? 'निगरानी रखें (MONITOR)' : 'निरीक्षण करा (MONITOR)')}
                         </span>
                       </div>
                       <p className="text-sm font-semibold mt-3 leading-relaxed">
-                        {historyData.advisoryReason}
+                        {historyData.recommendation === 'HOLD' ? (
+                          currentLang === 'en' 
+                            ? '7-Day upward momentum exceeds storage cost of ₹3.50/qtl. Favorable window to hold harvest for higher realization.'
+                            : currentLang === 'hi'
+                              ? '७-दिवसीय मूल्य बढ़त भंडारण लागत (₹३.५०/क्विंटल) से अधिक है। बेहतर मूल्य प्राप्ति हेतु माल रोक कर रखना लाभदायक है।'
+                              : '७ दिवसांचा वाढता मोमेंटम साठवणूक खर्चापेक्षा जास्त आहे (₹३.५०/क्विंटल). चांगल्या नफ्यासाठी माल रोखून ठेवणे फायदेशीर ठरेल.'
+                        ) : historyData.recommendation === 'SELL' ? (
+                          currentLang === 'en'
+                            ? 'Incoming district arrivals accelerating; modal rate trending below 30-day SMA. Sell immediately to avoid margin deterioration.'
+                            : currentLang === 'hi'
+                              ? 'मंडियों में आवक बढ़ रही है और भाव ३०-दिन के औसत से नीचे जा रहा है। नुकसान से बचने के लिए तुरंत बिक्री करें।'
+                              : 'बाजार समित्यांमध्ये आवक वेगाने वाढते आहे व दर ३० दिवसांच्या सरासरी खाली घसरतो आहे. घट टाळण्यासाठी तात्काळ विक्री करावी.'
+                        ) : (
+                          currentLang === 'en'
+                            ? 'Market consolidating near equilibrium. Lock firm buyer advance if offered at or above modal rate.'
+                            : currentLang === 'hi'
+                              ? 'बाजार स्थिर स्तर पर है। यदि खरीदार मॉडल दर पर भुगतान दे रहा हो तो अग्रिम सौदा तय करें।'
+                              : 'बाजार स्थिर पातळीवर आहे. खरेदीदार सरासरी भावापेक्षा चांगला दर देत असल्यास ॲडव्हान्स घेऊन सौदा पक्का करावा.'
+                        )}
                       </p>
                     </div>
 
@@ -416,12 +444,12 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                     className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-white text-xs font-bold text-stone-700"
                   >
                     <option value="all">{t.allDistricts}</option>
-                    <option value="Latur">Latur</option>
-                    <option value="Nashik">Nashik</option>
-                    <option value="Jalna">Jalna</option>
-                    <option value="Solapur">Solapur</option>
-                    <option value="Akola">Akola</option>
-                    <option value="Pune">Pune</option>
+                    <option value="Latur">{currentLang === 'en' ? 'Latur' : 'लातूर'}</option>
+                    <option value="Nashik">{currentLang === 'en' ? 'Nashik' : currentLang === 'hi' ? 'नासिक' : 'नाशिक'}</option>
+                    <option value="Jalna">{currentLang === 'en' ? 'Jalna' : 'जालना'}</option>
+                    <option value="Solapur">{currentLang === 'en' ? 'Solapur' : currentLang === 'hi' ? 'सोलापुर' : 'सोलापूर'}</option>
+                    <option value="Akola">{currentLang === 'en' ? 'Akola' : 'अकोला'}</option>
+                    <option value="Pune">{currentLang === 'en' ? 'Pune' : 'पुणे'}</option>
                   </select>
                 </div>
               </div>
@@ -505,11 +533,11 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                     onChange={(e) => setCalcDistrict(e.target.value)}
                     className="w-full px-3 py-2.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-sm font-semibold"
                   >
-                    <option value="Latur">Latur</option>
-                    <option value="Solapur">Solapur</option>
-                    <option value="Jalna">Jalna</option>
-                    <option value="Nashik">Nashik</option>
-                    <option value="Akola">Akola</option>
+                    <option value="Latur">{currentLang === 'en' ? 'Latur' : 'लातूर'}</option>
+                    <option value="Solapur">{currentLang === 'en' ? 'Solapur' : currentLang === 'hi' ? 'सोलापुर' : 'सोलापूर'}</option>
+                    <option value="Jalna">{currentLang === 'en' ? 'Jalna' : 'जालना'}</option>
+                    <option value="Nashik">{currentLang === 'en' ? 'Nashik' : currentLang === 'hi' ? 'नासिक' : 'नाशिक'}</option>
+                    <option value="Akola">{currentLang === 'en' ? 'Akola' : 'अकोला'}</option>
                   </select>
                 </div>
               </div>
@@ -591,7 +619,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                           <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">GSTIN ✓</span>
                         </div>
                         <p className="text-xs text-stone-500 mt-1">{b.city} ({b.distanceKm} km)</p>
-                        <p className="text-xs font-bold text-stone-700 mt-2">Rate: ₹{b.offeredRate}/Qtl</p>
+                        <p className="text-xs font-bold text-stone-700 mt-2">{currentLang === 'en' ? 'Rate:' : currentLang === 'hi' ? 'भाव:' : 'दर:'} ₹{b.offeredRate}/Qtl</p>
                       </div>
                     ))}
                   </div>
@@ -672,11 +700,11 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                         <div className="flex items-center gap-4 text-xs">
                           <div>
                             <span className="text-stone-400 block">{t.fieldQty}</span>
-                            <span className="font-bold font-mono text-stone-800 text-base">{lot.quantity_qtl} Qtl</span>
+                            <span className="font-bold font-mono text-stone-800 text-base">{lot.quantity_qtl} {currentLang === 'en' ? 'Qtl' : 'क्विंटल'}</span>
                           </div>
                           <div>
                             <span className="text-stone-400 block">{t.fieldPrice}</span>
-                            <span className="font-bold font-mono text-[#1B4332] text-base">₹{lot.expected_price_per_qtl}/Qtl</span>
+                            <span className="font-bold font-mono text-[#1B4332] text-base">₹{lot.expected_price_per_qtl}{currentLang === 'en' ? '/Qtl' : '/क्विंटल'}</span>
                           </div>
                           <div>
                             <span className="text-stone-400 block">{t.fieldMoisture}</span>
@@ -708,11 +736,13 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                                     <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
                                       off.status === 'ACCEPTED' ? 'bg-emerald-200 text-emerald-900' : 'bg-stone-200 text-stone-700'
                                     }`}>
-                                      {off.status}
+                                      {off.status === 'ACCEPTED' 
+                                        ? (currentLang === 'en' ? 'ACCEPTED' : currentLang === 'hi' ? 'स्वीकृत' : 'मंजूर') 
+                                        : (currentLang === 'en' ? 'PENDING' : currentLang === 'hi' ? 'लंबित' : 'प्रलंबित')}
                                     </span>
                                   </div>
                                   <p className="text-xs text-stone-600 mt-1">
-                                    Qty: <strong>{off.quantity_requested_qtl} Qtl</strong> | Destination: {off.delivery_destination}
+                                    {currentLang === 'en' ? 'Qty:' : currentLang === 'hi' ? 'मात्रा:' : 'प्रमाण:'} <strong>{off.quantity_requested_qtl} {currentLang === 'en' ? 'Qtl' : 'क्विंटल'}</strong> | {currentLang === 'en' ? 'Destination:' : currentLang === 'hi' ? 'गंतव्य:' : 'पोहोच ठिकाण:'} {off.delivery_destination}
                                   </p>
                                 </div>
 
@@ -720,10 +750,10 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                                   <div className="text-right">
                                     <span className="text-[10px] text-stone-400 uppercase block">{t.labelOfferedPrice}</span>
                                     <span className="text-base font-bold font-mono text-[#C86432]">
-                                      ₹{off.offered_price_per_qtl} <span className="text-xs text-stone-500 font-normal">/ Qtl</span>
+                                      ₹{off.offered_price_per_qtl} <span className="text-xs text-stone-500 font-normal">{currentLang === 'en' ? '/ Qtl' : '/ क्विंटल'}</span>
                                     </span>
                                     <span className="text-[11px] block font-bold text-stone-600">
-                                      Total: ₹{(off.offered_price_per_qtl * off.quantity_requested_qtl).toLocaleString()}
+                                      {currentLang === 'en' ? 'Total:' : currentLang === 'hi' ? 'कुल:' : 'एकूण:'} ₹{(off.offered_price_per_qtl * off.quantity_requested_qtl).toLocaleString()}
                                     </span>
                                   </div>
 
@@ -795,7 +825,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                   type="text"
                   value={lotForm.variety}
                   onChange={(e) => setLotForm({ ...lotForm, variety: e.target.value })}
-                  placeholder="e.g. JS-335, FAQ Grade"
+                  placeholder={currentLang === 'en' ? 'e.g. JS-335, FAQ Grade' : currentLang === 'hi' ? 'उदा. जेएस-३३५, एफएक्यू' : 'उदा. जेएस-३३५, एफएक्यू'}
                   className="w-full px-3 py-2 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   required
                 />
@@ -809,7 +839,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                     min="1"
                     value={lotForm.quantity_qtl}
                     onChange={(e) => setLotForm({ ...lotForm, quantity_qtl: e.target.value })}
-                    placeholder="e.g. 50"
+                    placeholder={currentLang === 'en' ? 'e.g. 50' : 'उदा. ५०'}
                     className="w-full px-3 py-2 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold font-mono"
                     required
                   />
@@ -822,7 +852,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                     min="500"
                     value={lotForm.expected_price_per_qtl}
                     onChange={(e) => setLotForm({ ...lotForm, expected_price_per_qtl: e.target.value })}
-                    placeholder="e.g. 4800"
+                    placeholder={currentLang === 'en' ? 'e.g. 4800' : 'उदा. ४८००'}
                     className="w-full px-3 py-2 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold font-mono"
                     required
                   />
@@ -837,7 +867,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                     step="0.1"
                     value={lotForm.moisture_percentage}
                     onChange={(e) => setLotForm({ ...lotForm, moisture_percentage: e.target.value })}
-                    placeholder="e.g. 9.5"
+                    placeholder={currentLang === 'en' ? 'e.g. 9.5' : 'उदा. ९.५'}
                     className="w-full px-3 py-2 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold font-mono"
                     required
                   />
@@ -850,11 +880,11 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                     onChange={(e) => setLotForm({ ...lotForm, district: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   >
-                    <option value="Latur">Latur</option>
-                    <option value="Solapur">Solapur</option>
-                    <option value="Jalna">Jalna</option>
-                    <option value="Nashik">Nashik</option>
-                    <option value="Akola">Akola</option>
+                    <option value="Latur">{currentLang === 'en' ? 'Latur' : 'लातूर'}</option>
+                    <option value="Solapur">{currentLang === 'en' ? 'Solapur' : currentLang === 'hi' ? 'सोलापुर' : 'सोलापूर'}</option>
+                    <option value="Jalna">{currentLang === 'en' ? 'Jalna' : 'जालना'}</option>
+                    <option value="Nashik">{currentLang === 'en' ? 'Nashik' : currentLang === 'hi' ? 'नासिक' : 'नाशिक'}</option>
+                    <option value="Akola">{currentLang === 'en' ? 'Akola' : 'अकोला'}</option>
                   </select>
                 </div>
               </div>
@@ -865,7 +895,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                   type="text"
                   value={lotForm.farm_address}
                   onChange={(e) => setLotForm({ ...lotForm, farm_address: e.target.value })}
-                  placeholder="e.g. Village Ausa, Taluka Ausa"
+                  placeholder={currentLang === 'en' ? 'e.g. Village Ausa, Taluka Ausa' : currentLang === 'hi' ? 'उदा. ग्राम औसा, तहसील औसा' : 'उदा. मौजे औसा, ता. औसा'}
                   className="w-full px-3 py-2 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   required
                 />

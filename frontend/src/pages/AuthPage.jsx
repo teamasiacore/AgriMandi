@@ -87,7 +87,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
       if (mode === 'register') {
         if (role === 'FARMER') {
           if (!name.trim()) {
-            setErrorMsg(currentLang === 'en' ? 'Full name is required.' : 'नाव आवश्यक आहे.');
+            setErrorMsg(currentLang === 'en' ? 'Full name is required.' : currentLang === 'hi' ? 'पूरा नाम आवश्यक है।' : 'नाव आवश्यक आहे.');
             setLoading(false);
             return;
           }
@@ -105,12 +105,12 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
         } else {
           // BUYER validation
           if (!companyName.trim()) {
-            setErrorMsg(currentLang === 'en' ? 'Company / Processing Mill name is required.' : 'कंपनी किंवा कारखान्याचे नाव आवश्यक आहे.');
+            setErrorMsg(currentLang === 'en' ? 'Company / Processing Mill name is required.' : currentLang === 'hi' ? 'कंपनी या मिल का नाम आवश्यक है।' : 'कंपनी किंवा कारखान्याचे नाव आवश्यक आहे.');
             setLoading(false);
             return;
           }
           if (!gstin.trim() || gstin.trim().length < 15) {
-            setErrorMsg(currentLang === 'en' ? 'Valid 15-character GSTIN is required.' : 'वैध १५-अंकी GSTIN क्रमांक आवश्यक आहे.');
+            setErrorMsg(currentLang === 'en' ? 'Valid 15-character GSTIN is required.' : currentLang === 'hi' ? 'वैध १५-अंकों का GSTIN आवश्यक है।' : 'वैध १५-अंकी GSTIN क्रमांक आवश्यक आहे.');
             setLoading(false);
             return;
           }
@@ -149,7 +149,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
       } else {
         // LOGIN
         if (!otp.trim()) {
-          setErrorMsg(currentLang === 'en' ? 'OTP is required.' : 'OTP आवश्यक आहे.');
+          setErrorMsg(currentLang === 'en' ? 'OTP is required.' : currentLang === 'hi' ? 'OTP आवश्यक है।' : 'OTP आवश्यक आहे.');
           setLoading(false);
           return;
         }
@@ -400,7 +400,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                   }}
                   className="px-3.5 py-1.5 rounded-lg bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold text-xs shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
                 >
-                  <span>{role === 'FARMER' ? (currentLang === 'en' ? 'Switch to Buyer Portal' : 'खरेदीदार निवडा') : (currentLang === 'en' ? 'Switch to Farmer Portal' : 'शेतकरी निवडा')}</span>
+                  <span>{role === 'FARMER' ? (currentLang === 'en' ? 'Switch to Buyer Portal' : currentLang === 'hi' ? 'खरीदार पोर्टल चुनें' : 'खरेदीदार निवडा') : (currentLang === 'en' ? 'Switch to Farmer Portal' : currentLang === 'hi' ? 'किसान पोर्टल चुनें' : 'शेतकरी निवडा')}</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </button>
               </div>

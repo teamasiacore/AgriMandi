@@ -84,7 +84,13 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
 
   const handleOpenBidModal = (lot) => {
     if (buyerProfile.status === 'PENDING_VERIFICATION') {
-      alert('आपले खाते पडताळणी प्रलंबित आहे (Status: PENDING_VERIFICATION). SuperAdmin (ASIACore) मंजुरीनंतरच बोली लावता येईल.');
+      alert(
+        currentLang === 'en'
+          ? 'Your account verification is pending (Status: PENDING_VERIFICATION). SuperAdmin approval is required before placing bids.'
+          : currentLang === 'hi'
+          ? 'आपका खाता सत्यापन लंबित है (Status: PENDING_VERIFICATION)। सुपरएडमिन (ASIACore) की स्वीकृति के बाद ही बोली लगाई जा सकती है।'
+          : 'आपले खाते पडताळणी प्रलंबित आहे (Status: PENDING_VERIFICATION). SuperAdmin (ASIACore) मंजुरीनंतरच बोली लावता येईल.'
+      );
       return;
     }
     setSelectedLotForBid(lot);
@@ -166,7 +172,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
               <span className="text-lg font-bold font-mono text-white">
                 {(lots.reduce((acc, l) => acc + Number(l.quantity_qtl || 0), 0) / 10).toFixed(1)} MT
               </span>
-              <span className="text-[10px] text-stone-300 block mt-0.5">Farm-Gate</span>
+              <span className="text-[10px] text-stone-300 block mt-0.5">{currentLang === 'en' ? 'Farm-Gate' : currentLang === 'hi' ? 'फार्म-गेट' : 'शेतातून थेट'}</span>
             </div>
 
             <div className="bg-[#0F261C]/50 p-3 rounded-xl border border-[#2D6A4F]">
@@ -193,10 +199,18 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
             <Clock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
             <div className="space-y-1 text-xs">
               <p className="font-bold text-sm text-amber-950">
-                खाते पडताळणी प्रलंबित (Account Verification in Progress)
+                {currentLang === 'en'
+                  ? 'Account Verification in Progress'
+                  : currentLang === 'hi'
+                  ? 'खाता सत्यापन प्रक्रियाधीन (Account Verification in Progress)'
+                  : 'खाते पडताळणी प्रलंबित (Account Verification in Progress)'}
               </p>
               <p className="text-amber-800 leading-relaxed">
-                आपले GSTIN ({buyerProfile.gstin || 'Pending'}) आणि APMC थेट खरेदी परवाना SuperAdmin (ASIACore) च्या पुनरावलोकनाखाली आहे. मंजुरी मिळाल्यानंतर आपणास शेतमाल लॉट्सवर थेट कायदेशीर बोली लावता येईल.
+                {currentLang === 'en'
+                  ? `Your GSTIN (${buyerProfile.gstin || 'Pending'}) and APMC Direct Procurement License are under review by SuperAdmin (ASIACore). Direct bidding on harvest lots will be activated upon approval.`
+                  : currentLang === 'hi'
+                  ? `आपका GSTIN (${buyerProfile.gstin || 'लंबित'}) और APMC प्रत्यक्ष खरीद लाइसेंस सुपरएडमिन (ASIACore) के पुनरावलोकन में है। सत्यापन के बाद आप सीधे फसल लॉट पर कानूनी बोली लगा सकेंगे।`
+                  : `आपले GSTIN (${buyerProfile.gstin || 'Pending'}) आणि APMC थेट खरेदी परवाना SuperAdmin (ASIACore) च्या पुनरावलोकनाखाली आहे. मंजुरी मिळाल्यानंतर आपणास शेतमाल लॉट्सवर थेट कायदेशीर बोली लावता येईल.`}
               </p>
             </div>
           </div>
@@ -249,7 +263,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
             <div className="bg-white p-4 rounded-2xl border border-[#E5DFD4] shadow-xs flex flex-wrap items-center justify-between gap-4">
               <div className="flex flex-wrap items-center gap-3">
                 <span className="text-xs font-bold text-[#1B4332] uppercase flex items-center gap-1.5">
-                  <Filter className="w-3.5 h-3.5" /> Filters:
+                  <Filter className="w-3.5 h-3.5" /> {currentLang === 'en' ? 'Filters:' : currentLang === 'hi' ? 'फिल्टर:' : 'फिल्टर्स:'}
                 </span>
 
                 <select
@@ -270,11 +284,11 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                   className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold text-stone-800"
                 >
                   <option value="all">{t.allDistricts}</option>
-                  <option value="Latur">Latur</option>
-                  <option value="Jalna">Jalna</option>
-                  <option value="Nashik">Nashik</option>
-                  <option value="Solapur">Solapur</option>
-                  <option value="Akola">Akola</option>
+                  <option value="Latur">{currentLang === 'en' ? 'Latur' : 'लातूर'}</option>
+                  <option value="Jalna">{currentLang === 'en' ? 'Jalna' : 'जालना'}</option>
+                  <option value="Nashik">{currentLang === 'en' ? 'Nashik' : currentLang === 'hi' ? 'नासिक' : 'नाशिक'}</option>
+                  <option value="Solapur">{currentLang === 'en' ? 'Solapur' : currentLang === 'hi' ? 'सोलापुर' : 'सोलापूर'}</option>
+                  <option value="Akola">{currentLang === 'en' ? 'Akola' : 'अकोला'}</option>
                 </select>
 
                 <div className="flex items-center gap-2 text-xs font-medium text-stone-600">
@@ -343,7 +357,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                         <div>
                           <span className="text-stone-400 block">{t.fieldQty}</span>
                           <span className="font-bold font-mono text-stone-800 text-base">
-                            {lot.quantity_qtl} Qtl
+                            {lot.quantity_qtl} {currentLang === 'en' ? 'Qtl' : 'क्विंटल'}
                           </span>
                           <span className="text-[10px] text-stone-400 block">
                             ({(lot.quantity_qtl / 10).toFixed(1)} MT)
@@ -355,7 +369,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                           <span className="font-bold font-mono text-[#1B4332] text-base">
                             ₹{lot.expected_price_per_qtl}
                           </span>
-                          <span className="text-[10px] text-stone-500 block">/ Quintal</span>
+                          <span className="text-[10px] text-stone-500 block">{currentLang === 'en' ? '/ Quintal' : '/ क्विंटल'}</span>
                         </div>
 
                         <div>
@@ -424,13 +438,13 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                   <table className="w-full text-left text-sm">
                     <thead className="bg-[#FAF7F2] text-xs font-bold text-[#1B4332] uppercase tracking-wider border-b border-[#E5DFD4]">
                       <tr>
-                        <th className="py-3 px-4">Offer ID</th>
-                        <th className="py-3 px-4">Lot ID</th>
+                        <th className="py-3 px-4">{currentLang === 'en' ? 'Offer ID' : currentLang === 'hi' ? 'बोली ID' : 'ऑफर ID'}</th>
+                        <th className="py-3 px-4">{currentLang === 'en' ? 'Lot ID' : currentLang === 'hi' ? 'लॉट ID' : 'लॉट ID'}</th>
                         <th className="py-3 px-4 text-right">{t.labelReqQty}</th>
                         <th className="py-3 px-4 text-right">{t.labelOfferedPrice}</th>
                         <th className="py-3 px-4 text-right">{t.totalBidValue}</th>
                         <th className="py-3 px-4">{t.labelDeliveryDest}</th>
-                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4">{currentLang === 'en' ? 'Status' : currentLang === 'hi' ? 'स्थिति' : 'स्थिती'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E5DFD4]">
@@ -454,7 +468,11 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                                 ? 'bg-red-100 text-red-800'
                                 : 'bg-amber-100 text-amber-800'
                             }`}>
-                              {off.status === 'ACCEPTED' ? '✓ Accepted' : off.status}
+                              {off.status === 'ACCEPTED'
+                                ? (currentLang === 'en' ? '✓ Accepted' : currentLang === 'hi' ? '✓ स्वीकृत' : '✓ मंजूर')
+                                : off.status === 'REJECTED'
+                                ? (currentLang === 'en' ? 'Rejected' : currentLang === 'hi' ? 'अस्वीकृत' : 'नाकारले')
+                                : (currentLang === 'en' ? 'Pending' : currentLang === 'hi' ? 'लंबित' : 'प्रलंबित')}
                             </span>
                           </td>
                         </tr>
@@ -491,7 +509,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
 
                       <div className="text-right">
                         <span className="text-xs font-bold text-amber-600">★ {b.rating}</span>
-                        <span className="text-[10px] text-stone-400 block">({b.reviews_count} Trades)</span>
+                        <span className="text-[10px] text-stone-400 block">({b.reviews_count} {currentLang === 'en' ? 'Trades' : currentLang === 'hi' ? 'सौदा' : 'सौदे'})</span>
                       </div>
                     </div>
 
@@ -501,15 +519,15 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                         <span className="font-mono font-bold text-stone-800">{b.gstin}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>License:</span>
+                        <span>{currentLang === 'en' ? 'License:' : currentLang === 'hi' ? 'लाइसेंस:' : 'परवाना:'}</span>
                         <span className="font-medium text-stone-800">{b.license_type}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Location:</span>
-                        <span className="font-medium text-stone-800">{b.city} (Radius: {b.procurement_radius_km} km)</span>
+                        <span>{currentLang === 'en' ? 'Location:' : currentLang === 'hi' ? 'स्थान:' : 'स्थान:'}</span>
+                        <span className="font-medium text-stone-800">{b.city} ({currentLang === 'en' ? 'Radius:' : currentLang === 'hi' ? 'दायरा:' : 'कार्यक्षेत्र:'} {b.procurement_radius_km} km)</span>
                       </div>
                       <div className="flex justify-between">
-                        <span>Target Crops:</span>
+                        <span>{currentLang === 'en' ? 'Target Crops:' : currentLang === 'hi' ? 'लक्षित फसलें:' : 'उद्दिष्ट पिके:'}</span>
                         <span className="font-semibold text-[#1B4332]">{b.target_crops.join(', ')}</span>
                       </div>
                     </div>
@@ -544,16 +562,16 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
             {/* Target Lot Summary Box */}
             <div className="mt-4 p-3 bg-[#FAF7F2] rounded-xl border border-[#E5DFD4] text-xs space-y-1">
               <div className="flex justify-between">
-                <span className="text-stone-500">Farmer:</span>
+                <span className="text-stone-500">{currentLang === 'en' ? 'Farmer:' : currentLang === 'hi' ? 'किसान:' : 'शेतकरी:'}</span>
                 <span className="font-bold text-stone-800">{selectedLotForBid.farmer_name} ({selectedLotForBid.district})</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-stone-500">{t.fieldQty}:</span>
-                <span className="font-mono font-bold text-stone-800">{selectedLotForBid.quantity_qtl} Qtl</span>
+                <span className="font-mono font-bold text-stone-800">{selectedLotForBid.quantity_qtl} {currentLang === 'en' ? 'Qtl' : 'क्विंटल'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-stone-500">{t.fieldPrice}:</span>
-                <span className="font-mono font-bold text-[#1B4332]">₹{selectedLotForBid.expected_price_per_qtl}/Qtl</span>
+                <span className="font-mono font-bold text-[#1B4332]">₹{selectedLotForBid.expected_price_per_qtl}{currentLang === 'en' ? '/Qtl' : '/क्विंटल'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-stone-500">{t.fieldMoisture}:</span>
@@ -599,7 +617,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                   type="text"
                   value={bidForm.delivery_destination}
                   onChange={(e) => setBidForm({ ...bidForm, delivery_destination: e.target.value })}
-                  placeholder="e.g. MIDC Plant Gate"
+                  placeholder={currentLang === 'en' ? 'e.g. MIDC Plant Gate' : currentLang === 'hi' ? 'उदा. एमआईडीसी प्लांट गेट' : 'उदा. एमआयडीसी प्लांट गेट'}
                   className="w-full px-3 py-2 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   required
                 />
