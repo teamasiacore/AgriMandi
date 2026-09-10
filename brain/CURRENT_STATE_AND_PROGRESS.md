@@ -21,11 +21,11 @@ Both backend and frontend services are compiled, verified, and running live:
 
 ---
 
-### 🔒 Security Updates Applied
-1. **Public Admin Links Removed**: Completely removed all direct links to `/admin` from public pages (`LandingPage.jsx` footer and `AuthPage.jsx` bottom footer). SuperAdmin portal is now 100% private and accessible only via direct URL knowledge (`/admin`).
-2. **Empty Admin Credentials Form**: `username` and `password` default state wiped clean to empty strings (`''`).
-3. **Pre-set Credential Box Removed**: Completely eliminated the visible `ASIACore / Satya123` banner from the login interface.
-4. **Auto-Complete Hardened**: Added `autoComplete="off"` and `autoComplete="new-password"` to prevent browsers from revealing cached test credentials.
+### 🔒 Security & Localization Updates Applied
+1. **100% Pure Localization (Zero Mixed Languages)**: In `AuthPage.jsx` and `LandingPage.jsx`, when English is selected, every label, section header, badge, dropdown option, and placeholder is strictly 100% English (zero Marathi in brackets or placeholders). When Marathi or Hindi is selected, it is strictly 100% pure Marathi or Hindi.
+2. **Future Pages Localization Policy**: As explicitly confirmed by the user, future inner portals (Farmer Portal, Buyer Portal, FPO) will be kept in standard direct English, keeping only the language selector in the header without creating extra translation dictionaries.
+3. **Public Admin Links Removed**: All direct links to `/admin` removed from public UI.
+4. **Clean Admin Form & Removed Pre-set Credentials**: Form starts blank with `autoComplete="off"` and zero revealed credential cards.
 
 ## 📦 2. Installed Dependencies & Architecture Breakdown
 
