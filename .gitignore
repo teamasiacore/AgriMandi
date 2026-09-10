@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+*/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Production Build outputs
+dist/
+frontend/dist/
+build/
+
+# Environment files and API keys (keep .env.example tracked)
+.env
+.env.local
+.env.*.local
+backend/.env
+frontend/.env
+*.env
+
+# Logs and runtime data
+*.log
+logs/
+
+# Operating System & IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Python venv (if any)
+.venv/
+__pycache__/
+*.pyc

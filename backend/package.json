@@ -1,0 +1,19 @@
+{
+  "name": "agrimandi-backend",
+  "version": "2.0.0",
+  "description": "AgriMandi Production REST API Server with Real Agmarknet Data & Marketplace Engine",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.48.0",
+    "axios": "^1.7.9",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "node-cache": "^5.1.2"
+  }
+}

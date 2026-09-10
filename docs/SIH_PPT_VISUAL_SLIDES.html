@@ -1,0 +1,1671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AgriMandi (कृषीसेतू) — SIH 2026 Master Visual Presentation Deck</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Google Fonts: Outfit (Headings), Plus Jakarta Sans (Body), JetBrains Mono (Code/Metrics) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap" rel="stylesheet">
+  
+  <!-- FontAwesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Chart.js for High-Resolution Interactive Charts -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            agri: {
+              dark: '#0A4A28',
+              primary: '#13753E',
+              emeraldLight: '#ECFDF5',
+              gold: '#D97706',
+              goldLight: '#FEF3C7',
+              accent: '#0D9488',
+              surface: '#F8FAFC'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #05130b;
+      color: #0f172a;
+      margin: 0;
+      padding: 0;
+      overflow-x: hidden;
+    }
+    h1, h2, h3, h4, .font-heading {
+      font-family: 'Outfit', sans-serif;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Fixed 16:9 Presentation Canvas */
+    .slide-canvas {
+      width: 1240px;
+      height: 698px; /* Precise 16:9 aspect ratio */
+      background: #ffffff;
+      border-radius: 20px;
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.08);
+      position: relative;
+      overflow: hidden;
+      margin-left: auto;
+      margin-right: auto;
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 32px 42px 24px 42px;
+      box-sizing: border-box;
+    }
+
+    /* Technical Blueprint Grid Pattern */
+    .grid-pattern {
+      background-size: 28px 28px;
+      background-image: 
+        linear-gradient(to right, rgba(19, 117, 62, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(19, 117, 62, 0.05) 1px, transparent 1px);
+    }
+
+    .dot-pattern {
+      background-image: radial-gradient(rgba(19, 117, 62, 0.12) 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+
+    /* Data Flow Animated Pipe */
+    @keyframes flowAnimation {
+      from { stroke-dashoffset: 24; }
+      to { stroke-dashoffset: 0; }
+    }
+    .animated-pipe {
+      stroke-dasharray: 6, 6;
+      animation: flowAnimation 1.2s linear infinite;
+    }
+
+    /* Glass Effect */
+    .glass-card {
+      background: rgba(255, 255, 255, 0.88);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(226, 232, 240, 0.8);
+    }
+
+    /* Presentation Slide Mode */
+    body.presentation-mode {
+      background-color: #020804;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    body.presentation-mode .slide-canvas {
+      display: none;
+      margin: 0;
+      transform-origin: center center;
+    }
+    body.presentation-mode .slide-canvas.active-slide {
+      display: flex;
+    }
+    body.presentation-mode .scroll-nav-bar {
+      opacity: 0.2;
+      transition: opacity 0.2s;
+    }
+    body.presentation-mode .scroll-nav-bar:hover {
+      opacity: 1;
+    }
+
+    /* Print Styles for Direct PDF Export */
+    @media print {
+      body {
+        background: transparent !important;
+        padding: 0 !important;
+      }
+      .no-print {
+        display: none !important;
+      }
+      .slide-canvas {
+        width: 100% !important;
+        height: 100vh !important;
+        page-break-after: always !important;
+        box-shadow: none !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+        padding: 30px 40px !important;
+      }
+    }
+  </style>
+</head>
+<body class="py-6 flex flex-col items-center gap-8">
+
+  <!-- ======================================================= -->
+  <!-- TOP CONTROLS & SLIDE JUMP BAR (NON-PRINT) -->
+  <!-- ======================================================= -->
+  <header class="no-print sticky top-3 z-50 w-[1240px] bg-gray-900/95 backdrop-blur-md p-3 px-5 rounded-2xl border border-emerald-500/30 flex justify-between items-center text-white shadow-2xl scroll-nav-bar">
+    <div class="flex items-center gap-3">
+      <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
+      <div class="flex items-baseline gap-2">
+        <span class="font-extrabold text-base font-heading tracking-wide text-emerald-400">AgriMandi (कृषीसेतू)</span>
+        <span class="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-700/60 px-2 py-0.5 rounded-full font-mono">SIH PS 26132</span>
+      </div>
+    </div>
+    
+    <!-- Quick Slide Jump Badges -->
+    <nav class="flex items-center gap-1.5 text-xs font-semibold">
+      <a href="#slide-1" class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-emerald-600 transition text-[11px]" title="Cover">1. Cover</a>
+      <a href="#slide-2" class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-emerald-600 transition text-[11px]" title="Problem & Solution">2. Solution</a>
+      <a href="#slide-2b" class="px-2.5 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-600 hover:text-white transition text-[11px]" title="Master Competitive Difference">3. Compare 👑</a>
+      <a href="#slide-3" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-600 hover:text-white transition text-[11px]" title="Architecture Diagram">4. Tech Flow 📊</a>
+      <a href="#slide-3b" class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-emerald-600 transition text-[11px]" title="Request-Response Lifecycle">5. Data Pipeline</a>
+      <a href="#slide-3c" class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-emerald-600 transition text-[11px]" title="Machine Learning Graphs">6. ML Graphs 📈</a>
+      <a href="#slide-4" class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-emerald-600 transition text-[11px]" title="Trade Lifecycle">7. Lifecycle</a>
+      <a href="#slide-5" class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-emerald-600 transition text-[11px]" title="Feasibility & Risks">8. Feasibility</a>
+      <a href="#slide-6" class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-emerald-600 transition text-[11px]" title="Impact & Case Study">9. Impact ₹</a>
+      <a href="#slide-7" class="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-emerald-600 transition text-[11px]" title="Citations & Research">10. Citations</a>
+    </nav>
+
+    <!-- Presentation Action Buttons -->
+    <div class="flex items-center gap-2">
+      <button id="togglePresentationBtn" onclick="togglePresentationMode()" class="bg-gray-800 hover:bg-gray-700 border border-gray-600 text-gray-200 font-bold px-3 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5">
+        <i class="fa-solid fa-expand"></i> <span id="presBtnText">Present Mode</span>
+      </button>
+
+      <button onclick="window.print()" class="bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold px-3.5 py-1.5 rounded-xl text-xs transition flex items-center gap-1.5 shadow-lg shadow-emerald-900/40">
+        <i class="fa-solid fa-file-pdf"></i> Export PDF
+      </button>
+    </div>
+  </header>
+
+
+  <!-- =================================================================== -->
+  <!-- SLIDE 1: OFFICIAL COVER & EXECUTIVE OVERVIEW -->
+  <!-- =================================================================== -->
+  <section id="slide-1" class="slide-canvas grid-pattern border-t-8 border-emerald-700">
+    <!-- Header Meta -->
+    <div class="flex justify-between items-center">
+      <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-emerald-900 bg-emerald-50 border border-emerald-300/80 px-3.5 py-1 rounded-full shadow-sm">
+        <i class="fa-solid fa-landmark-flag text-emerald-700"></i> Government of Maharashtra — MSInS & Skill Dept.
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="text-xs font-bold text-gray-500">Problem Statement ID:</span>
+        <span class="text-xs font-mono font-extrabold bg-gray-900 text-white px-3 py-1 rounded-md shadow-sm">26132</span>
+      </div>
+    </div>
+
+    <!-- Center Content -->
+    <div class="flex items-center justify-between gap-10 my-auto">
+      <div class="max-w-2xl">
+        <div class="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 text-amber-900 font-bold text-xs px-3.5 py-1 rounded-lg mb-3 font-mono">
+          <i class="fa-solid fa-trophy text-amber-600"></i> Smart India Hackathon 2026 | Software Edition
+        </div>
+        
+        <h1 class="text-5xl font-black text-gray-950 font-heading leading-none tracking-tight">
+          AgriMandi <span class="text-emerald-700 font-extrabold">(कृषीसेतू)</span>
+        </h1>
+        
+        <p class="text-2xl font-extrabold text-emerald-800 font-heading mt-2">
+          "भाव अचूक, बाजार थेट — शेतकरी समृद्धीचा नवा सेतू!"
+        </p>
+
+        <p class="text-sm text-gray-600 mt-3 leading-relaxed">
+          <b>Strengthening Market Linkages & Price Discovery for Farmers:</b> An AI-powered decision intelligence and transaction-enablement platform answering <b>WHERE, WHEN & WHOM</b> to sell to from the farm gate before incurring transit costs.
+        </p>
+
+        <!-- Technical Badges Grid -->
+        <div class="grid grid-cols-3 gap-2.5 mt-5">
+          <div class="bg-white p-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs">
+              <i class="fa-solid fa-calculator"></i>
+            </div>
+            <div>
+              <div class="text-[11px] font-bold text-gray-900">Net Realization</div>
+              <div class="text-[10px] text-gray-500">In-Hand ₹ After Freight</div>
+            </div>
+          </div>
+
+          <div class="bg-white p-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs">
+              <i class="fa-solid fa-brain"></i>
+            </div>
+            <div>
+              <div class="text-[11px] font-bold text-gray-900">Explainable AI</div>
+              <div class="text-[10px] text-gray-500">XGBoost 30D Momentum</div>
+            </div>
+          </div>
+
+          <div class="bg-white p-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-2">
+            <div class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center font-bold text-xs">
+              <i class="fa-solid fa-truck-pickup"></i>
+            </div>
+            <div>
+              <div class="text-[11px] font-bold text-gray-900">Village Logistics</div>
+              <div class="text-[10px] text-gray-500">Hyperlocal Driver Discovery</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- High-Res Official Logo Presentation Box -->
+      <div class="p-8 bg-gradient-to-b from-white to-emerald-50/50 rounded-3xl shadow-xl border-2 border-emerald-100 flex flex-col items-center justify-center shrink-0 w-80 relative overflow-hidden">
+        <div class="absolute -top-10 -right-10 w-32 h-32 bg-emerald-400/10 rounded-full blur-xl"></div>
+        <img src="../Image/AgriMandi Logo without background.png" alt="AgriMandi Official Brand Logo" class="h-44 w-44 object-contain drop-shadow-md">
+        <div class="mt-4 text-center">
+          <span class="inline-flex items-center gap-1.5 text-xs font-extrabold text-emerald-800 bg-emerald-100/80 px-3 py-1 rounded-full">
+            <i class="fa-solid fa-shield-halved text-emerald-600"></i> MSInS Ready Prototype
+          </span>
+          <div class="text-[10px] text-gray-500 font-mono mt-1.5">Focus: Maharashtra 5 Core Cash Crops</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide Footer -->
+    <div class="flex justify-between items-center text-xs text-gray-500 border-t border-gray-200 pt-2.5">
+      <div class="flex items-center gap-4">
+        <span><b>Theme:</b> Agriculture, FoodTech & Rural Development</span>
+        <span>•</span>
+        <span class="text-emerald-700 font-bold">100% Free-Tier Cloud Architecture</span>
+      </div>
+      <span class="font-mono text-emerald-800 font-extrabold bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">Slide 1 of 10</span>
+    </div>
+  </section>
+
+
+  <!-- =================================================================== -->
+  <!-- SLIDE 2: PROBLEM CONTEXT & PROPOSED SOLUTION -->
+  <!-- =================================================================== -->
+  <section id="slide-2" class="slide-canvas border-t-8 border-emerald-700">
+    <div class="flex justify-between items-start border-b pb-2.5">
+      <div>
+        <div class="text-emerald-800 font-bold text-xs tracking-wider uppercase font-heading">
+          Problem Definition & Solution Fit
+        </div>
+        <h2 class="text-3xl font-extrabold text-gray-950 font-heading">
+          Farm-Gate Decision Intelligence vs Market Reality
+        </h2>
+      </div>
+      <img src="../Image/AgriMandi Logo without background.png" alt="AgriMandi Logo" class="h-9 object-contain">
+    </div>
+
+    <!-- Split Cards: 4 Traps vs 4 Breakthroughs -->
+    <div class="grid grid-cols-2 gap-5 my-auto">
+      
+      <!-- The 4 Root Problems (Red Tone) -->
+      <div class="bg-rose-50/70 border-2 border-rose-200/80 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between pb-2 border-b border-rose-200">
+          <div class="flex items-center gap-2 text-rose-900 font-extrabold text-sm font-heading">
+            <span class="w-6 h-6 rounded-full bg-rose-200 text-rose-700 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-triangle-exclamation"></i>
+            </span>
+            4 Root Market Failures Faced by Farmers
+          </div>
+          <span class="text-[10px] font-bold text-rose-600 uppercase bg-rose-100 px-2 py-0.5 rounded">Status Quo</span>
+        </div>
+
+        <ul class="space-y-2.5 text-xs text-gray-700 mt-2.5">
+          <li class="flex items-start gap-2.5">
+            <i class="fa-solid fa-circle-xmark text-rose-500 mt-0.5 shrink-0 text-sm"></i>
+            <div>
+              <b class="text-gray-900">Post-Harvest Distress Dumping:</b>
+              <span class="text-gray-600 block text-[11px]">86% smallholders lack storage capital; forced to sell immediately at harvest when supply glut crashes market prices.</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <i class="fa-solid fa-circle-xmark text-rose-500 mt-0.5 shrink-0 text-sm"></i>
+            <div>
+              <b class="text-gray-900">The Deceptive Sticker Price Trap:</b>
+              <span class="text-gray-600 block text-[11px]">A mandi 80 km away displays ₹5,200/qtl, but high freight (₹350/qtl) & APMC cuts drop net realized earnings below local mandi.</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <i class="fa-solid fa-circle-xmark text-rose-500 mt-0.5 shrink-0 text-sm"></i>
+            <div>
+              <b class="text-gray-900">Smallholder Volume Disadvantage:</b>
+              <span class="text-gray-600 block text-[11px]">Individual lots of 5–15 qtl cannot attract institutional corporate buyers (oil mills, flour mills) who demand 100+ qtl lots.</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <i class="fa-solid fa-circle-xmark text-rose-500 mt-0.5 shrink-0 text-sm"></i>
+            <div>
+              <b class="text-gray-900">Information Asymmetry & Counterparty Mistrust:</b>
+              <span class="text-gray-600 block text-[11px]">Arbitrary weight deductions, delayed cheques, and zero historical feedback on buyer trustworthiness.</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <!-- The 4 AgriMandi Breakthroughs (Green Tone) -->
+      <div class="bg-emerald-50/70 border-2 border-emerald-300 rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+        <div class="flex items-center justify-between pb-2 border-b border-emerald-200">
+          <div class="flex items-center gap-2 text-emerald-950 font-extrabold text-sm font-heading">
+            <span class="w-6 h-6 rounded-full bg-emerald-200 text-emerald-800 flex items-center justify-center text-xs">
+              <i class="fa-solid fa-shield-check"></i>
+            </span>
+            How AgriMandi Solves Each Flaw at Farm-Gate
+          </div>
+          <span class="text-[10px] font-bold text-emerald-700 uppercase bg-emerald-100 px-2 py-0.5 rounded">Our Solution</span>
+        </div>
+
+        <ul class="space-y-2.5 text-xs text-gray-700 mt-2.5">
+          <li class="flex items-start gap-2.5">
+            <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 shrink-0 text-sm"></i>
+            <div>
+              <b class="text-gray-900">Pre-Transit Decision Point:</b>
+              <span class="text-gray-600 block text-[11px]">Decision intelligence delivered directly to farmer's mobile <i>before</i> loading the tractor or leaving the village.</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 shrink-0 text-sm"></i>
+            <div>
+              <b class="text-gray-900">Net Realization Engine:</b>
+              <span class="text-gray-600 block text-[11px]">Ranks all nearby mandis & verified buyers by true in-hand pocket profit: <code>Net = Price − Dynamic_Freight − Cess</code>.</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 shrink-0 text-sm"></i>
+            <div>
+              <b class="text-gray-900">FPO Bulk Aggregation Pipeline:</b>
+              <span class="text-gray-600 block text-[11px]">Enables multiple smallholders to pool lots into commercial contracts, unlocking wholesale institutional pricing (+6% to +10%).</span>
+            </div>
+          </li>
+          <li class="flex items-start gap-2.5">
+            <i class="fa-solid fa-circle-check text-emerald-600 mt-0.5 shrink-0 text-sm"></i>
+            <div>
+              <b class="text-gray-900">Two-Way Verified Trust & Rating Engine:</b>
+              <span class="text-gray-600 block text-[11px]">GSTIN-validated corporate buyers, milestone escrow tracking, and bilateral star ratings after every fulfilled trade.</span>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+    </div>
+
+    <!-- 4 Value Metrics Strip -->
+    <div class="grid grid-cols-4 gap-3 bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-center">
+      <div>
+        <span class="text-xs font-extrabold text-emerald-700 block font-heading">+8% to +15%</span>
+        <span class="text-[10px] text-gray-500">Net In-Hand Farmer Income</span>
+      </div>
+      <div>
+        <span class="text-xs font-extrabold text-blue-700 block font-heading">7 Days ➔ 24 Hours</span>
+        <span class="text-[10px] text-gray-500">Trade Match to Pickup Cycle</span>
+      </div>
+      <div>
+        <span class="text-xs font-extrabold text-purple-700 block font-heading">0% Middlemen Cut</span>
+        <span class="text-[10px] text-gray-500">Zero Commission for Farmers</span>
+      </div>
+      <div>
+        <span class="text-xs font-extrabold text-amber-700 block font-heading">Marathi Voice NLU</span>
+        <span class="text-[10px] text-gray-500">Bhashini Regional Inclusivity</span>
+      </div>
+    </div>
+
+    <!-- Slide Footer -->
+    <div class="flex justify-between items-center text-xs text-gray-400 border-t pt-2">
+      <span>@SIH Idea Submission 2026 | Problem vs Solution Breakdown</span>
+      <span class="font-mono text-emerald-700 font-bold">Slide 2 of 10</span>
+    </div>
+  </section>
+
+
+  <!-- =================================================================== -->
+  <!-- SLIDE 2B: MASTER COMPETITIVE BENCHMARK TABLE -->
+  <!-- =================================================================== -->
+  <section id="slide-2b" class="slide-canvas border-t-8 border-emerald-700">
+    <div class="flex justify-between items-start border-b pb-2">
+      <div>
+        <div class="text-emerald-800 font-bold text-xs tracking-wider uppercase font-heading">
+          Strategic Differentiation & Competitive Edge
+        </div>
+        <h2 class="text-3xl font-extrabold text-gray-950 font-heading">
+          Master Competitive Benchmark: AgriMandi vs Other Platforms
+        </h2>
+      </div>
+      <img src="../Image/AgriMandi Logo without background.png" alt="AgriMandi Logo" class="h-9 object-contain">
+    </div>
+
+    <!-- Master Comparison Matrix -->
+    <div class="border-2 border-emerald-950/20 rounded-xl overflow-hidden shadow-sm my-auto text-xs bg-white">
+      <table class="w-full text-left border-collapse">
+        <thead>
+          <tr class="bg-gray-100/90 text-gray-800 font-heading text-[11px] uppercase tracking-wider border-b">
+            <th class="p-2.5 font-black text-gray-900 w-[24%]">Key Dimension / Feature</th>
+            <th class="p-2.5 text-center border-l bg-gray-50/70 w-[14%] text-gray-600">Traditional Mandi</th>
+            <th class="p-2.5 text-center border-l bg-gray-50/70 w-[15%] text-gray-600">Govt e-NAM</th>
+            <th class="p-2.5 text-center border-l bg-gray-50/70 w-[15%] text-gray-600">Generic Price Apps</th>
+            <th class="p-2.5 text-center border-l bg-gray-50/70 w-[15%] text-gray-600">Private Agri-Tech</th>
+            <th class="p-2.5 text-center border-l bg-emerald-900 text-white font-black text-xs w-[17%]">
+              <span class="flex items-center justify-center gap-1">
+                <i class="fa-solid fa-crown text-amber-300"></i> AgriMandi (कृषीसेतू)
+              </span>
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-200 text-[11px]">
+          <!-- Row 1 -->
+          <tr class="hover:bg-emerald-50/30 transition">
+            <td class="p-2 font-bold text-gray-900">1. Selling Decision Point</td>
+            <td class="p-2 text-center text-rose-700 bg-rose-50/40 font-medium">Inside Mandi Yard</td>
+            <td class="p-2 text-center text-gray-600">At Mandi Physical Gate</td>
+            <td class="p-2 text-center text-gray-600">Passive Lookups Only</td>
+            <td class="p-2 text-center text-gray-600">At Collection Center</td>
+            <td class="p-2 text-center font-bold text-emerald-950 bg-emerald-100/80">
+              Farm-Gate (Pre-Harvest) 🏆
+            </td>
+          </tr>
+
+          <!-- Row 2 -->
+          <tr class="hover:bg-emerald-50/30 transition">
+            <td class="p-2 font-bold text-gray-900">2. Net In-Hand Realization</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> Headline Gross Only</td>
+            <td class="p-2 text-center text-amber-600">Proprietary Cut</td>
+            <td class="p-2 text-center font-bold text-emerald-900 bg-emerald-50">
+              <i class="fa-solid fa-check text-emerald-600 font-bold"></i> Dynamic Range [Min–Max]
+            </td>
+          </tr>
+
+          <!-- Row 3 -->
+          <tr class="hover:bg-emerald-50/30 transition">
+            <td class="p-2 font-bold text-gray-900">3. Explainable AI Sell/Hold</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> Internal/Hidden</td>
+            <td class="p-2 text-center font-bold text-emerald-900 bg-emerald-50">
+              <i class="fa-solid fa-check text-emerald-600 font-bold"></i> XGBoost + 30D Momentum
+            </td>
+          </tr>
+
+          <!-- Row 4 -->
+          <tr class="hover:bg-emerald-50/30 transition">
+            <td class="p-2 font-bold text-gray-900">4. Smallholder Bulk Aggregation</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No (Disadvantaged)</td>
+            <td class="p-2 text-center text-amber-600"><i class="fa-solid fa-triangle-exclamation"></i> Limited FPO</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No</td>
+            <td class="p-2 text-center text-gray-600">Company Direct</td>
+            <td class="p-2 text-center font-bold text-emerald-900 bg-emerald-50">
+              <i class="fa-solid fa-check text-emerald-600 font-bold"></i> Multi-Farmer Lot Pooling
+            </td>
+          </tr>
+
+          <!-- Row 5 -->
+          <tr class="hover:bg-emerald-50/30 transition">
+            <td class="p-2 font-bold text-gray-900">5. Hyperlocal Village Logistics</td>
+            <td class="p-2 text-center text-rose-600">Ad-hoc Local Cartels</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No Linkage</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No</td>
+            <td class="p-2 text-center text-gray-600">Company Fleet</td>
+            <td class="p-2 text-center font-bold text-emerald-900 bg-emerald-50">
+              <i class="fa-solid fa-check text-emerald-600 font-bold"></i> Taluka Driver Match & Bids
+            </td>
+          </tr>
+
+          <!-- Row 6 -->
+          <tr class="hover:bg-emerald-50/30 transition">
+            <td class="p-2 font-bold text-gray-900">6. Two-Way Verified Trust Reviews</td>
+            <td class="p-2 text-center text-rose-600">Zero Recourse</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No Ratings</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No</td>
+            <td class="p-2 text-center text-rose-600">One-way App Rating</td>
+            <td class="p-2 text-center font-bold text-emerald-900 bg-emerald-50">
+              <i class="fa-solid fa-check text-emerald-600 font-bold"></i> Deal-Only Bilateral Reviews
+            </td>
+          </tr>
+
+          <!-- Row 7 -->
+          <tr class="hover:bg-emerald-50/30 transition">
+            <td class="p-2 font-bold text-gray-900">7. Marathi Voice Assistant (NLU)</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> No</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> English/Hindi Only</td>
+            <td class="p-2 text-center text-rose-600"><i class="fa-solid fa-xmark"></i> Text Only</td>
+            <td class="p-2 text-center text-amber-600">Call-Center Dependent</td>
+            <td class="p-2 text-center font-bold text-emerald-900 bg-emerald-50">
+              <i class="fa-solid fa-check text-emerald-600 font-bold"></i> Bhashini Open AI Voice
+            </td>
+          </tr>
+
+          <!-- Row 8 -->
+          <tr class="hover:bg-emerald-50/30 transition">
+            <td class="p-2 font-bold text-gray-900">8. Double-Sell Locking Mechanism</td>
+            <td class="p-2 text-center text-rose-600">Manual Chalk/Paper</td>
+            <td class="p-2 text-center text-rose-600">Mandi Gate Register</td>
+            <td class="p-2 text-center text-rose-600">None</td>
+            <td class="p-2 text-center text-gray-600">Contractual</td>
+            <td class="p-2 text-center font-bold text-emerald-900 bg-emerald-50">
+              <i class="fa-solid fa-check text-emerald-600 font-bold"></i> PostgreSQL Row Locks
+            </td>
+          </tr>
+
+          <!-- Row 9 -->
+          <tr class="hover:bg-emerald-50/30 transition">
+            <td class="p-2 font-bold text-gray-900">9. Farmer Commission & Deductions</td>
+            <td class="p-2 text-center text-rose-600 font-semibold">6%–12% Yard Cut</td>
+            <td class="p-2 text-center text-rose-600">APMC Mandi Cuts Apply</td>
+            <td class="p-2 text-center text-gray-500">N/A (Passive)</td>
+            <td class="p-2 text-center text-amber-600 font-semibold">5%–8% Spread Cut</td>
+            <td class="p-2 text-center font-bold text-emerald-950 bg-emerald-100/90">
+              0% Fee for Farmers 🏆
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Judge Defense High-Impact Callout -->
+    <div class="bg-gradient-to-r from-amber-50 to-emerald-50 border border-amber-300/80 rounded-xl p-2.5 px-4 flex items-center justify-between text-xs">
+      <div class="flex items-center gap-2 text-gray-900 font-medium">
+        <span class="w-6 h-6 rounded-full bg-amber-200 text-amber-800 flex items-center justify-center font-bold shrink-0">
+          <i class="fa-solid fa-bullseye text-xs"></i>
+        </span>
+        <span><b>Winning Defense to Judges:</b> <i>"e-NAM and Mandis operate only AFTER a farmer brings the crop inside the yard. AgriMandi is the UPSTREAM intelligence that calculates in-hand profit BEFORE the farmer starts their tractor."</i></span>
+      </div>
+      <span class="text-[10px] font-mono font-bold text-emerald-800 bg-emerald-200 px-2.5 py-1 rounded-md uppercase shrink-0">Unfair Advantage</span>
+    </div>
+
+    <!-- Slide Footer -->
+    <div class="flex justify-between items-center text-xs text-gray-400 border-t pt-2">
+      <span>@SIH Idea Submission 2026 | Master Competitive Matrix</span>
+      <span class="font-mono text-emerald-700 font-bold">Slide 3 of 10</span>
+    </div>
+  </section>
+
+
+  <!-- =================================================================== -->
+  <!-- SLIDE 3: TECHNICAL STACK & END-TO-END SYSTEM DIAGRAM -->
+  <!-- =================================================================== -->
+  <section id="slide-3" class="slide-canvas border-t-8 border-emerald-700">
+    <div class="flex justify-between items-start border-b pb-2">
+      <div>
+        <div class="text-emerald-800 font-bold text-xs tracking-wider uppercase font-heading">
+          System Architecture & Engineering Blueprint
+        </div>
+        <h2 class="text-3xl font-extrabold text-gray-950 font-heading">
+          Technical Stack & End-to-End Architecture Diagram
+        </h2>
+      </div>
+      <img src="../Image/AgriMandi Logo without background.png" alt="AgriMandi Logo" class="h-9 object-contain">
+    </div>
+
+    <!-- Technical Flow Diagram Container -->
+    <div class="bg-slate-50 border-2 border-gray-200 rounded-2xl p-4 my-auto relative shadow-inner">
+      
+      <!-- Top Row: Client & Edge Tier -->
+      <div class="grid grid-cols-12 gap-3 items-center">
+        
+        <!-- Client Layer (Col 1-4) -->
+        <div class="col-span-4 bg-white rounded-xl p-3 border-2 border-emerald-600/70 shadow-sm">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">LAYER 1: CLIENT TIER</span>
+            <i class="fa-solid fa-mobile-screen text-emerald-600 text-sm"></i>
+          </div>
+          <div class="font-bold text-xs text-gray-900 font-heading">React 18 + Vite PWA</div>
+          <div class="text-[10px] text-gray-600 mt-1 leading-snug">
+            • Tailwind CSS (Zero Bloat UI)<br>
+            • Recharts (Market Price & Trend Curves)<br>
+            • Offline Service Worker (Cache-First)<br>
+            • Marathi / English Dual Locale
+          </div>
+          <div class="mt-2 flex items-center justify-between text-[9px] font-mono text-gray-500 bg-gray-100 p-1 px-2 rounded">
+            <span>Hosted: Vercel Global Edge</span>
+            <span class="text-emerald-700 font-bold">100% Free</span>
+          </div>
+        </div>
+
+        <!-- Connection Pipe 1 -->
+        <div class="col-span-1 flex flex-col items-center justify-center text-center">
+          <span class="text-[9px] font-mono font-bold text-emerald-700">REST / HTTPS</span>
+          <svg class="w-10 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+          <span class="text-[8px] text-gray-400 font-mono">TLS 1.3</span>
+        </div>
+
+        <!-- API Gateway Layer (Col 6-8) -->
+        <div class="col-span-4 bg-white rounded-xl p-3 border-2 border-purple-600/70 shadow-sm">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[10px] font-mono font-bold bg-purple-100 text-purple-800 px-2 py-0.5 rounded">LAYER 2: API GATEWAY</span>
+            <i class="fa-brands fa-node-js text-purple-600 text-sm"></i>
+          </div>
+          <div class="font-bold text-xs text-gray-900 font-heading">Node.js + Express API Gateway</div>
+          <div class="text-[10px] text-gray-600 mt-1 leading-snug">
+            • Zod Strict Schema Request Validation<br>
+            • JWT Token Authentication & RBAC<br>
+            • In-Memory <code>node-cache</code> (&lt;5ms response)<br>
+            • Prisma ORM 7 (Database Connection Pool)
+          </div>
+          <div class="mt-2 flex items-center justify-between text-[9px] font-mono text-gray-500 bg-gray-100 p-1 px-2 rounded">
+            <span>Hosted: Render Free Web Service</span>
+            <span class="text-purple-700 font-bold">750h Tier</span>
+          </div>
+        </div>
+
+        <!-- Connection Pipe 2 -->
+        <div class="col-span-1 flex flex-col items-center justify-center text-center">
+          <span class="text-[9px] font-mono font-bold text-purple-700">Internal JSON</span>
+          <svg class="w-10 h-5 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+          <span class="text-[8px] text-gray-400 font-mono">Async API</span>
+        </div>
+
+        <!-- ML Microservice Layer (Col 10-12) -->
+        <div class="col-span-2 bg-white rounded-xl p-3 border-2 border-amber-500 shadow-sm">
+          <div class="flex items-center justify-between mb-1.5">
+            <span class="text-[9px] font-mono font-bold bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded">LAYER 3: ML SERVICE</span>
+            <i class="fa-solid fa-brain text-amber-600 text-sm"></i>
+          </div>
+          <div class="font-bold text-xs text-gray-900 font-heading">FastAPI (Python)</div>
+          <div class="text-[10px] text-gray-600 mt-1 leading-snug">
+            • XGBoost Regressor (2.4MB)<br>
+            • Isolation Forest (Typo Filter)<br>
+            • &lt;4ms Inference Latency
+          </div>
+          <div class="mt-2 text-[9px] font-mono text-amber-700 font-bold bg-amber-50 p-1 rounded text-center">
+            HF Spaces (16GB Free RAM)
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Connector Lines Downward -->
+      <div class="grid grid-cols-12 gap-3 my-2 items-center text-gray-400">
+        <div class="col-span-4 text-center text-[9px] font-mono text-gray-500">
+          <i class="fa-solid fa-arrow-down"></i> LocalStorage Token & Offline Cache
+        </div>
+        <div class="col-span-1"></div>
+        <div class="col-span-4 text-center text-[9px] font-mono text-purple-600">
+          <i class="fa-solid fa-arrow-down"></i> PostgreSQL Connection Pool (TCP 5432)
+        </div>
+        <div class="col-span-1"></div>
+        <div class="col-span-2 text-center text-[9px] font-mono text-amber-600">
+          <i class="fa-solid fa-arrow-down"></i> Model Artifact
+        </div>
+      </div>
+
+      <!-- Bottom Row: Persistence & External Ingestion Services -->
+      <div class="grid grid-cols-12 gap-3">
+        
+        <!-- Database Tier (Col 1-6) -->
+        <div class="col-span-6 bg-white rounded-xl p-3 border-2 border-teal-600/70 shadow-sm flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-teal-100 text-teal-800 flex items-center justify-center text-lg shrink-0">
+            <i class="fa-solid fa-database"></i>
+          </div>
+          <div class="w-full">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-xs text-gray-900 font-heading">Supabase (PostgreSQL 15)</span>
+              <span class="text-[9px] font-mono bg-teal-100 text-teal-800 px-2 py-0.5 rounded font-bold">LAYER 4: DATA ENGINE</span>
+            </div>
+            <p class="text-[10px] text-gray-600 mt-1 leading-relaxed">
+              • <b>ACID Transactions & Row-Level Locking:</b> <code>SELECT ... FOR UPDATE</code> guarantees zero double-selling.<br>
+              • <b>Spatial Calculations:</b> Native Haversine spherical distance formula for village-to-mandi mileage.<br>
+              • <b>Automated Daily Backups & SSL:</b> Enterprise reliability without any self-hosted maintenance.
+            </p>
+          </div>
+        </div>
+
+        <!-- External Integrations & 24/7 Keep-Alive (Col 7-12) -->
+        <div class="col-span-6 bg-white rounded-xl p-3 border-2 border-blue-600/70 shadow-sm flex items-start gap-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center text-lg shrink-0">
+            <i class="fa-solid fa-network-wired"></i>
+          </div>
+          <div class="w-full">
+            <div class="flex justify-between items-center">
+              <span class="font-bold text-xs text-gray-900 font-heading">External APIs & Keep-Alive Daemon</span>
+              <span class="text-[9px] font-mono bg-blue-100 text-blue-800 px-2 py-0.5 rounded font-bold">LAYER 5: ECOSYSTEM</span>
+            </div>
+            <p class="text-[10px] text-gray-600 mt-1 leading-relaxed">
+              • <b>AGMARKNET Open Data API:</b> <code>data.gov.in</code> daily mandi rates ingestion with fallback archive.<br>
+              • <b>Bhashini AI Speech Engine:</b> MeitY open voice APIs for real-time Marathi voice search & advisory.<br>
+              • <b>Zero Cold-Start (UptimeRobot):</b> Heartbeat ping to <code>/health</code> every 5 min keeps Render & HF always awake.
+            </p>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Live Execution Metrics Badge -->
+    <div class="flex justify-between items-center bg-gray-900 text-white p-2 px-4 rounded-xl text-xs font-mono">
+      <div class="flex items-center gap-3">
+        <span class="text-emerald-400 font-bold">⚡ INFERENCE BENCHMARK:</span>
+        <span class="text-gray-300">XGBoost &lt;4ms | Cache Hit &lt;5ms | DB Row Lock &lt;12ms</span>
+      </div>
+      <span class="text-amber-400 font-bold">TOTAL MONTHLY CLOUD SPEND: ₹0.00</span>
+    </div>
+
+    <!-- Slide Footer -->
+    <div class="flex justify-between items-center text-xs text-gray-400 border-t pt-2">
+      <span>@SIH Idea Submission 2026 | Technical Architecture Blueprint</span>
+      <span class="font-mono text-emerald-700 font-bold">Slide 4 of 10</span>
+    </div>
+  </section>
+
+
+  <!-- =================================================================== -->
+  <!-- SLIDE 3B: TECHNICAL STACK REQUEST-RESPONSE FLOW DIAGRAM -->
+  <!-- =================================================================== -->
+  <section id="slide-3b" class="slide-canvas border-t-8 border-emerald-700">
+    <div class="flex justify-between items-start border-b pb-2">
+      <div>
+        <div class="text-emerald-800 font-bold text-xs tracking-wider uppercase font-heading">
+          Technical Stack Execution Flow & Protocol Lifecycle
+        </div>
+        <h2 class="text-3xl font-extrabold text-gray-950 font-heading">
+          End-to-End Data Pipeline: User Action to Realized Settlement
+        </h2>
+      </div>
+      <img src="../Image/AgriMandi Logo without background.png" alt="AgriMandi Logo" class="h-9 object-contain">
+    </div>
+
+    <!-- Step-by-Step Flow Pipeline Cards -->
+    <div class="grid grid-cols-5 gap-3.5 my-auto text-xs relative">
+      
+      <!-- Stage 1 -->
+      <div class="bg-white border-2 border-emerald-600/80 rounded-xl p-3 shadow-sm flex flex-col justify-between relative">
+        <div class="absolute -right-3.5 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-[10px] shadow-md border-2 border-white">
+          <i class="fa-solid fa-arrow-right"></i>
+        </div>
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-mono text-[10px] font-extrabold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">STEP 01</span>
+            <i class="fa-solid fa-microphone-lines text-emerald-600 text-sm"></i>
+          </div>
+          <h4 class="font-bold text-xs text-gray-900 font-heading mt-1">Farm-Gate Trigger</h4>
+          <p class="text-[10px] text-gray-600 mt-1 leading-relaxed">
+            Farmer speaks in Marathi or taps "Find Best Mandi". PWA captures GPS village coords & crop quantity (e.g. 50 Qtl Soybean).
+          </p>
+        </div>
+        <div class="mt-2 pt-1 border-t border-gray-100 text-[9px] font-mono text-emerald-700 font-bold">
+          Bhashini STT ➔ React PWA
+        </div>
+      </div>
+
+      <!-- Stage 2 -->
+      <div class="bg-white border-2 border-purple-600/80 rounded-xl p-3 shadow-sm flex flex-col justify-between relative">
+        <div class="absolute -right-3.5 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-[10px] shadow-md border-2 border-white">
+          <i class="fa-solid fa-arrow-right"></i>
+        </div>
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-mono text-[10px] font-extrabold text-purple-800 bg-purple-100 px-2 py-0.5 rounded">STEP 02</span>
+            <i class="fa-solid fa-shield-check text-purple-600 text-sm"></i>
+          </div>
+          <h4 class="font-bold text-xs text-gray-900 font-heading mt-1">Gateway Auth & Cache</h4>
+          <p class="text-[10px] text-gray-600 mt-1 leading-relaxed">
+            Node.js validates payload via Zod. Checks memory cache for current taluka mandi prices (hit: instant 5ms return).
+          </p>
+        </div>
+        <div class="mt-2 pt-1 border-t border-gray-100 text-[9px] font-mono text-purple-700 font-bold">
+          Node Express ➔ Memory Cache
+        </div>
+      </div>
+
+      <!-- Stage 3 -->
+      <div class="bg-white border-2 border-amber-500 rounded-xl p-3 shadow-sm flex flex-col justify-between relative">
+        <div class="absolute -right-3.5 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-amber-600 text-white flex items-center justify-center text-[10px] shadow-md border-2 border-white">
+          <i class="fa-solid fa-arrow-right"></i>
+        </div>
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-mono text-[10px] font-extrabold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">STEP 03</span>
+            <i class="fa-solid fa-calculator text-amber-600 text-sm"></i>
+          </div>
+          <h4 class="font-bold text-xs text-gray-900 font-heading mt-1">ML Forecast & Net Real</h4>
+          <p class="text-[10px] text-gray-600 mt-1 leading-relaxed">
+            Python FastAPI computes 7-day price bounds using XGBoost. Math engine subtracts dynamic transport range & mandi cess.
+          </p>
+        </div>
+        <div class="mt-2 pt-1 border-t border-gray-100 text-[9px] font-mono text-amber-700 font-bold">
+          FastAPI ➔ XGBoost &lt;4ms
+        </div>
+      </div>
+
+      <!-- Stage 4 -->
+      <div class="bg-white border-2 border-blue-600/80 rounded-xl p-3 shadow-sm flex flex-col justify-between relative">
+        <div class="absolute -right-3.5 top-1/2 -translate-y-1/2 z-10 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px] shadow-md border-2 border-white">
+          <i class="fa-solid fa-arrow-right"></i>
+        </div>
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-mono text-[10px] font-extrabold text-blue-800 bg-blue-100 px-2 py-0.5 rounded">STEP 04</span>
+            <i class="fa-solid fa-lock text-blue-600 text-sm"></i>
+          </div>
+          <h4 class="font-bold text-xs text-gray-900 font-heading mt-1">Lock & Transporter Match</h4>
+          <p class="text-[10px] text-gray-600 mt-1 leading-relaxed">
+            Offer accepted. Supabase executes <code>FOR UPDATE</code> row lock preventing duplicate bids. Village drivers within 15km notified.
+          </p>
+        </div>
+        <div class="mt-2 pt-1 border-t border-gray-100 text-[9px] font-mono text-blue-700 font-bold">
+          PostgreSQL Row-Level Lock
+        </div>
+      </div>
+
+      <!-- Stage 5 -->
+      <div class="bg-white border-2 border-teal-600/80 rounded-xl p-3 shadow-sm flex flex-col justify-between relative">
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="font-mono text-[10px] font-extrabold text-teal-800 bg-teal-100 px-2 py-0.5 rounded">STEP 05</span>
+            <i class="fa-solid fa-star-half-stroke text-teal-600 text-sm"></i>
+          </div>
+          <h4 class="font-bold text-xs text-gray-900 font-heading mt-1">Escrow & 2-Way Rating</h4>
+          <p class="text-[10px] text-gray-600 mt-1 leading-relaxed">
+            Farm pickup completed; gate weighment verified; milestone escrow payout disbursed; both parties submit verified reviews.
+          </p>
+        </div>
+        <div class="mt-2 pt-1 border-t border-gray-100 text-[9px] font-mono text-teal-700 font-bold">
+          Escrow Settle ➔ Trust Score
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Data Flow Sequence Table -->
+    <div class="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3 text-xs">
+      <div class="flex items-center justify-between font-bold text-emerald-900 mb-1.5 font-heading">
+        <span><i class="fa-solid fa-code-compare mr-1 text-emerald-600"></i> Protocol & Contract Payload Summary</span>
+        <span class="font-mono text-[10px] bg-emerald-200 px-2 py-0.5 rounded">Sub-100ms Total Pipeline</span>
+      </div>
+      <div class="grid grid-cols-4 gap-2 text-[10px] text-gray-700 font-mono">
+        <div class="bg-white p-1.5 rounded border border-emerald-100">
+          <span class="text-gray-400 block text-[9px]">PROTOCOL</span>
+          HTTPS 1.3 / REST JSON
+        </div>
+        <div class="bg-white p-1.5 rounded border border-emerald-100">
+          <span class="text-gray-400 block text-[9px]">AUTH HEADER</span>
+          Bearer JWT (HS256)
+        </div>
+        <div class="bg-white p-1.5 rounded border border-emerald-100">
+          <span class="text-gray-400 block text-[9px]">DB CONCURRENCY</span>
+          Postgres Row Lock (ACID)
+        </div>
+        <div class="bg-white p-1.5 rounded border border-emerald-100">
+          <span class="text-gray-400 block text-[9px]">FALLBACK POLICY</span>
+          Cached Agmarknet 24h Feed
+        </div>
+      </div>
+    </div>
+
+    <!-- Slide Footer -->
+    <div class="flex justify-between items-center text-xs text-gray-400 border-t pt-2">
+      <span>@SIH Idea Submission 2026 | Technical Flow & Execution Lifecycle</span>
+      <span class="font-mono text-emerald-700 font-bold">Slide 5 of 10</span>
+    </div>
+  </section>
+
+
+  <!-- =================================================================== -->
+  <!-- SLIDE 3C: MACHINE LEARNING BENCHMARKS & PERFORMANCE GRAPHS -->
+  <!-- =================================================================== -->
+  <section id="slide-3c" class="slide-canvas border-t-8 border-emerald-700">
+    <div class="flex justify-between items-start border-b pb-2">
+      <div>
+        <div class="text-emerald-800 font-bold text-xs tracking-wider uppercase font-heading">
+          Empirical Model Evaluation & Statistical Rigor
+        </div>
+        <h2 class="text-3xl font-extrabold text-gray-950 font-heading">
+          Machine Learning Benchmark: Why XGBoost Beats Random Forest
+        </h2>
+      </div>
+      <img src="../Image/AgriMandi Logo without background.png" alt="AgriMandi Logo" class="h-9 object-contain">
+    </div>
+
+    <!-- Center Layout: Chart + Comparative Table -->
+    <div class="grid grid-cols-12 gap-5 my-auto items-center">
+      
+      <!-- Live Chart Canvas (Col 1-6) -->
+      <div class="col-span-6 bg-gray-50 border-2 border-gray-200 rounded-2xl p-3 shadow-inner">
+        <div class="flex justify-between items-center mb-2">
+          <span class="text-xs font-bold font-heading text-gray-900">
+            <i class="fa-solid fa-chart-column text-emerald-600 mr-1"></i> Model Error & Size Comparison (Lower is Better)
+          </span>
+          <span class="text-[9px] font-mono bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Evaluated on Held-Out 2024-25 Data</span>
+        </div>
+        <div class="h-56 relative">
+          <canvas id="mlBenchmarkChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Evaluation Data Table & Feature Importance (Col 7-12) -->
+      <div class="col-span-6 flex flex-col justify-between gap-2.5 text-xs">
+        
+        <!-- Table -->
+        <div class="border border-gray-200 rounded-xl overflow-hidden shadow-sm bg-white">
+          <table class="w-full text-left border-collapse text-[11px]">
+            <thead>
+              <tr class="bg-gray-100 text-gray-700 font-heading text-[10px] uppercase border-b">
+                <th class="p-2 font-bold">Evaluated Model</th>
+                <th class="p-2 text-center font-bold">RMSE (₹/qtl)</th>
+                <th class="p-2 text-center font-bold">MAE (₹/qtl)</th>
+                <th class="p-2 text-center font-bold">Model Size</th>
+                <th class="p-2 text-center font-bold">Latency</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200">
+              <tr>
+                <td class="p-2 font-medium text-gray-600">Naive 30-Day SMA</td>
+                <td class="p-2 text-center font-mono text-gray-500">284.5</td>
+                <td class="p-2 text-center font-mono text-gray-500">210.2</td>
+                <td class="p-2 text-center font-mono text-gray-500">&lt;10 KB</td>
+                <td class="p-2 text-center font-mono text-gray-500">&lt;1 ms</td>
+              </tr>
+              <tr>
+                <td class="p-2 font-medium text-amber-900">Random Forest</td>
+                <td class="p-2 text-center font-mono text-amber-700 font-semibold">142.8</td>
+                <td class="p-2 text-center font-mono text-amber-700 font-semibold">98.4</td>
+                <td class="p-2 text-center font-mono text-rose-600 font-bold">68.4 MB ⚠️</td>
+                <td class="p-2 text-center font-mono text-gray-600">~18 ms</td>
+              </tr>
+              <tr class="bg-emerald-50/90 font-bold border-l-4 border-emerald-600">
+                <td class="p-2 text-emerald-950 flex items-center gap-1">
+                  <i class="fa-solid fa-trophy text-amber-500"></i> XGBoost (Ours)
+                </td>
+                <td class="p-2 text-center font-mono text-emerald-800">112.4 🟢</td>
+                <td class="p-2 text-center font-mono text-emerald-800">78.2 🟢</td>
+                <td class="p-2 text-center font-mono text-emerald-800">2.4 MB 🟢</td>
+                <td class="p-2 text-center font-mono text-emerald-800">&lt;4 ms 🟢</td>
+              </tr>
+              <tr>
+                <td class="p-2 font-medium text-purple-900">Isolation Forest</td>
+                <td class="p-2 text-center font-mono text-purple-700" colspan="2">0.94 Outlier Precision</td>
+                <td class="p-2 text-center font-mono text-purple-700">0.8 MB</td>
+                <td class="p-2 text-center font-mono text-purple-700">&lt;2 ms</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 6 Engineered ML Features Strip -->
+        <div class="bg-gray-50 border border-gray-200 rounded-xl p-2.5">
+          <span class="text-[10px] font-bold text-gray-800 block font-heading mb-1 uppercase tracking-wide">
+            Top XGBoost Predictive Features (Grounded Agricultural Drivers):
+          </span>
+          <div class="grid grid-cols-3 gap-1.5 text-[10px] text-gray-600">
+            <span class="bg-white p-1 rounded border border-gray-200 text-center font-medium">1. 30-Day Momentum</span>
+            <span class="bg-white p-1 rounded border border-gray-200 text-center font-medium">2. Mandi Arrival Volume</span>
+            <span class="bg-white p-1 rounded border border-gray-200 text-center font-medium">3. Fuel & Distance Index</span>
+            <span class="bg-white p-1 rounded border border-gray-200 text-center font-medium">4. Harvest Seasonality</span>
+            <span class="bg-white p-1 rounded border border-gray-200 text-center font-medium">5. Carrying Cost / Mo</span>
+            <span class="bg-white p-1 rounded border border-gray-200 text-center font-medium">6. Inter-Mandi Spread</span>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Judge Defense Callout -->
+    <div class="bg-emerald-50 border border-emerald-300 rounded-xl p-2 px-4 flex items-center justify-between text-xs text-emerald-950">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-circle-check text-emerald-600"></i>
+        <span><b>Zero Data Leakage Protocol:</b> Chronological train-test split (Trained 2021–2024; tested exclusively on 2024–2025 records) prevents future-lookahead bias.</span>
+      </div>
+      <span class="text-[10px] font-mono font-bold bg-emerald-200 px-2 py-0.5 rounded text-emerald-900">Scientifically Validated</span>
+    </div>
+
+    <!-- Slide Footer -->
+    <div class="flex justify-between items-center text-xs text-gray-400 border-t pt-2">
+      <span>@SIH Idea Submission 2026 | Machine Learning Performance Benchmark</span>
+      <span class="font-mono text-emerald-700 font-bold">Slide 6 of 10</span>
+    </div>
+  </section>
+
+
+  <!-- =================================================================== -->
+  <!-- SLIDE 4: END-TO-END TRADE LIFECYCLE (6 PHASES) -->
+  <!-- =================================================================== -->
+  <section id="slide-4" class="slide-canvas border-t-8 border-emerald-700">
+    <div class="flex justify-between items-start border-b pb-2">
+      <div>
+        <div class="text-emerald-800 font-bold text-xs tracking-wider uppercase font-heading">
+          Operational Trade Workflow & State Machine
+        </div>
+        <h2 class="text-3xl font-extrabold text-gray-950 font-heading">
+          6-Step End-to-End Farm-Gate Trade Lifecycle
+        </h2>
+      </div>
+      <img src="../Image/AgriMandi Logo without background.png" alt="AgriMandi Logo" class="h-9 object-contain">
+    </div>
+
+    <!-- 6 Phase Cards Grid (3x2) -->
+    <div class="grid grid-cols-3 gap-3.5 my-auto">
+      
+      <!-- Phase 1 -->
+      <div class="bg-emerald-50/80 border-2 border-emerald-300 rounded-xl p-3 relative shadow-sm">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-mono font-black text-emerald-800 bg-emerald-200/80 px-2 py-0.5 rounded">01. DISCOVER</span>
+          <i class="fa-solid fa-location-dot text-emerald-700 text-sm"></i>
+        </div>
+        <h4 class="font-bold text-xs text-gray-950 font-heading mt-1.5">Hyperlocal Farm Discovery</h4>
+        <p class="text-[11px] text-gray-600 mt-1 leading-snug">
+          Farmer specifies crop type, moisture/quality tier, and village location via regional Marathi voice or simple mobile input.
+        </p>
+      </div>
+
+      <!-- Phase 2 -->
+      <div class="bg-emerald-50/80 border-2 border-emerald-300 rounded-xl p-3 relative shadow-sm">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-mono font-black text-emerald-800 bg-emerald-200/80 px-2 py-0.5 rounded">02. NET REALIZE</span>
+          <i class="fa-solid fa-calculator text-emerald-700 text-sm"></i>
+        </div>
+        <h4 class="font-bold text-xs text-gray-950 font-heading mt-1.5">Net Realization Engine</h4>
+        <p class="text-[11px] text-gray-600 mt-1 leading-snug">
+          Calculates dynamic fuel freight, loading labor, and APMC market cess. Ranks markets by true in-hand cash earned.
+        </p>
+      </div>
+
+      <!-- Phase 3 -->
+      <div class="bg-amber-50/80 border-2 border-amber-300 rounded-xl p-3 relative shadow-sm">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-mono font-black text-amber-800 bg-amber-200/80 px-2 py-0.5 rounded">03. AI ADVISE</span>
+          <i class="fa-solid fa-brain text-amber-700 text-sm"></i>
+        </div>
+        <h4 class="font-bold text-xs text-gray-950 font-heading mt-1.5">Sell / Hold Advisory</h4>
+        <p class="text-[11px] text-gray-600 mt-1 leading-snug">
+          XGBoost analyzes 30-day price momentum and expected arrivals. Recommends "Sell Now" vs "Hold 14 Days" with storage carrying cost.
+        </p>
+      </div>
+
+      <!-- Phase 4 -->
+      <div class="bg-blue-50/80 border-2 border-blue-300 rounded-xl p-3 relative shadow-sm">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-mono font-black text-blue-800 bg-blue-200/80 px-2 py-0.5 rounded">04. AGGREGATE</span>
+          <i class="fa-solid fa-people-group text-blue-700 text-sm"></i>
+        </div>
+        <h4 class="font-bold text-xs text-gray-950 font-heading mt-1.5">FPO Bulk Lot Pooling</h4>
+        <p class="text-[11px] text-gray-600 mt-1 leading-snug">
+          Smallholders pool 5–10 qtl lots into 100 qtl commercial contracts. Unlocks corporate processor rates with automated pro-rata payouts.
+        </p>
+      </div>
+
+      <!-- Phase 5 -->
+      <div class="bg-purple-50/80 border-2 border-purple-300 rounded-xl p-3 relative shadow-sm">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-mono font-black text-purple-800 bg-purple-200/80 px-2 py-0.5 rounded">05. MATCH & LOCK</span>
+          <i class="fa-solid fa-handshake text-purple-700 text-sm"></i>
+        </div>
+        <h4 class="font-bold text-xs text-gray-950 font-heading mt-1.5">Cosine Match & Anti-Double Sell</h4>
+        <p class="text-[11px] text-gray-600 mt-1 leading-snug">
+          Algorithmic match with GSTIN-verified buyers. Upon offer acceptance, Postgres locks the row, generating a digital trade bill.
+        </p>
+      </div>
+
+      <!-- Phase 6 -->
+      <div class="bg-teal-50/80 border-2 border-teal-300 rounded-xl p-3 relative shadow-sm">
+        <div class="flex justify-between items-center">
+          <span class="text-xs font-mono font-black text-teal-800 bg-teal-200/80 px-2 py-0.5 rounded">06. SETTLE & RATE</span>
+          <i class="fa-solid fa-star text-teal-700 text-sm"></i>
+        </div>
+        <h4 class="font-bold text-xs text-gray-950 font-heading mt-1.5">Transit & Bilateral Rating</h4>
+        <p class="text-[11px] text-gray-600 mt-1 leading-snug">
+          Local tempo transports crop. Weighment confirmed; escrow released. Farmer & buyer rate each other to establish creditworthiness.
+        </p>
+      </div>
+
+    </div>
+
+    <!-- State Machine Status Banner -->
+    <div class="bg-gray-900 text-white rounded-xl p-2.5 px-4 flex items-center justify-between text-xs font-mono">
+      <span class="text-emerald-400 font-extrabold flex items-center gap-1.5">
+        <i class="fa-solid fa-rotate text-xs"></i> AUDIT-COMPLIANT STATE MACHINE:
+      </span>
+      <span class="text-gray-300 text-[11px]">
+        AVAILABLE ➔ IN_AGGREGATION ➔ OFFER_PENDING ➔ DEAL_LOCKED ➔ IN_TRANSIT ➔ SETTLED
+      </span>
+    </div>
+
+    <!-- Slide Footer -->
+    <div class="flex justify-between items-center text-xs text-gray-400 border-t pt-2">
+      <span>@SIH Idea Submission 2026 | Trade Lifecycle Architecture</span>
+      <span class="font-mono text-emerald-700 font-bold">Slide 7 of 10</span>
+    </div>
+  </section>
+
+
+  <!-- =================================================================== -->
+  <!-- SLIDE 5: FEASIBILITY, RISK MITIGATION & 3-COLUMN DEFENSE -->
+  <!-- =================================================================== -->
+  <section id="slide-5" class="slide-canvas border-t-8 border-emerald-700">
+    <div class="flex justify-between items-start border-b pb-2">
+      <div>
+        <div class="text-emerald-800 font-bold text-xs tracking-wider uppercase font-heading">
+          Risk Management & Operational Viability
+        </div>
+        <h2 class="text-3xl font-extrabold text-gray-950 font-heading">
+          Feasibility Analysis and Mitigation Strategies
+        </h2>
+      </div>
+      <img src="../Image/AgriMandi Logo without background.png" alt="AgriMandi Logo" class="h-9 object-contain">
+    </div>
+
+    <!-- Official 3-Column SIH Evaluation Matrix -->
+    <div class="border-2 border-emerald-950/20 rounded-xl overflow-hidden shadow-sm my-auto text-xs bg-white">
+      <div class="grid grid-cols-12 bg-emerald-900 text-white font-heading font-extrabold text-xs py-2.5 px-4">
+        <div class="col-span-4 flex items-center gap-2">
+          <i class="fa-solid fa-circle-check text-emerald-400"></i> Feasibility Assessment
+        </div>
+        <div class="col-span-4 flex items-center gap-2 border-l border-emerald-700 pl-4">
+          <i class="fa-solid fa-triangle-exclamation text-amber-400"></i> Potential Challenges & Risks
+        </div>
+        <div class="col-span-4 flex items-center gap-2 border-l border-emerald-700 pl-4">
+          <i class="fa-solid fa-shield-halved text-teal-300"></i> Strategies for Overcoming
+        </div>
+      </div>
+
+      <!-- Row 1: Technical -->
+      <div class="grid grid-cols-12 border-t border-gray-200 p-3 bg-white items-center">
+        <div class="col-span-4 pr-3">
+          <div class="font-bold text-gray-950 text-xs font-heading">1. Technical Feasibility</div>
+          <p class="text-[10px] text-gray-600 mt-0.5 leading-snug">
+            • Proven REST & React PWA stack.<br>
+            • Serialized lightweight ML (&lt;3MB).<br>
+            • Zero complex IoT / blockchain overhead.
+          </p>
+        </div>
+        <div class="col-span-4 border-l border-gray-200 px-3">
+          <div class="font-bold text-rose-800 text-xs font-heading">1. Data Downtime & Typist Typo Outliers</div>
+          <p class="text-[10px] text-gray-600 mt-0.5 leading-snug">
+            <b>Challenge:</b> Govt server downtime or typist errors.<br>
+            <b>Risk:</b> Corrupt data distorts price guidance.
+          </p>
+        </div>
+        <div class="col-span-4 border-l border-gray-200 pl-3">
+          <div class="font-bold text-emerald-800 text-xs font-heading">• Isolation Forest & Fallback Cache</div>
+          <p class="text-[10px] text-gray-600 mt-0.5 leading-snug">
+            Auto-flags corrupt outlier entries; database serves latest verified snapshot with clear timestamp.
+          </p>
+        </div>
+      </div>
+
+      <!-- Row 2: Operational -->
+      <div class="grid grid-cols-12 border-t border-gray-200 p-3 bg-gray-50/70 items-center">
+        <div class="col-span-4 pr-3">
+          <div class="font-bold text-gray-950 text-xs font-heading">2. Operational Feasibility</div>
+          <p class="text-[10px] text-gray-600 mt-0.5 leading-snug">
+            • 60-second mobile OTP registration.<br>
+            • Marathi regional voice assistant.<br>
+            • Operates smoothly on rural 2G/3G networks.
+          </p>
+        </div>
+        <div class="col-span-4 border-l border-gray-200 px-3">
+          <div class="font-bold text-rose-800 text-xs font-heading">2. Transport Price Volatility</div>
+          <p class="text-[10px] text-gray-600 mt-0.5 leading-snug">
+            <b>Challenge:</b> Fuel swings & road conditions.<br>
+            <b>Risk:</b> Net realization discrepancies.
+          </p>
+        </div>
+        <div class="col-span-4 border-l border-gray-200 pl-3">
+          <div class="font-bold text-emerald-800 text-xs font-heading">• Dynamic Range & Transporter Bids</div>
+          <p class="text-[10px] text-gray-600 mt-0.5 leading-snug">
+            Calculates estimated [Min–Max] range with vehicle choices and real village driver quote bidding.
+          </p>
+        </div>
+      </div>
+
+      <!-- Row 3: Financial & Security -->
+      <div class="grid grid-cols-12 border-t border-gray-200 p-3 bg-white items-center">
+        <div class="col-span-4 pr-3">
+          <div class="font-bold text-gray-950 text-xs font-heading">3. Financial & Security</div>
+          <p class="text-[10px] text-gray-600 mt-0.5 leading-snug">
+            • 100% Free-tier deployment (₹0 cloud cost).<br>
+            • PostgreSQL row-level locks prevent double-selling.
+          </p>
+        </div>
+        <div class="col-span-4 border-l border-gray-200 px-3">
+          <div class="font-bold text-rose-800 text-xs font-heading">3. Counterparty Fraud & Delayed Payment</div>
+          <p class="text-[10px] text-gray-600 mt-0.5 leading-snug">
+            <b>Challenge:</b> Unverified buyers offering fake bids.<br>
+            <b>Risk:</b> Farmer defaults or payment delays.
+          </p>
+        </div>
+        <div class="col-span-4 border-l border-gray-200 pl-3">
+          <div class="font-bold text-emerald-800 text-xs font-heading">• GSTIN Vetting & Two-Way Reviews</div>
+          <p class="text-[10px] text-gray-600 mt-0.5 leading-snug">
+            Admin validates corporate GSTIN/trade licenses; milestone escrow release; deal-only mutual star ratings.
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Feasibility Metric -->
+    <div class="bg-gray-100 p-2 px-4 rounded-xl flex justify-between items-center text-xs font-mono text-gray-700">
+      <span>🔒 TRANSACTION SECURITY: PostgreSQL Row Locking (Zero Risk of Double-Allocation)</span>
+      <span class="text-emerald-800 font-bold">FEASIBILITY SCORE: HIGH (Ready for Pilot)</span>
+    </div>
+
+    <!-- Slide Footer -->
+    <div class="flex justify-between items-center text-xs text-gray-400 border-t pt-2">
+      <span>@SIH Idea Submission 2026 | Feasibility & Risk Analysis</span>
+      <span class="font-mono text-emerald-700 font-bold">Slide 8 of 10</span>
+    </div>
+  </section>
+
+
+  <!-- =================================================================== -->
+  <!-- SLIDE 6: QUANTIFIED ECONOMIC IMPACT & REAL CASE STUDY -->
+  <!-- =================================================================== -->
+  <section id="slide-6" class="slide-canvas border-t-8 border-emerald-700">
+    <div class="flex justify-between items-start border-b pb-2">
+      <div>
+        <div class="text-emerald-800 font-bold text-xs tracking-wider uppercase font-heading">
+          Measurable Economic Impact & Concrete Validation
+        </div>
+        <h2 class="text-3xl font-extrabold text-gray-950 font-heading">
+          Quantified Economic Impact: Real Case Benchmark
+        </h2>
+      </div>
+      <img src="../Image/AgriMandi Logo without background.png" alt="AgriMandi Logo" class="h-9 object-contain">
+    </div>
+
+    <!-- Case Study Section with Real Data Breakdown -->
+    <div class="grid grid-cols-12 gap-5 my-auto items-center">
+      
+      <!-- Chart Canvas (Col 1-6) -->
+      <div class="col-span-6 bg-gray-50 border-2 border-gray-200 rounded-2xl p-3 shadow-inner">
+        <div class="flex justify-between items-center mb-1.5">
+          <span class="text-xs font-bold font-heading text-gray-900">
+            <i class="fa-solid fa-scale-balanced text-emerald-600 mr-1"></i> Net Realized Cash Breakdown (50 Qtl Soybean)
+          </span>
+          <span class="text-[10px] font-mono font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+            +₹10,250 Pure Profit Jump
+          </span>
+        </div>
+        <div class="h-56 relative">
+          <canvas id="impactChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Case Narrative & Financial Proof (Col 7-12) -->
+      <div class="col-span-6 flex flex-col justify-between gap-3 text-xs">
+        
+        <!-- Case Breakdown Card -->
+        <div class="bg-white border-2 border-emerald-200 rounded-xl p-3 shadow-sm">
+          <div class="flex justify-between items-center border-b pb-1.5 mb-2">
+            <span class="font-bold text-xs font-heading text-emerald-900">Latur District Farmer Trade Benchmark</span>
+            <span class="font-mono text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">50 Quintals Soybean</span>
+          </div>
+
+          <div class="space-y-2 text-[11px]">
+            <div class="flex justify-between items-center p-1.5 bg-rose-50/60 rounded border border-rose-100">
+              <div>
+                <span class="font-bold text-rose-900 block">Traditional APMC Yard Sale</span>
+                <span class="text-[10px] text-gray-500">Gross: ₹2,47,500 − Freight: ₹9,000 − Cuts: ₹4,750</span>
+              </div>
+              <span class="font-mono font-extrabold text-rose-700">₹2,33,750 In-Hand</span>
+            </div>
+
+            <div class="flex justify-between items-center p-1.5 bg-emerald-50 rounded border border-emerald-200">
+              <div>
+                <span class="font-bold text-emerald-950 block">AgriMandi Direct Farm-Gate Mill Sale</span>
+                <span class="text-[10px] text-gray-500">Mill Price: ₹2,44,000 | Buyer Arranges Transport | ₹0 Cuts</span>
+              </div>
+              <span class="font-mono font-extrabold text-emerald-800">₹2,44,000 In-Hand</span>
+            </div>
+          </div>
+
+          <div class="mt-2.5 pt-2 border-t border-gray-100 flex justify-between items-center font-mono">
+            <span class="text-[11px] font-bold text-gray-700">Net Farmer Cash Advantage:</span>
+            <span class="text-xs font-extrabold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded">+₹10,250 (+4.38% Net Gain)</span>
+          </div>
+        </div>
+
+        <!-- 4 Dimension Impact Grid -->
+        <div class="grid grid-cols-2 gap-2 text-[10px]">
+          <div class="bg-emerald-50/60 border border-emerald-200 p-2 rounded-lg">
+            <b class="text-emerald-900 font-heading block">🌱 Economic Benefit</b>
+            8%–15% average increase in farmer disposable income; eliminates distressed fire-sales.
+          </div>
+          <div class="bg-blue-50/60 border border-blue-200 p-2 rounded-lg">
+            <b class="text-blue-900 font-heading block">🤝 Social Inclusion</b>
+            Empowers marginal farmers with bulk pricing parity and Marathi speech accessibility.
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Scalability Formula Strip -->
+    <div class="bg-gray-900 text-white rounded-xl p-2.5 px-4 flex items-center justify-between text-xs font-mono">
+      <span class="text-emerald-400 font-bold">STATEWIDE MAHARASHTRA IMPACT:</span>
+      <span class="text-gray-300">If 10,000 farmers trade 50 Qtl via AgriMandi ➔ ₹10.25+ Crore Direct Value Added to Rural Wallets!</span>
+    </div>
+
+    <!-- Slide Footer -->
+    <div class="flex justify-between items-center text-xs text-gray-400 border-t pt-2">
+      <span>@SIH Idea Submission 2026 | Quantified Economic Impact</span>
+      <span class="font-mono text-emerald-700 font-bold">Slide 9 of 10</span>
+    </div>
+  </section>
+
+
+  <!-- =================================================================== -->
+  <!-- SLIDE 7: RESEARCH, DATASETS & POLICY CITATIONS -->
+  <!-- =================================================================== -->
+  <section id="slide-7" class="slide-canvas border-t-8 border-emerald-700">
+    <div class="flex justify-between items-start border-b pb-2">
+      <div>
+        <div class="text-emerald-800 font-bold text-xs tracking-wider uppercase font-heading">
+          Authentic Citations & Open Data Sources
+        </div>
+        <h2 class="text-3xl font-extrabold text-gray-950 font-heading">
+          Research, Datasets and Government References
+        </h2>
+      </div>
+      <img src="../Image/AgriMandi Logo without background.png" alt="AgriMandi Logo" class="h-9 object-contain">
+    </div>
+
+    <!-- 6 Grounded Reference Cards -->
+    <div class="grid grid-cols-3 gap-3.5 my-auto text-xs">
+      
+      <!-- Ref 1 -->
+      <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold text-xs mb-1.5">
+            <i class="fa-solid fa-database"></i>
+          </div>
+          <h4 class="font-bold text-xs text-gray-950 font-heading">Ministry of Agriculture (OGD)</h4>
+          <p class="text-[10px] text-gray-600 mt-1 leading-snug">
+            AGMARKNET Daily Market Arrivals & Price feeds API from open government portal.
+          </p>
+        </div>
+        <div class="mt-2 font-mono text-[9px] text-emerald-800 bg-emerald-50 p-1 rounded font-bold">
+          Resource: 9ef84268-d588-465a-a308
+        </div>
+      </div>
+
+      <!-- Ref 2 -->
+      <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="w-7 h-7 rounded-lg bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs mb-1.5">
+            <i class="fa-solid fa-graduation-cap"></i>
+          </div>
+          <h4 class="font-bold text-xs text-gray-950 font-heading">Ashoka University (CEDA)</h4>
+          <p class="text-[10px] text-gray-600 mt-1 leading-snug">
+            Cleaned historical Agmarknet daily price time-series dataset (2018–2025) for ML training.
+          </p>
+        </div>
+        <div class="mt-2 font-mono text-[9px] text-blue-800 bg-blue-50 p-1 rounded font-bold">
+          agmarknet.ceda.ashoka.edu.in
+        </div>
+      </div>
+
+      <!-- Ref 3 -->
+      <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="w-7 h-7 rounded-lg bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-xs mb-1.5">
+            <i class="fa-solid fa-file-invoice"></i>
+          </div>
+          <h4 class="font-bold text-xs text-gray-950 font-heading">NITI Aayog & Dalwai Committee</h4>
+          <p class="text-[10px] text-gray-600 mt-1 leading-snug">
+            Doubling Farmers' Income (DFI) Vol. IV: Net Realization & Direct Market Linkages.
+          </p>
+        </div>
+        <div class="mt-2 font-mono text-[9px] text-amber-800 bg-amber-50 p-1 rounded font-bold">
+          Farm-Gate Realization Policy
+        </div>
+      </div>
+
+      <!-- Ref 4 -->
+      <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="w-7 h-7 rounded-lg bg-teal-100 text-teal-800 flex items-center justify-center font-bold text-xs mb-1.5">
+            <i class="fa-solid fa-building-columns"></i>
+          </div>
+          <h4 class="font-bold text-xs text-gray-950 font-heading">Maharashtra Agri Board (MSAMB)</h4>
+          <p class="text-[10px] text-gray-600 mt-1 leading-snug">
+            FPC Direct Linkage Framework & APMC market regulation acts in Maharashtra.
+          </p>
+        </div>
+        <div class="mt-2 font-mono text-[9px] text-teal-800 bg-teal-50 p-1 rounded font-bold">
+          msamb.com / fpc.msamb.com
+        </div>
+      </div>
+
+      <!-- Ref 5 -->
+      <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="w-7 h-7 rounded-lg bg-purple-100 text-purple-800 flex items-center justify-center font-bold text-xs mb-1.5">
+            <i class="fa-solid fa-language"></i>
+          </div>
+          <h4 class="font-bold text-xs text-gray-950 font-heading">Bhashini Mission (MeitY)</h4>
+          <p class="text-[10px] text-gray-600 mt-1 leading-snug">
+            National Language Translation Mission: Open Indian language speech-to-text models.
+          </p>
+        </div>
+        <div class="mt-2 font-mono text-[9px] text-purple-800 bg-purple-50 p-1 rounded font-bold">
+          bhashini.gov.in / ULCA
+        </div>
+      </div>
+
+      <!-- Ref 6 -->
+      <div class="bg-white border border-gray-200 rounded-xl p-3 shadow-sm flex flex-col justify-between">
+        <div>
+          <div class="w-7 h-7 rounded-lg bg-rose-100 text-rose-800 flex items-center justify-center font-bold text-xs mb-1.5">
+            <i class="fa-solid fa-microchip"></i>
+          </div>
+          <h4 class="font-bold text-xs text-gray-950 font-heading">ACM / IEEE ML Literature</h4>
+          <p class="text-[10px] text-gray-600 mt-1 leading-snug">
+            • Chen & Guestrin: XGBoost Scalable Tree Boosting<br>• Liu et al.: Isolation Forest Anomaly Detection
+          </p>
+        </div>
+        <div class="mt-2 font-mono text-[9px] text-rose-800 bg-rose-50 p-1 rounded font-bold">
+          ACM KDD & IEEE ICDM
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Alignment Banner -->
+    <div class="bg-gradient-to-r from-emerald-900 to-teal-900 text-white p-2.5 px-4 rounded-xl flex justify-between items-center text-xs">
+      <span class="font-bold font-heading">Aligned with Sustainable Development Goals (SDG 1: No Poverty, SDG 8: Decent Work, SDG 12: Responsible Consumption)</span>
+      <span class="font-mono text-emerald-300 font-bold">100% Policy Grounded</span>
+    </div>
+
+    <!-- Slide Footer -->
+    <div class="flex justify-between items-center text-xs text-gray-400 border-t pt-2">
+      <span>@SIH Idea Submission 2026 | Research Citations & Dataset Authenticity</span>
+      <span class="font-mono text-emerald-700 font-bold">Slide 10 of 10</span>
+    </div>
+  </section>
+
+
+  <!-- ======================================================= -->
+  <!-- JAVASCRIPT: CHART INITIALIZATION & PRESENTATION MODE -->
+  <!-- ======================================================= -->
+  <script>
+    // 1. Initialize ML Benchmark Comparison Chart (Slide 3C)
+    const initMlChart = () => {
+      const ctx = document.getElementById('mlBenchmarkChart');
+      if (!ctx) return;
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Naive 30D SMA', 'Random Forest', 'XGBoost (Ours)'],
+          datasets: [
+            {
+              label: 'RMSE Error (₹/qtl) - Lower is Better',
+              data: [284.5, 142.8, 112.4],
+              backgroundColor: ['#94a3b8', '#f59e0b', '#10b981'],
+              borderRadius: 6,
+              barPercentage: 0.7
+            },
+            {
+              label: 'MAE Error (₹/qtl) - Lower is Better',
+              data: [210.2, 98.4, 78.2],
+              backgroundColor: ['#cbd5e1', '#fcd34d', '#34d399'],
+              borderRadius: 6,
+              barPercentage: 0.7
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { font: { size: 10, family: 'Plus Jakarta Sans', weight: 'bold' } }
+            },
+            tooltip: {
+              callbacks: {
+                label: (c) => ` ${c.dataset.label}: ₹${c.raw} / qtl`
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: '₹ / Quintal Error', font: { size: 10 } },
+              grid: { color: 'rgba(0,0,0,0.05)' }
+            },
+            x: {
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    };
+
+    // 2. Initialize Quantified Economic Impact Chart (Slide 6)
+    const initImpactChart = () => {
+      const ctx = document.getElementById('impactChart');
+      if (!ctx) return;
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: ['Traditional APMC Mandi', 'AgriMandi Direct Farm-Gate'],
+          datasets: [
+            {
+              label: 'Net In-Hand Realized by Farmer',
+              data: [233750, 244000],
+              backgroundColor: ['#f43f5e', '#059669'],
+              borderRadius: 6,
+              stack: 'Stack 0'
+            },
+            {
+              label: 'Transport / Freight Cost',
+              data: [9000, 0],
+              backgroundColor: ['#e11d48', '#047857'],
+              borderRadius: 6,
+              stack: 'Stack 0'
+            },
+            {
+              label: 'Mandi Cess / Middlemen Deductions',
+              data: [4750, 0],
+              backgroundColor: ['#475569', '#065f46'],
+              borderRadius: 6,
+              stack: 'Stack 0'
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'top',
+              labels: { font: { size: 10, family: 'Plus Jakarta Sans', weight: 'bold' } }
+            },
+            tooltip: {
+              callbacks: {
+                label: (c) => ` ${c.dataset.label}: ₹${c.raw.toLocaleString('en-IN')}`
+              }
+            }
+          },
+          scales: {
+            y: {
+              beginAtZero: true,
+              title: { display: true, text: 'Total Trade Value (₹)', font: { size: 10 } },
+              ticks: {
+                callback: (val) => '₹' + (val / 1000) + 'k'
+              },
+              grid: { color: 'rgba(0,0,0,0.05)' }
+            },
+            x: {
+              grid: { display: false }
+            }
+          }
+        }
+      });
+    };
+
+    // 3. Presentation Mode Keyboard & Navigation Controller
+    let currentSlideIdx = 0;
+    const slides = document.querySelectorAll('.slide-canvas');
+
+    const updateSlideDisplay = () => {
+      slides.forEach((s, idx) => {
+        if (document.body.classList.contains('presentation-mode')) {
+          if (idx === currentSlideIdx) {
+            s.classList.add('active-slide');
+            s.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          } else {
+            s.classList.remove('active-slide');
+          }
+        } else {
+          s.classList.remove('active-slide');
+        }
+      });
+    };
+
+    const togglePresentationMode = () => {
+      const isPres = document.body.classList.toggle('presentation-mode');
+      const btnText = document.getElementById('presBtnText');
+      if (isPres) {
+        btnText.innerText = 'Exit Present (Esc)';
+        updateSlideDisplay();
+      } else {
+        btnText.innerText = 'Present Mode';
+        updateSlideDisplay();
+      }
+    };
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'PageDown' || (e.key === ' ' && !e.target.matches('input, textarea'))) {
+        if (currentSlideIdx < slides.length - 1) {
+          currentSlideIdx++;
+          updateSlideDisplay();
+          if (!document.body.classList.contains('presentation-mode')) {
+            slides[currentSlideIdx].scrollIntoView({ behavior: 'smooth' });
+          }
+        }
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        if (currentSlideIdx > 0) {
+          currentSlideIdx--;
+          updateSlideDisplay();
+          if (!document.body.classList.contains('presentation-mode')) {
+            slides[currentSlideIdx].scrollIntoView({ behavior: 'smooth' });
+          }
+        }
+      } else if (e.key === 'Escape' && document.body.classList.contains('presentation-mode')) {
+        togglePresentationMode();
+      }
+    });
+
+    // Execute Charts upon Load with fail-safe readyState check
+    const startAllCharts = () => {
+      initMlChart();
+      initImpactChart();
+    };
+
+    if (document.readyState === 'loading') {
+      window.addEventListener('DOMContentLoaded', startAllCharts);
+    } else {
+      startAllCharts();
+    }
+  </script>
+</body>
+</html>
