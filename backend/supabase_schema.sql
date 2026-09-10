@@ -1,7 +1,8 @@
 -- ==========================================================
 -- AgriMandi (B2B Agricultural Marketplace) - Supabase Schema
 -- Target Engine: Supabase PostgreSQL 15
--- Run this in your Supabase SQL Editor: https://supabase.com/dashboard/project/eizzzlnlcdfuylnojijn/sql
+-- Run this in your Supabase SQL Editor:
+-- https://supabase.com/dashboard/project/eizzzlnlcdfuylnojijn/sql/new
 -- ==========================================================
 
 -- Enable UUID extension
@@ -9,7 +10,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- 1. Users Table
 CREATE TABLE IF NOT EXISTS public.users (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     phone VARCHAR(20) UNIQUE NOT NULL,
     role VARCHAR(20) NOT NULL CHECK (role IN ('FARMER', 'BUYER', 'ADMIN', 'SUPERADMIN')),
     name VARCHAR(100) NOT NULL,
@@ -24,8 +25,8 @@ CREATE TABLE IF NOT EXISTS public.users (
 
 -- 2. Farmer Profiles Table
 CREATE TABLE IF NOT EXISTS public.farmer_profiles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID UNIQUE REFERENCES public.users(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    user_id TEXT UNIQUE REFERENCES public.users(id) ON DELETE CASCADE,
     full_name VARCHAR(100) NOT NULL,
     phone VARCHAR(20) NOT NULL,
     state VARCHAR(50) DEFAULT 'Maharashtra',
@@ -44,15 +45,15 @@ CREATE TABLE IF NOT EXISTS public.farmer_profiles (
 
 -- 3. Buyer Profiles Table
 CREATE TABLE IF NOT EXISTS public.buyer_profiles (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    user_id TEXT,
     company_name VARCHAR(150) NOT NULL,
     legal_name VARCHAR(200),
     representative_name VARCHAR(100),
     phone VARCHAR(20) NOT NULL,
     gstin VARCHAR(15) UNIQUE NOT NULL,
     pan VARCHAR(10),
-    license_type VARCHAR(100) NOT NULL, -- 'Oil Mill Direct Procurement', 'Dal Mill Processor', etc.
+    license_type VARCHAR(100) NOT NULL,
     license_number VARCHAR(100),
     daily_capacity_mt NUMERIC(8,2) DEFAULT 0,
     district VARCHAR(50) NOT NULL,
@@ -71,8 +72,8 @@ CREATE TABLE IF NOT EXISTS public.buyer_profiles (
 
 -- 4. Produce Lots Table (Farm-Gate Listings)
 CREATE TABLE IF NOT EXISTS public.produce_lots (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    farmer_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    farmer_id TEXT REFERENCES public.users(id) ON DELETE SET NULL,
     farmer_name VARCHAR(100) NOT NULL,
     farmer_phone VARCHAR(20) NOT NULL,
     crop VARCHAR(50) NOT NULL,
@@ -92,9 +93,9 @@ CREATE TABLE IF NOT EXISTS public.produce_lots (
 
 -- 5. Offers / Bids Table
 CREATE TABLE IF NOT EXISTS public.offers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    lot_id UUID REFERENCES public.produce_lots(id) ON DELETE CASCADE,
-    buyer_id UUID REFERENCES public.users(id) ON DELETE SET NULL,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    lot_id TEXT REFERENCES public.produce_lots(id) ON DELETE CASCADE,
+    buyer_id TEXT,
     buyer_name VARCHAR(150) NOT NULL,
     buyer_phone VARCHAR(20) NOT NULL,
     offered_price_per_qtl NUMERIC(8,2) NOT NULL,
@@ -107,9 +108,9 @@ CREATE TABLE IF NOT EXISTS public.offers (
 
 -- 6. Executed Deals & Escrow Table
 CREATE TABLE IF NOT EXISTS public.deals (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    lot_id UUID REFERENCES public.produce_lots(id) ON DELETE SET NULL,
-    offer_id UUID REFERENCES public.offers(id) ON DELETE SET NULL,
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    lot_id TEXT REFERENCES public.produce_lots(id) ON DELETE SET NULL,
+    offer_id TEXT REFERENCES public.offers(id) ON DELETE SET NULL,
     crop VARCHAR(50) NOT NULL,
     quantity_qtl NUMERIC(8,2) NOT NULL,
     price_per_qtl NUMERIC(8,2) NOT NULL,
@@ -122,7 +123,7 @@ CREATE TABLE IF NOT EXISTS public.deals (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- 7. Mandi Prices Historical Feed Table
+-- 7. Mandi Prices Historical Feed Table (If not already exists)
 CREATE TABLE IF NOT EXISTS public.mandi_prices (
     id SERIAL PRIMARY KEY,
     state VARCHAR(50) NOT NULL,
@@ -139,7 +140,7 @@ CREATE TABLE IF NOT EXISTS public.mandi_prices (
     CONSTRAINT unique_mandi_commodity_date UNIQUE (market, commodity, arrival_date)
 );
 
--- Disable strict RLS or grant public anon read/write for MVP development
+-- Row Level Security (Open for direct backend anon/authenticated access)
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.farmer_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.buyer_profiles ENABLE ROW LEVEL SECURITY;
@@ -148,10 +149,55 @@ ALTER TABLE public.offers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.deals ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mandi_prices ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow public read/write users" ON public.users;
 CREATE POLICY "Allow public read/write users" ON public.users FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read/write farmer_profiles" ON public.farmer_profiles;
 CREATE POLICY "Allow public read/write farmer_profiles" ON public.farmer_profiles FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read/write buyer_profiles" ON public.buyer_profiles;
 CREATE POLICY "Allow public read/write buyer_profiles" ON public.buyer_profiles FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read/write produce_lots" ON public.produce_lots;
 CREATE POLICY "Allow public read/write produce_lots" ON public.produce_lots FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read/write offers" ON public.offers;
 CREATE POLICY "Allow public read/write offers" ON public.offers FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read/write deals" ON public.deals;
 CREATE POLICY "Allow public read/write deals" ON public.deals FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public read/write mandi_prices" ON public.mandi_prices;
 CREATE POLICY "Allow public read/write mandi_prices" ON public.mandi_prices FOR ALL USING (true) WITH CHECK (true);
+
+-- ==========================================================
+-- SEED INITIAL DATA (Visible immediately in Table Editor)
+-- ==========================================================
+
+-- Seed Verified Farmer (Abhi Kendre)
+INSERT INTO public.users (id, phone, role, name, district, village, status, is_verified)
+VALUES ('usr-farmer-abhi', '8605168653', 'FARMER', 'Abhi Kendre', 'Latur', 'kandhar', 'ACTIVE', true)
+ON CONFLICT (phone) DO UPDATE SET 
+    name = EXCLUDED.name,
+    district = EXCLUDED.district,
+    village = EXCLUDED.village,
+    is_verified = EXCLUDED.is_verified;
+
+INSERT INTO public.farmer_profiles (id, user_id, full_name, phone, state, district, village, land_size_acres, saat_bara_number, primary_crops, is_verified)
+VALUES ('fp-farmer-abhi', 'usr-farmer-abhi', 'Abhi Kendre', '8605168653', 'Maharashtra', 'Latur', 'kandhar', 11, '88', ARRAY['Soybean'], true)
+ON CONFLICT (user_id) DO UPDATE SET 
+    full_name = EXCLUDED.full_name,
+    district = EXCLUDED.district,
+    saat_bara_number = EXCLUDED.saat_bara_number,
+    is_verified = EXCLUDED.is_verified;
+
+-- Seed Verified Buyers
+INSERT INTO public.buyer_profiles (id, company_name, legal_name, representative_name, phone, gstin, pan, license_type, license_number, daily_capacity_mt, district, city, address, target_crops, status, is_verified, rating, reviews_count)
+VALUES 
+('byr-1', 'Shree Ganesh Agro Processing Pvt Ltd', 'Shree Ganesh Agro Processing Pvt Ltd', 'Ganesh Shinde', '9822012345', '27AABCS1429B1Z8', 'AABCS1429B', 'Oil Mill Direct Procurement License', 'MH-LTR-2024-8821', 150, 'Latur', 'Latur MIDC', 'Plot 42, MIDC Industrial Area, Latur, Maharashtra', ARRAY['Soybean'], 'VERIFIED', true, 4.9, 24),
+('byr-2', 'Vardhman Agro & Dal Mills', 'Vardhman Agro & Dal Mills', 'Vardhman Jain', '9822056789', '27AABCV5521K1Z2', 'AABCV5521K', 'Dal Mill Direct Procurement License', 'MH-AKL-2023-4412', 120, 'Akola', 'Akola MIDC', 'Phase 2, Food Processing Park, Akola, Maharashtra', ARRAY['Pigeon Pea (Tur)', 'Chana'], 'VERIFIED', true, 4.8, 18),
+('byr-3', 'Sai Krishi Oil Industries', 'Sai Krishi Oil Industries', 'Sunil Patil', '9822098765', '27AAACS8910F1Z4', 'AAACS8910F', 'Oil Mill Direct Procurement License', 'MH-JLN-2022-7719', 200, 'Jalna', 'Jalna MIDC', 'Industrial Corridor, Phase 1, Jalna, Maharashtra', ARRAY['Soybean'], 'VERIFIED', true, 4.7, 15)
+ON CONFLICT (gstin) DO UPDATE SET 
+    company_name = EXCLUDED.company_name,
+    status = EXCLUDED.status,
+    is_verified = EXCLUDED.is_verified;
