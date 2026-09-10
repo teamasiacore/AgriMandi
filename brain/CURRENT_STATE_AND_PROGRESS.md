@@ -17,9 +17,15 @@ Both backend and frontend services are compiled, verified, and running live:
 | :--- | :---: | :--- | :--- | :---: |
 | **Frontend** | `5173` | `d:\AgriMandi\frontend` | `npm run dev -- --host` | 🟢 **RUNNING** (Vite v6.4, React 19, Tailwind 3.4, SuperAdmin Dashboard `/admin`) |
 | **Backend API** | `5000` | `d:\AgriMandi\backend` | `node src/server.js` | 🟢 **RUNNING** (Express v4.21, 100% Supabase PostgreSQL `eizzzlnlcdfuylnojijn.supabase.co`) |
-| **Git & CI/CD** | — | `d:\AgriMandi` | `git push -u origin main` | 🟡 **STAGED & COMMITTED** (Awaiting Collaborator access / PAT for `teamasiacore/AgriMandi`) |
+| **Git & CI/CD** | — | `d:\AgriMandi` | `git push -u origin main` | 🟢 **ACTIVE & LIVE** (Pushed to `teamasiacore/AgriMandi`, auto-deploying to `agrimandi.asiacore.in`) |
 
 ---
+
+### 🔒 Security Updates Applied
+1. **Public Admin Links Removed**: Completely removed all direct links to `/admin` from public pages (`LandingPage.jsx` footer and `AuthPage.jsx` bottom footer). SuperAdmin portal is now 100% private and accessible only via direct URL knowledge (`/admin`).
+2. **Empty Admin Credentials Form**: `username` and `password` default state wiped clean to empty strings (`''`).
+3. **Pre-set Credential Box Removed**: Completely eliminated the visible `ASIACore / Satya123` banner from the login interface.
+4. **Auto-Complete Hardened**: Added `autoComplete="off"` and `autoComplete="new-password"` to prevent browsers from revealing cached test credentials.
 
 ## 📦 2. Installed Dependencies & Architecture Breakdown
 
