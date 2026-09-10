@@ -98,10 +98,15 @@ Both backend and frontend services are compiled, verified, and running live:
 ## 🗄️ 4. Verified Database Schema (Supabase)
 
 - **Cloud Project ID:** `eizzzlnlcdfuylnojijn`
-- **Active Table:** `public.mandi_prices`
-- **Columns:** `id`, `state`, `district`, `market`, `commodity`, `variety`, `arrival_date`, `min_price`, `max_price`, `modal_price`, `created_at`.
-- **Constraint:** Unique `(market, commodity, arrival_date)`.
-- **Seeded Records:** 210 historical daily records for Lasalgaon, Pune, Nagpur, Nanded, Jalna, Latur, Solapur, Akola.
+- **Active Tables (100% Verified Live in Cloud PostgreSQL):**
+  1. `public.users` — Verified (1 record: `Abhi Kendre`, `8605168653`, `FARMER`)
+  2. `public.farmer_profiles` — Verified (`fp-farmer-abhi`, 11 acres, Saat-Bara `88`)
+  3. `public.buyer_profiles` — Verified (3 records: `Shree Ganesh Agro`, `Vardhman`, `Sai Krishi`)
+  4. `public.produce_lots` — Farm-gate produce listings with GPS lat/lng and moisture %
+  5. `public.offers` — Competitive buyer digital bids
+  6. `public.deals` — Locked transaction contracts with escrow status
+  7. `public.mandi_prices` — 210 historical daily Agmarknet records
+- **Row Level Security (RLS) & Grants:** `anon` and `authenticated` roles have full CRUD access. Zero permission denial.
 
 ---
 
