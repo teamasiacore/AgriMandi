@@ -6,8 +6,8 @@ const router = express.Router();
 // Get Produce Lots
 router.get('/lots', async (req, res) => {
   try {
-    const { crop, district, status } = req.query;
-    const lots = await db.getLots({ crop, district, status });
+    const { crop, district, status, farmer_phone, farmer_id } = req.query;
+    const lots = await db.getLots({ crop, district, status, farmer_phone, farmer_id });
     res.json({ status: 'success', count: lots.length, lots });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });

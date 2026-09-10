@@ -22,18 +22,22 @@ Both backend and frontend services are compiled, verified, and running live:
 ---
 
 ### 🔒 Security & Bug Fixes Applied
-1. **24x7 Cloud Vercel Serverless Architecture Implemented**: Resolved "Network Error" on production (`agrimandi.asiacore.in`). Previously, the frontend tried to reach `http://localhost:5000/api` which failed on external devices or when local node stopped. Deployed Express backend as a Vercel Serverless Function (`/api/index.js`), updated `vercel.json` rewrites, added Vite dev proxy, and configured relative `/api` paths. The platform is now 100% online 24x7 globally without requiring a local machine to be on.
-2. **Unregistered Login Auto-Creation Glitch Resolved**: Completely removed prototype auto-generation fallback (`Pragati Shetkari`) from `authRoutes.js`. Entering an unregistered number in Sign-In now returns strict HTTP 404 (`NOT_REGISTERED`), guiding the user to Register.
+1. **24x7 Cloud Vercel Serverless Architecture Implemented**: Resolved "Network Error" on production (`agrimandi.asiacore.in`). Express backend deployed as Vercel Serverless Function (`/api/index.js`), with relative `/api` paths.
+2. **Unregistered Login Auto-Creation Glitch Resolved**: Completely removed prototype auto-generation fallback (`Pragati Shetkari`) from `authRoutes.js`. Entering an unregistered number in Sign-In returns strict HTTP 404 (`NOT_REGISTERED`).
 3. **Duplicate Registration Guard**: Registration endpoint checks existing records and returns HTTP 409 (`ALREADY_REGISTERED`) with direct 1-click CTA to Sign-In.
-4. **Role Mismatch Protection**: Added checks preventing a registered Farmer from accidentally logging in under the Buyer tab (HTTP 400 `ROLE_MISMATCH`), providing 1-click persona switching in `AuthPage.jsx`.
-5. **SuperAdmin Account Management**: Added 1-click deletion endpoint (`DELETE /admin/farmers/:id` and `DELETE /admin/buyers/:id`) with trash button in SuperAdmin Dashboard to remove test or accidental registrations instantly.
+4. **Role Mismatch Protection**: Added checks preventing a registered Farmer from logging in under Buyer tab (HTTP 400 `ROLE_MISMATCH`).
+5. **SuperAdmin Account Management**: Added 1-click deletion endpoint (`DELETE /admin/farmers/:id` and `DELETE /admin/buyers/:id`) with trash button in SuperAdmin Dashboard.
 6. **Admin Farmer Desk Crash Resolved**: Fixed missing `BadgeCheck` icon import from `lucide-react`.
-7. **Defensive Normalization**: Added robust fallbacks for `farmer.name || farmer.full_name`, `crops || primary_crops`, and `id || user_id` in both frontend and backend `db.getFarmers()`.
-8. **React ErrorBoundary Added**: Wrapped main application routes with a fallback `ErrorBoundary` component in `App.jsx` to prevent any blank screens.
-9. **100% Pure Localization Across ALL Tabs**: 
-   - **Farmer Portal (`FarmerPortal.jsx`)**: In English mode, ALL tabs (Live Mandi & AI Advisory, Net Realization Engine, My Lots & Offers) and modals are 100% pure English with zero Devanagari characters. In Hindi and Marathi, authentic local terms are shown for every badge, district dropdown, table column, status tag, and modal placeholder.
-   - **Buyer Portal (`BuyerPortal.jsx`)**: Pending verification banner, account verification alerts, marketplace filters, tonnages, bid history tables, and verified mill registry are 100% purely localized without mixed text.
-   - **Auth Page (`AuthPage.jsx`)**: Validation alerts, error messages, and persona toggles now display in pure English, Hindi, or Marathi based on the selected language.
+7. **Defensive Normalization**: Added robust fallbacks for `farmer.name || farmer.full_name`, `crops || primary_crops`, and `id || user_id`.
+8. **React ErrorBoundary Added**: Wrapped main application routes with a fallback `ErrorBoundary` component in `App.jsx`.
+9. **100% Pure Localization Across ALL Tabs**: Pure English, Hindi, and Marathi dictionaries across all inner portal tabs without mixed text.
+10. **New Farmer Lots Isolation (Zero Dummy Lots)**: Removed hardcoded demo lot `lot-101` from memory cache. Updated `FarmerPortal.jsx` and `marketRoutes.js` with `farmer_phone` and `farmer_id` filters. Freshly registered farmers now start with exactly 0 lots and a clean empty-state CTA to list their first crop.
+11. **Net Realization Engine 100% Complete & Active**:
+    - Resolved async promise crash (`TypeError: buyers.map is not a function`) in `realizationRoutes.js`.
+    - Added full multi-crop dictionary (Soybean, Cotton, Onion, Tur, Chana, Maize, Wheat) and Maharashtra district coordinates with Haversine distance.
+    - Added vehicle tariffs (Eicher Truck ₹4.20/km, Bolero Pickup ₹4.80/km, Tractor Trolley ₹5.20/km) and warehouse holding cost (₹0.50/qtl/day).
+    - Added interactive UI controls with quantity pills [25] [50] [100], prominent "खरा नफा मोजा (Calculate Net Realization)" button, and live status badge 🟢.
+    - Added Hero Profit Callout (+₹12,700 extra cash), side-by-side APMC vs Direct Mill route cards, and Top Matching Verified Buyers with 1-click lot listing action.
 
 ## 📦 2. Installed Dependencies & Architecture Breakdown
 

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, PlusCircle, ShieldCheck, CheckCircle2, 
-  MapPin, RefreshCw, BarChart3, Truck, UserCheck, X, AlertCircle
+  MapPin, RefreshCw, BarChart3, Truck, UserCheck, X, AlertCircle,
+  Calculator, Sparkles, ArrowRight, ArrowUpRight, Check, Info, ShieldAlert, Award
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
@@ -23,9 +24,13 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
   const [historyData, setHistoryData] = useState(null);
   const [historyCrop, setHistoryCrop] = useState('Soyabean');
 
-  // Calculator
+  // Calculator State (Net Realization Engine)
+  const [calcCrop, setCalcCrop] = useState('Soybean');
   const [calcQty, setCalcQty] = useState(60);
   const [calcDistrict, setCalcDistrict] = useState('Latur');
+  const [calcVehicle, setCalcVehicle] = useState('standard_truck');
+  const [calcStorageDays, setCalcStorageDays] = useState(0);
+  const [calculating, setCalculating] = useState(false);
   const [realizationData, setRealizationData] = useState(null);
 
   // Lots & Offers
@@ -55,10 +60,12 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
 
   useEffect(() => {
     const savedUser = localStorage.getItem('agri_user');
+    let u = user;
     if (savedUser) {
       try {
-        const u = JSON.parse(savedUser);
+        u = JSON.parse(savedUser);
         setUser(u);
+        if (u.district) setCalcDistrict(u.district);
         setLotForm(prev => ({
           ...prev,
           district: u.district || 'Latur',
@@ -69,8 +76,8 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
 
     loadMandiRates();
     loadMandiHistory('Soyabean');
-    loadLotsAndOffers();
-    runCalculator();
+    loadLotsAndOffers(u);
+    runCalculator({ district: u.district || 'Latur' });
   }, []);
 
   const loadMandiRates = () => {
@@ -93,29 +100,65 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
       .catch(() => {});
   };
 
-  const loadLotsAndOffers = () => {
-    api.getLots().then(res => setMyLots(res.lots || [])).catch(() => {});
-    api.getOffers().then(res => setOffers(res.offers || [])).catch(() => {});
+  // Strictly filter lots so a farmer ONLY sees their own created lots (Never someone else's dummy lot)
+  const loadLotsAndOffers = (currentUser = user) => {
+    const filter = currentUser?.phone ? { farmer_phone: currentUser.phone } : {};
+    api.getLots(filter).then(res => {
+      const allFetched = res.lots || [];
+      const userLots = currentUser?.phone 
+        ? allFetched.filter(l => l.farmer_phone === currentUser.phone || (currentUser.id && l.farmer_id === currentUser.id))
+        : allFetched;
+      setMyLots(userLots);
+    }).catch(() => setMyLots([]));
+
+    api.getOffers().then(res => setOffers(res.offers || [])).catch(() => setOffers([]));
   };
 
-  const runCalculator = () => {
-    api.calculateRealization({
-      crop: selectedCrop,
-      quantityQtl: calcQty,
-      farmerDistrict: calcDistrict
-    }).then(res => setRealizationData(res)).catch(() => {});
+  // Run Net Realization Calculator
+  const runCalculator = async (overrideParams = {}) => {
+    setCalculating(true);
+    try {
+      const payload = {
+        crop: overrideParams.crop || calcCrop,
+        quantityQtl: Number(overrideParams.qty !== undefined ? overrideParams.qty : calcQty) || 50,
+        farmerDistrict: overrideParams.district || calcDistrict,
+        vehicleType: overrideParams.vehicle || calcVehicle,
+        storageDays: Number(overrideParams.storage !== undefined ? overrideParams.storage : calcStorageDays) || 0
+      };
+      const res = await api.calculateRealization(payload);
+      if (res && res.apmcRoute) {
+        setRealizationData(res);
+      }
+    } catch (err) {
+      console.error('Realization calculation error:', err);
+    } finally {
+      setCalculating(false);
+    }
   };
 
   useEffect(() => {
     runCalculator();
-  }, [selectedCrop, calcQty, calcDistrict]);
+  }, [calcCrop, calcQty, calcDistrict, calcVehicle, calcStorageDays]);
+
+  const handleSelectBuyerForLot = (buyer) => {
+    setLotForm(prev => ({
+      ...prev,
+      crop: calcCrop,
+      quantity_qtl: calcQty,
+      expected_price_per_qtl: buyer.offeredRate,
+      district: user.district || calcDistrict,
+      farm_address: user.village ? `${user.village}, ${user.district || calcDistrict}` : (prev.farm_address || '')
+    }));
+    setIsListingModalOpen(true);
+  };
 
   const handleCreateLot = async (e) => {
     e.preventDefault();
     try {
       await api.createLot({
         ...lotForm,
-        farmer_name: user.name,
+        farmer_id: user.id || `usr-${user.phone || Date.now()}`,
+        farmer_name: user.name || user.full_name || 'Farmer',
         farmer_phone: user.phone
       });
       setIsListingModalOpen(false);
@@ -129,7 +172,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
         district: user.district || 'Latur',
         farm_address: user.village || ''
       });
-      loadLotsAndOffers();
+      loadLotsAndOffers(user);
       setActiveTab('lots');
       alert(currentLang === 'en' ? 'Harvest lot published to marketplace successfully!' : 
             currentLang === 'hi' ? 'फसल लॉट सफलतापूर्वक मंडी में प्रकाशित हो गया है!' :
@@ -490,139 +533,427 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
         {/* TAB 2: NET REALIZATION CALCULATOR */}
         {activeTab === 'calculator' && (
           <div className="mt-6 space-y-6">
-            <div className="bg-white rounded-2xl p-6 border border-[#E5DFD4] shadow-xs">
-              <div className="max-w-xl">
-                <span className="text-xs font-bold text-[#C86432] uppercase">{t.calcTag}</span>
-                <h3 className="text-2xl font-bold font-heading text-[#1B4332] mt-0.5">
-                  {t.calcTitle}
-                </h3>
-                <p className="text-xs text-stone-600 mt-1">
-                  {t.calcSub}
-                </p>
+            <div className="bg-white rounded-2xl p-6 sm:p-8 border border-[#E5DFD4] shadow-xs">
+              
+              {/* Header & Engine Status Badge */}
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-6 border-b border-[#E5DFD4]">
+                <div className="max-w-xl">
+                  <div className="inline-flex items-center gap-2 text-xs font-bold text-[#C86432] uppercase tracking-wider">
+                    <Sparkles className="w-4 h-4 text-[#C86432]" />
+                    {t.calcTag} • DYNAMIC REALIZATION ENGINE
+                  </div>
+                  <h3 className="text-2xl sm:text-3xl font-bold font-heading text-[#1B4332] mt-1">
+                    {t.calcTitle}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-stone-600 mt-1 leading-relaxed">
+                    {t.calcSub}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 bg-[#FAF7F2] px-3.5 py-2 rounded-xl border border-[#E5DFD4] self-start lg:self-auto">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-xs font-bold text-[#1B4332]">
+                    {currentLang === 'en' ? 'Live Agmarknet + Haversine Engine Active' : currentLang === 'hi' ? 'लाइव एगमार्कनेट + हावरसाइन इंजन सक्रिय' : 'लाइव्ह ॲगमार्कनेट + हॅवरसाइन इंजिन सक्रिय'}
+                  </span>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+              {/* Calculator Input Controls */}
+              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                
+                {/* 1. Commodity Selector */}
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">{t.labelCommodity}</label>
+                  <label className="block text-xs font-bold text-stone-700 mb-1.5">{t.labelCommodity}</label>
                   <select
-                    value={selectedCrop}
-                    onChange={(e) => setSelectedCrop(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-sm font-semibold"
+                    value={calcCrop}
+                    onChange={(e) => setCalcCrop(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs sm:text-sm font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#1B4332]"
                   >
                     <option value="Soybean">{t.soybean}</option>
                     <option value="Cotton">{t.cotton}</option>
                     <option value="Onion">{t.onion}</option>
                     <option value="Arhar (Tur)">{t.tur}</option>
+                    <option value="Gram (Chana)">{t.chana}</option>
+                    <option value="Wheat">{t.wheat}</option>
                   </select>
                 </div>
 
+                {/* 2. Total Quantity with Quick Pills */}
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">{t.labelQuantity}</label>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="text-xs font-bold text-stone-700">{t.labelQuantity}</label>
+                    <div className="flex items-center gap-1">
+                      {[25, 50, 100].map(q => (
+                        <button
+                          key={q}
+                          type="button"
+                          onClick={() => setCalcQty(q)}
+                          className={`text-[10px] px-1.5 py-0.5 rounded font-bold transition-all ${
+                            Number(calcQty) === q ? 'bg-[#1B4332] text-white' : 'bg-stone-200 text-stone-700 hover:bg-stone-300'
+                          }`}
+                        >
+                          {q}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
                   <input
                     type="number"
+                    min="1"
                     value={calcQty}
                     onChange={(e) => setCalcQty(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-sm font-bold font-mono"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs sm:text-sm font-bold font-mono text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#1B4332]"
                   />
                 </div>
 
+                {/* 3. Farmer's District */}
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">{t.labelDistrict}</label>
+                  <label className="block text-xs font-bold text-stone-700 mb-1.5">{t.labelDistrict}</label>
                   <select
                     value={calcDistrict}
                     onChange={(e) => setCalcDistrict(e.target.value)}
-                    className="w-full px-3 py-2.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-sm font-semibold"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs sm:text-sm font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#1B4332]"
                   >
                     <option value="Latur">{currentLang === 'en' ? 'Latur' : 'लातूर'}</option>
                     <option value="Solapur">{currentLang === 'en' ? 'Solapur' : currentLang === 'hi' ? 'सोलापुर' : 'सोलापूर'}</option>
                     <option value="Jalna">{currentLang === 'en' ? 'Jalna' : 'जालना'}</option>
                     <option value="Nashik">{currentLang === 'en' ? 'Nashik' : currentLang === 'hi' ? 'नासिक' : 'नाशिक'}</option>
                     <option value="Akola">{currentLang === 'en' ? 'Akola' : 'अकोला'}</option>
+                    <option value="Pune">{currentLang === 'en' ? 'Pune' : 'पुणे'}</option>
+                    <option value="Nanded">{currentLang === 'en' ? 'Nanded' : 'नांदेड'}</option>
+                    <option value="Nagpur">{currentLang === 'en' ? 'Nagpur' : 'नागपूर'}</option>
+                    <option value="Ahmednagar">{currentLang === 'en' ? 'Ahmednagar' : 'अहिल्यानगर'}</option>
+                    <option value="Yavatmal">{currentLang === 'en' ? 'Yavatmal' : 'यवतमाळ'}</option>
+                    <option value="Amravati">{currentLang === 'en' ? 'Amravati' : 'अमरावती'}</option>
+                    <option value="Chhatrapati Sambhajinagar">{currentLang === 'en' ? 'Sambhajinagar' : 'छ. संभाजीनगर'}</option>
                   </select>
                 </div>
+
+                {/* 4. Vehicle / Freight Type */}
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                    {currentLang === 'en' ? 'Transport Vehicle' : currentLang === 'hi' ? 'वाहन प्रकार' : 'वाहतूक साधन'}
+                  </label>
+                  <select
+                    value={calcVehicle}
+                    onChange={(e) => setCalcVehicle(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs sm:text-sm font-semibold text-stone-900 focus:outline-none focus:ring-2 focus:ring-[#1B4332]"
+                  >
+                    <option value="standard_truck">
+                      {currentLang === 'en' ? 'Eicher / Medium Truck (₹4.20/km)' : currentLang === 'hi' ? 'आयशर मीडियम ट्रक (₹४.२०/किमी)' : 'आयशर मध्यम ट्रक (₹४.२०/किमी)'}
+                    </option>
+                    <option value="pickup">
+                      {currentLang === 'en' ? 'Bolero Maxi Truck (₹4.80/km)' : currentLang === 'hi' ? 'बोलेरो पिकअप (₹४.८०/किमी)' : 'बोलेरो पिकअप (₹४.८०/किमी)'}
+                    </option>
+                    <option value="tractor">
+                      {currentLang === 'en' ? 'Tractor Trolley Rural (₹5.20/km)' : currentLang === 'hi' ? 'ट्रैक्टर ट्रॉली ग्रामीण (₹५.२०/किमी)' : 'ट्रॅक्टर ट्रॉली ग्रामीण (₹५.२०/किमी)'}
+                    </option>
+                  </select>
+                </div>
+
               </div>
 
-              {/* Comparison Output Cards */}
-              {realizationData && realizationData.apmcRoute && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-                  
-                  {/* APMC Route */}
-                  <div className="bg-red-50/40 p-5 rounded-xl border border-red-200">
-                    <span className="text-xs font-bold text-red-700 uppercase">{t.apmcRouteTitle}</span>
-                    <div className="mt-4 space-y-2 text-xs text-stone-700">
-                      <div className="flex justify-between">
-                        <span>{t.apmcSticker}</span>
-                        <span className="font-mono font-bold">₹{realizationData.apmcRoute.stickerPrice}/Qtl</span>
-                      </div>
-                      <div className="flex justify-between text-red-600">
-                        <span>{t.apmcFreight}</span>
-                        <span className="font-mono">-₹{realizationData.apmcRoute.freightPerQtl}/Qtl</span>
-                      </div>
-                      <div className="flex justify-between text-red-600">
-                        <span>{t.apmcCess}</span>
-                        <span className="font-mono">-₹{realizationData.apmcRoute.mandiCessPerQtl + realizationData.apmcRoute.handlingPerQtl}/Qtl</span>
-                      </div>
-                      <div className="pt-3 border-t border-red-200 flex justify-between font-bold text-stone-800 text-sm">
-                        <span>{t.apmcNetReturn}</span>
-                        <span className="font-mono text-red-700">₹{realizationData.apmcRoute.netInHandPerQtl} / Qtl</span>
-                      </div>
-                      <div className="flex justify-between text-stone-600 text-xs">
-                        <span>{t.apmcTotal}</span>
-                        <span className="font-mono font-bold">₹{realizationData.apmcRoute.totalPayout.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  </div>
+              {/* Second Row: Storage Days & Prominent Action Button */}
+              <div className="mt-4 pt-4 border-t border-[#E5DFD4] flex flex-col sm:flex-row items-center justify-between gap-4">
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                  <label className="text-xs font-bold text-stone-700 whitespace-nowrap">
+                    {currentLang === 'en' ? 'Holding Period:' : currentLang === 'hi' ? 'साठवणूक अवधि:' : 'साठवणूक कालावधी:'}
+                  </label>
+                  <select
+                    value={calcStorageDays}
+                    onChange={(e) => setCalcStorageDays(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold text-stone-800"
+                  >
+                    <option value="0">{currentLang === 'en' ? '0 Days (Immediate Sell)' : currentLang === 'hi' ? '० दिन (तुरंत बिक्री)' : '० दिवस (तात्काळ शेतातून विक्री)'}</option>
+                    <option value="7">{currentLang === 'en' ? '7 Days Hold (₹3.50/qtl)' : currentLang === 'hi' ? '७ दिन रोकें (₹३.५०/क्विंटल)' : '७ दिवस साठवणूक (₹३.५०/क्विंटल)'}</option>
+                    <option value="15">{currentLang === 'en' ? '15 Days Hold (₹7.50/qtl)' : currentLang === 'hi' ? '१५ दिन रोकें (₹७.५०/क्विंटल)' : '१५ दिवस साठवणूक (₹७.५०/क्विंटल)'}</option>
+                    <option value="30">{currentLang === 'en' ? '30 Days Hold (₹15.00/qtl)' : currentLang === 'hi' ? '३० दिन रोकें (₹१५.००/क्विंटल)' : '३० दिवस साठवणूक (₹१५.००/क्विंटल)'}</option>
+                  </select>
+                </div>
 
-                  {/* AgriMandi Direct Route */}
-                  <div className="bg-[#1B4332] text-white p-5 rounded-xl border border-[#2D6A4F] shadow-md">
-                    <span className="text-xs font-bold text-[#DE7C4A] uppercase">{t.directRouteTitle}</span>
-                    <div className="mt-4 space-y-2 text-xs text-stone-200">
-                      <div className="flex justify-between">
-                        <span>{t.directGateRate}</span>
-                        <span className="font-mono font-bold text-white">₹{realizationData.directRoute.netInHandPerQtl}/Qtl</span>
-                      </div>
-                      <div className="flex justify-between text-emerald-300">
-                        <span>{t.directFreightFree}</span>
-                      </div>
-                      <div className="flex justify-between text-emerald-300">
-                        <span>{t.directCessFree}</span>
-                      </div>
-                      <div className="pt-3 border-t border-[#2D6A4F] flex justify-between font-bold text-emerald-400 text-sm">
-                        <span>{t.directNetReturn}</span>
-                        <span className="font-mono text-xl">₹{realizationData.directRoute.netInHandPerQtl} / Qtl</span>
-                      </div>
-                      <div className="flex justify-between text-stone-300 text-xs">
-                        <span>{t.directTotal}</span>
-                        <span className="font-mono font-bold text-white">₹{realizationData.directRoute.totalPayout.toLocaleString()}</span>
-                      </div>
-                    </div>
+                {/* Big Calculate Realization Button */}
+                <button
+                  type="button"
+                  onClick={() => runCalculator()}
+                  disabled={calculating}
+                  className="w-full sm:w-auto px-6 py-3 bg-[#1B4332] hover:bg-[#2D6A4F] active:scale-98 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                >
+                  <Calculator className="w-4 h-4 text-[#DE7C4A]" />
+                  <span>
+                    {currentLang === 'en' ? 'Calculate Net Realization' : currentLang === 'hi' ? 'खरा नफा मोजें' : 'खरा नफा मोजा'}
+                  </span>
+                  {calculating ? (
+                    <RefreshCw className="w-4 h-4 animate-spin text-emerald-300" />
+                  ) : (
+                    <ArrowRight className="w-4 h-4 text-emerald-300" />
+                  )}
+                </button>
+              </div>
 
-                    <div className="mt-4 p-2.5 bg-[#C86432] rounded-lg text-center font-bold text-xs">
-                      🎉 {t.directExtraProfit} +₹{realizationData.directRoute.netExtraEarning.toLocaleString()}
-                    </div>
-                  </div>
-
+              {/* Dynamic Results Display */}
+              {calculating && !realizationData && (
+                <div className="py-12 text-center">
+                  <RefreshCw className="w-8 h-8 animate-spin text-[#1B4332] mx-auto mb-2" />
+                  <p className="text-xs font-semibold text-stone-500">
+                    {currentLang === 'en' ? 'Computing Haversine freight & Agmarknet net realization...' : 'हॅवरसाइन भाडे व प्रत्यक्ष नफा मोजत आहे...'}
+                  </p>
                 </div>
               )}
 
-              {/* Nearby Matching Buyers */}
-              {realizationData && realizationData.directRoute && realizationData.directRoute.matchingBuyers && (
-                <div className="mt-8 pt-6 border-t border-[#E5DFD4]">
-                  <h4 className="text-sm font-bold text-[#1B4332] mb-3">
-                    {t.verifiedBuyersNearby}
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {realizationData.directRoute.matchingBuyers.slice(0, 3).map((b) => (
-                      <div key={b.id} className="p-4 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-[#1B4332]">{b.company_name}</span>
-                          <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">GSTIN ✓</span>
-                        </div>
-                        <p className="text-xs text-stone-500 mt-1">{b.city} ({b.distanceKm} km)</p>
-                        <p className="text-xs font-bold text-stone-700 mt-2">{currentLang === 'en' ? 'Rate:' : currentLang === 'hi' ? 'भाव:' : 'दर:'} ₹{b.offeredRate}/Qtl</p>
+              {realizationData && realizationData.apmcRoute && (
+                <div className="mt-8 space-y-6">
+                  
+                  {/* Hero Extra Profit Callout Banner */}
+                  <div className="bg-gradient-to-r from-[#1B4332] to-[#2D6A4F] text-white p-5 sm:p-6 rounded-2xl shadow-md flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold uppercase tracking-wider text-[#DE7C4A] bg-[#0F261C] px-2.5 py-0.5 rounded">
+                          {currentLang === 'en' ? 'Farmer Net Advantage' : currentLang === 'hi' ? 'किसान अतिरिक्त लाभ' : 'शेतकरी थेट फायदा'}
+                        </span>
+                        <span className="text-xs text-emerald-300 font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> +{realizationData.directRoute.percentageProfitGain}% {currentLang === 'en' ? 'More Cash' : 'जास्त रोख रक्कम'}
+                        </span>
                       </div>
-                    ))}
+                      <h4 className="text-xl sm:text-2xl font-bold font-heading mt-1">
+                        {currentLang === 'en' ? 'Direct Sale Extra Profit:' : currentLang === 'hi' ? 'सीधी बिक्री से अतिरिक्त लाभ:' : 'थेट विक्रीतून मिळणारा निव्वळ जास्तीचा नफा:'}
+                      </h4>
+                      <p className="text-xs text-stone-300 mt-0.5">
+                        {currentLang === 'en' 
+                          ? `On ${calcQty} Qtl ${calcCrop}, you save ₹0 APMC cess, ₹0 freight, and zero middleman cuts.`
+                          : `${calcQty} क्विंटल ${calcCrop} वर ०% अडत, ०% सेस आणि मोफत शेतातून वाहतुकीमुळे होणारी थेट बचत.`}
+                      </p>
+                    </div>
+
+                    <div className="bg-[#C86432] text-white px-6 py-4 rounded-xl text-center shadow-md min-w-[200px]">
+                      <span className="text-[11px] font-bold uppercase tracking-wider block opacity-90">
+                        {t.directExtraProfit}
+                      </span>
+                      <span className="text-2xl sm:text-3xl font-black font-mono block mt-0.5">
+                        +₹{realizationData.directRoute.netExtraEarning.toLocaleString()}
+                      </span>
+                    </div>
                   </div>
+
+                  {/* Side-by-Side Detailed Breakdown */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    
+                    {/* ROUTE A: TRADITIONAL APMC MANDI */}
+                    <div className="bg-red-50/50 p-6 rounded-2xl border border-red-200 shadow-xs flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between pb-3 border-b border-red-200">
+                          <div>
+                            <span className="text-xs font-bold text-red-700 uppercase tracking-wider block">
+                              {t.apmcRouteTitle}
+                            </span>
+                            <span className="text-xs text-stone-600 font-medium">
+                              {realizationData.apmcRoute.marketName} (~{realizationData.apmcRoute.distanceKm} km)
+                            </span>
+                          </div>
+                          <span className="text-[10px] bg-red-100 text-red-800 font-bold px-2 py-0.5 rounded">
+                            {currentLang === 'en' ? 'High Deductions' : 'मोठ्या कपाती'}
+                          </span>
+                        </div>
+
+                        <div className="mt-4 space-y-2.5 text-xs text-stone-700">
+                          <div className="flex justify-between items-center">
+                            <span>{t.apmcSticker}</span>
+                            <span className="font-mono font-bold text-stone-900 text-sm">₹{realizationData.apmcRoute.stickerPrice} / Qtl</span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-red-700">
+                            <span className="flex items-center gap-1">
+                              • {t.apmcFreight} ({calcVehicle})
+                            </span>
+                            <span className="font-mono font-bold">-₹{realizationData.apmcRoute.freightPerQtl} / Qtl</span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-red-700">
+                            <span className="flex items-center gap-1">
+                              • {currentLang === 'en' ? 'APMC Mandi Cess & Market Fee (1.05%)' : 'APMC सेस व कर (१.०५%)'}
+                            </span>
+                            <span className="font-mono font-bold">-₹{realizationData.apmcRoute.mandiCessPerQtl} / Qtl</span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-red-700">
+                            <span className="flex items-center gap-1">
+                              • {currentLang === 'en' ? 'Loading, Unloading & Weighing (Hamali)' : 'हमाली, वाराई व तोलाई (Hamali)'}
+                            </span>
+                            <span className="font-mono font-bold">-₹{realizationData.apmcRoute.handlingPerQtl} / Qtl</span>
+                          </div>
+
+                          {realizationData.apmcRoute.storagePerQtl > 0 && (
+                            <div className="flex justify-between items-center text-red-700">
+                              <span className="flex items-center gap-1">
+                                • {currentLang === 'en' ? `Warehouse Storage (${calcStorageDays} Days)` : `गोदाम भाडे (${calcStorageDays} दिवस)`}
+                              </span>
+                              <span className="font-mono font-bold">-₹{realizationData.apmcRoute.storagePerQtl} / Qtl</span>
+                            </div>
+                          )}
+
+                          <div className="pt-2 border-t border-red-200/60 flex justify-between items-center text-stone-600 text-[11px]">
+                            <span>{currentLang === 'en' ? 'Total Deductions per Qtl:' : 'एकूण कपात प्रति क्विंटल:'}</span>
+                            <span className="font-mono font-bold text-red-700">-₹{realizationData.apmcRoute.totalDeductionPerQtl} / Qtl</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 pt-4 border-t border-red-200">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold text-stone-700">{t.apmcNetReturn}</span>
+                          <span className="font-mono font-bold text-stone-900 text-lg">
+                            ₹{realizationData.apmcRoute.netInHandPerQtl} <span className="text-xs font-normal">/ Qtl</span>
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center mt-1 text-stone-600 text-xs">
+                          <span>{t.apmcTotal} ({calcQty} Qtl):</span>
+                          <span className="font-mono font-bold text-stone-900 text-sm">
+                            ₹{realizationData.apmcRoute.totalPayout.toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-stone-500 mt-2 italic">
+                          ⏱ {currentLang === 'en' ? 'Payment timeline: 3-7 days cheque/rtgs via commission agent' : 'पेमेंट: ३ ते ७ दिवस चेक/कमीशन अडत्याची उधारी'}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* ROUTE B: AGRIMANDI DIRECT MILL PROCUREMENT */}
+                    <div className="bg-[#1B4332] text-white p-6 rounded-2xl border border-[#2D6A4F] shadow-md flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center justify-between pb-3 border-b border-[#2D6A4F]">
+                          <div>
+                            <span className="text-xs font-bold text-[#DE7C4A] uppercase tracking-wider block">
+                              {t.directRouteTitle}
+                            </span>
+                            <span className="text-xs text-stone-300 font-medium">
+                              {realizationData.directRoute.recommendedBuyer ? realizationData.directRoute.recommendedBuyer.company_name : 'Verified Agro Mill Partner'}
+                            </span>
+                          </div>
+                          <span className="text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-bold px-2 py-0.5 rounded">
+                            {currentLang === 'en' ? '0% Middleman Cut' : '०% आडत व दलाली'}
+                          </span>
+                        </div>
+
+                        <div className="mt-4 space-y-2.5 text-xs text-stone-200">
+                          <div className="flex justify-between items-center">
+                            <span>{t.directGateRate}</span>
+                            <span className="font-mono font-bold text-white text-sm">₹{realizationData.directRoute.netInHandPerQtl} / Qtl</span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-emerald-300">
+                            <span className="flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              {currentLang === 'en' ? 'Farm-Gate Transport Pickup' : 'थेट शेतातून खरेदीदार वाहतूक (उचल)'}
+                            </span>
+                            <span className="font-mono font-bold text-white">₹0 / मोफत</span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-emerald-300">
+                            <span className="flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              {currentLang === 'en' ? 'APMC Mandi Cess (Central FAP Compliant)' : 'मंडी सेस: ०% (Central FAP Act नुसार कायदेशीर)'}
+                            </span>
+                            <span className="font-mono font-bold text-white">₹0 / मोफत</span>
+                          </div>
+
+                          <div className="flex justify-between items-center text-emerald-300">
+                            <span className="flex items-center gap-1.5">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              {currentLang === 'en' ? 'Loading & Middleman Commission' : 'हमाली व मध्यस्थ दलाली कपात'}
+                            </span>
+                            <span className="font-mono font-bold text-white">₹0 / मोफत</span>
+                          </div>
+
+                          <div className="pt-2 border-t border-[#2D6A4F] flex justify-between items-center text-stone-300 text-[11px]">
+                            <span>{currentLang === 'en' ? 'Total Deductions per Qtl:' : 'एकूण कपात प्रति क्विंटल:'}</span>
+                            <span className="font-mono font-bold text-emerald-300">₹0.00 / Qtl</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="mt-5 pt-4 border-t border-[#2D6A4F]">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-bold text-emerald-300">{t.directNetReturn}</span>
+                          <span className="font-mono font-bold text-white text-2xl">
+                            ₹{realizationData.directRoute.netInHandPerQtl} <span className="text-xs font-normal">/ Qtl</span>
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center mt-1 text-stone-300 text-xs">
+                          <span>{t.directTotal} ({calcQty} Qtl):</span>
+                          <span className="font-mono font-bold text-emerald-300 text-base">
+                            ₹{realizationData.directRoute.totalPayout.toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-emerald-200 mt-2 flex items-center gap-1 font-medium">
+                          ⚡ {currentLang === 'en' ? 'Instant T+0 Escrow Bank Transfer within 2 hours of weighment' : 'वजन होताच २ तासांत बँक खात्यात थेट T+0 RTGS/UPI ट्रान्सफर'}
+                        </p>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* Top Matching Verified Buyers Nearby */}
+                  {realizationData.directRoute.matchingBuyers && realizationData.directRoute.matchingBuyers.length > 0 && (
+                    <div className="mt-8 pt-6 border-t border-[#E5DFD4]">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+                        <div>
+                          <h4 className="text-base font-bold font-heading text-[#1B4332]">
+                            {t.verifiedBuyersNearby}
+                          </h4>
+                          <p className="text-xs text-stone-500">
+                            {currentLang === 'en' ? 'Direct mills ready to purchase your harvest at calculated farm-gate rates' : 'आपल्या शेताजवळ थेट खरेदी करणारे पडताळणीकृत कारखाने'}
+                          </p>
+                        </div>
+                        <span className="text-xs font-bold text-stone-600 bg-[#FAF7F2] px-3 py-1 rounded-lg border border-[#E5DFD4] self-start sm:self-auto">
+                          {realizationData.directRoute.matchingBuyers.length} {currentLang === 'en' ? 'Verified Buyers' : 'सत्यापित खरेदीदार'}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {realizationData.directRoute.matchingBuyers.slice(0, 3).map((b) => (
+                          <div key={b.id} className="p-4 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4] hover:border-[#1B4332] transition-all flex flex-col justify-between">
+                            <div>
+                              <div className="flex items-center justify-between">
+                                <span className="text-xs font-bold text-[#1B4332] line-clamp-1">{b.company_name}</span>
+                                <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold shrink-0">GSTIN ✓</span>
+                              </div>
+                              <p className="text-xs text-stone-500 mt-1 flex items-center gap-1">
+                                <MapPin className="w-3 h-3 text-[#C86432]" /> {b.city || b.district} ({b.distanceKm} km अंतर)
+                              </p>
+                              
+                              <div className="mt-3 p-2 bg-white rounded-lg border border-[#E5DFD4] flex items-center justify-between text-xs">
+                                <span className="text-stone-600">{currentLang === 'en' ? 'Offered Rate:' : 'थेट खरेदी दर:'}</span>
+                                <span className="font-mono font-bold text-[#1B4332] text-sm">₹{b.offeredRate} / Qtl</span>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleSelectBuyerForLot(b)}
+                              className="mt-4 w-full py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-all"
+                            >
+                              <span>{currentLang === 'en' ? 'List Harvest for this Buyer' : currentLang === 'hi' ? 'इस खरीदार को बेचें' : 'या खरेदीदाराला थेट माल विका'}</span>
+                              <ArrowRight className="w-3.5 h-3.5 text-emerald-300" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Mathematical Transparency Accordion Card */}
+                  <div className="p-4 rounded-xl bg-amber-50/60 border border-amber-200 text-xs text-amber-950 space-y-1.5">
+                    <div className="flex items-center gap-2 font-bold text-amber-900">
+                      <Info className="w-4 h-4 text-[#C86432]" />
+                      <span>{currentLang === 'en' ? 'Net Realization Engineering Formula (TRD Model 1):' : 'खरा नफा मोजणीचे वैज्ञानिक सूत्र व नियम:'}</span>
+                    </div>
+                    <p className="leading-relaxed">
+                      <strong>Net Realization (₹/Qtl)</strong> = APMC Modal Rate - Freight [₹500/Qty + (Distance × ₹{calcVehicle === 'pickup' ? '4.80' : calcVehicle === 'tractor' ? '5.20' : '4.20'})] - Mandi Cess (1.05%) - Handling (₹25) - Storage ({calcStorageDays} Days × ₹0.50).
+                    </p>
+                    <p className="text-stone-600 text-[11px]">
+                      AgriMandi platform directly connects verified farmers with licensed processing mills under Maharashtra Agricultural Produce Marketing (Regulation) Amendment, securing 0% middlemen loss.
+                    </p>
+                  </div>
+
                 </div>
               )}
 

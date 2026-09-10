@@ -113,27 +113,7 @@ let memoryCache = {
       created_at: '2026-09-03T11:00:00.000Z'
     }
   ],
-  lots: [
-    {
-      id: 'lot-101',
-      farmer_id: 'usr-farmer-abhi',
-      farmer_name: 'Abhi Kendre',
-      farmer_phone: '8605168653',
-      crop: 'Soybean',
-      variety: 'JS-335 (Yellow)',
-      quantity_qtl: 100,
-      expected_price_per_qtl: 4950,
-      moisture_percentage: 9.5,
-      quality_grade: 'FAQ (Grade A Premium)',
-      farm_address: 'Kandhar Farm Gate, Latur, Maharashtra',
-      district: 'Latur',
-      farm_lat: 18.4088,
-      farm_lng: 76.5604,
-      status: 'LISTED',
-      offers_count: 2,
-      created_at: '2026-09-10T10:00:00.000Z'
-    }
-  ],
+  lots: [],
   offers: [],
   deals: []
 };
@@ -163,6 +143,12 @@ export const db = {
         if (filters.status) {
           query = query.eq('status', filters.status);
         }
+        if (filters.farmer_phone) {
+          query = query.eq('farmer_phone', filters.farmer_phone);
+        }
+        if (filters.farmer_id) {
+          query = query.eq('farmer_id', filters.farmer_id);
+        }
         const { data, error } = await query;
         if (!error && data) return data;
         if (error) console.warn('Supabase getLots error:', error.message);
@@ -180,6 +166,12 @@ export const db = {
     }
     if (filters.status) {
       result = result.filter(l => l.status === filters.status);
+    }
+    if (filters.farmer_phone) {
+      result = result.filter(l => l.farmer_phone === filters.farmer_phone);
+    }
+    if (filters.farmer_id) {
+      result = result.filter(l => l.farmer_id === filters.farmer_id);
     }
     return result;
   },
