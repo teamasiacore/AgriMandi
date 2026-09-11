@@ -158,5 +158,7 @@ Both backend and frontend services are compiled, verified, and running live:
 - [x] **Phase 1: Foundation & Landing Page** — Complete (Live Agmarknet feed, Supabase PostgreSQL, Trilingual UI)
 - [x] **Phase 2: Farmer Portal (शेतकरी डॅशबोर्ड)** — Complete (Net Realization Engine, Lot creation, Offer acceptance)
 - [x] **Phase 3: Buyer Procurement Portal** — Complete (Live Marketplace, Haversine distances, Digital Bidding, Deal Contracts & Escrow)
+- [x] **Phase 3.5: Service Provider (Transporter & Logistics) Ecosystem** — Complete (3-Way Role Selector, Live Duty Toggle, E-Waybill with RTO QR code, Supabase PostgreSQL DDL)
 - [ ] **Phase 4: FPO Aggregation Desk** — Upcoming
 - [ ] **Phase 5: Digital APMC Mandi Desk & Logistics** — Upcoming
+
