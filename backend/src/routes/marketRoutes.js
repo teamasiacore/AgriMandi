@@ -174,4 +174,104 @@ router.get('/deals', async (req, res) => {
   }
 });
 
+// ===================== TRANSPORTERS (LOGISTICS) =====================
+
+// Get Registered Transporters
+router.get('/transporters', async (req, res) => {
+  try {
+    const { district, available } = req.query;
+    const transporters = await db.getTransporters({ district, available });
+    res.json({ status: 'success', count: transporters.length, transporters });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Get Available Farm-Gate Trip Requests (Deals awaiting transit)
+router.get('/transporters/available-trips', async (req, res) => {
+  try {
+    const { district } = req.query;
+    const allDeals = await db.getDeals();
+    // Filter deals that are either PENDING_PICKUP or don't have a transporter assigned yet
+    let availableTrips = allDeals.filter(d => 
+      !d.transporter_id || d.delivery_status === 'PENDING_PICKUP'
+    );
+    if (district && district !== 'all') {
+      availableTrips = availableTrips.filter(d => 
+        (d.district && d.district.toLowerCase() === district.toLowerCase()) ||
+        (d.farm_address && d.farm_address.toLowerCase().includes(district.toLowerCase()))
+      );
+    }
+    res.json({ status: 'success', count: availableTrips.length, trips: availableTrips });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Get Single Transporter Profile
+router.get('/transporters/:id', async (req, res) => {
+  try {
+    const transporter = await db.getTransporterById(req.params.id);
+    if (!transporter) {
+      return res.status(404).json({ status: 'error', message: 'Transporter profile not found.' });
+    }
+    const trips = await db.getTransporterTrips(transporter.id);
+    res.json({ status: 'success', transporter, trips });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Update Duty Availability (🟢 On-Duty vs 🔴 Off-Duty)
+router.patch('/transporters/:id/status', async (req, res) => {
+  try {
+    const { is_available } = req.body;
+    const updated = await db.updateTransporterStatus(req.params.id, Boolean(is_available));
+    res.json({ 
+      status: 'success', 
+      message: `Duty status updated to ${is_available ? 'Available (On-Duty)' : 'Offline (Off-Duty)'}.`,
+      transporter: updated 
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Transporter Accepts Farm-Gate Trip
+router.post('/transporters/accept-trip', async (req, res) => {
+  try {
+    const { deal_id, transporter_id, driver_name, driver_phone, vehicle_number, agreed_freight } = req.body;
+    if (!deal_id || !transporter_id) {
+      return res.status(400).json({ status: 'error', message: 'Deal ID and Transporter ID are required.' });
+    }
+
+    const updatedDeal = await db.acceptTrip({
+      deal_id,
+      transporter_id,
+      driver_name: driver_name || 'Verified Driver',
+      driver_phone: driver_phone || '',
+      vehicle_number: vehicle_number || 'MH-24-VEHICLE',
+      agreed_freight: Number(agreed_freight) || 0
+    });
+
+    res.json({
+      status: 'success',
+      message: '🚚 Trip accepted! Goods are now IN_TRANSIT. Digital E-Waybill generated.',
+      deal: updatedDeal
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Get Trips Assigned to a Specific Transporter
+router.get('/transporters/:id/trips', async (req, res) => {
+  try {
+    const trips = await db.getTransporterTrips(req.params.id);
+    res.json({ status: 'success', count: trips.length, trips });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 export default router;

@@ -7,6 +7,7 @@ export const translations = {
     navHome: 'मुख्यपृष्ठ',
     navFarmer: 'शेतकरी पोर्टल',
     navBuyer: 'खरेदीदार पोर्टल',
+    navTransporter: 'वाहतूकदार (Logistics)',
     signIn: 'लॉगिन',
     register: 'नोंदणी',
     logout: 'बाहेर पडा',
@@ -18,6 +19,7 @@ export const translations = {
     heroSubtitle: 'मध्यस्थांची कटकट नाही, आडतीचा भुर्दंड नाही. Agmarknet चे थेट बाजारभाव, पारदर्शक तोलमाप आणि थेट बँक खात्यात तत्काळ मोबदला.',
     farmerBtn: 'मी शेतकरी आहे',
     buyerBtn: 'मी खरेदीदार आहे',
+    transporterBtn: 'मी वाहतूकदार आहे',
     trust1: '०% आडत व दलाली',
     trust2: '१००% एस्क्रो बँक सुरक्षा',
     trust3: 'सरकारी Agmarknet दर',
@@ -222,6 +224,7 @@ export const translations = {
     navHome: 'होम',
     navFarmer: 'किसान पोर्टल',
     navBuyer: 'खरीदार पोर्टल',
+    navTransporter: 'ट्रांसपोर्टर (Logistics)',
     signIn: 'लॉग इन',
     register: 'पंजीकरण',
     logout: 'लॉग आउट',
@@ -233,6 +236,7 @@ export const translations = {
     heroSubtitle: 'बिचौलियों और आढ़तियों का कोई कमीशन नहीं। Agmarknet का लाइव मंडी भाव, पारदर्शी तौल और सीधे बैंक खाते में भुगतान।',
     farmerBtn: 'मैं किसान हूँ',
     buyerBtn: 'मैं खरीदार हूँ',
+    transporterBtn: 'मैं ट्रांसपोर्टर हूँ',
     trust1: '०% बिचौलिया कमीशन',
     trust2: '१००% एस्क्रो बैंक सुरक्षा',
     trust3: 'सरकारी Agmarknet दर',
@@ -437,6 +441,7 @@ export const translations = {
     navHome: 'Home',
     navFarmer: 'Farmer Portal',
     navBuyer: 'Buyer Portal',
+    navTransporter: 'Transporter (Logistics)',
     signIn: 'Sign In',
     register: 'Register',
     logout: 'Sign Out',
@@ -448,6 +453,7 @@ export const translations = {
     heroSubtitle: 'Eliminate middleman cuts and yard deductions. Access real-time Agmarknet rates, transparent weighbridge quality, and secured escrow bank payouts.',
     farmerBtn: 'I am a Farmer',
     buyerBtn: 'I am a Buyer',
+    transporterBtn: 'I am a Transporter',
     trust1: '0% Middleman Fees',
     trust2: '100% Escrow Bank Security',
     trust3: 'Government Agmarknet Data',
@@ -704,3 +710,12 @@ export const LICENSE_TYPE_OPTIONS = [
     en: 'State / Semi-Govt Procurement Agency' 
   }
 ];
+
+export const VEHICLE_TYPE_OPTIONS = [
+  { id: 'Bolero Maxi Truck (1.5 MT)', mr: 'बोलेरो मॅक्सी ट्रक (१.५ टन / १५ क्विंटल)', hi: 'बोलेरो मैक्सी ट्रक (1.5 टन / 15 क्विंटल)', en: 'Bolero Maxi Truck (1.5 MT / 15 Qtl)' },
+  { id: 'Eicher 14ft (5 MT)', mr: 'आयशर १४ फूट (५ टन / ५० क्विंटल)', hi: 'आयशर 14 फीट (5 टन / 50 क्विंटल)', en: 'Eicher 14ft (5 MT / 50 Qtl)' },
+  { id: 'Tractor Trolley (4 MT)', mr: 'ट्रॅक्टर ट्रॉली (४ टन / ४० क्विंटल)', hi: 'ट्रैक्टर ट्रॉली (4 टन / 40 क्विंटल)', en: 'Tractor Trolley (4 MT / 40 Qtl)' },
+  { id: '10-Wheeler Truck (16 MT)', mr: '१०-चाकी मोठा ट्रक (१६ टन / १६० क्विंटल)', hi: '10-पहिया बड़ा ट्रक (16 टन / 160 क्विंटल)', en: '10-Wheeler Heavy Truck (16 MT / 160 Qtl)' },
+  { id: 'Tata Ace (1 MT)', mr: 'छोटा हत्ती / टाटा एस (१ टन / १० क्विंटल)', hi: 'छोटा हाथी / टाटा एस (1 टन / 10 क्विंटल)', en: 'Tata Ace (1 MT / 10 Qtl)' }
+];
+

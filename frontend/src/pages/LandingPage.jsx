@@ -110,20 +110,27 @@ export default function LandingPage({ currentLang = 'mr' }) {
               </p>
 
               {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-2">
+              <div className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start pt-2">
                 <Link
                   to="/farmer"
-                  className="px-6 py-3.5 rounded-xl bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold text-base shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group"
+                  className="px-5 py-3.5 rounded-xl bg-[#1B4332] hover:bg-[#2D6A4F] text-white font-bold text-sm shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 group cursor-pointer"
                 >
                   {t.farmerBtn}
-                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                 </Link>
                 <Link
                   to="/buyer"
-                  className="px-6 py-3.5 rounded-xl bg-white hover:bg-[#F3EDE2] text-[#1B4332] border-2 border-[#1B4332] font-bold text-base shadow-xs transition-all flex items-center justify-center gap-2"
+                  className="px-5 py-3.5 rounded-xl bg-white hover:bg-[#F3EDE2] text-[#1B4332] border-2 border-[#1B4332] font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {t.buyerBtn}
-                  <Building2 className="w-5 h-5 text-[#C86432]" />
+                  <Building2 className="w-4 h-4 text-[#C86432]" />
+                </Link>
+                <Link
+                  to="/transporter"
+                  className="px-5 py-3.5 rounded-xl bg-[#FAF7F2] hover:bg-[#F3EDE2] text-[#1B4332] border-2 border-[#E5DFD4] hover:border-[#1B4332] font-bold text-sm shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  {t.transporterBtn || 'मी वाहतूकदार आहे'}
+                  <Truck className="w-4 h-4 text-[#C86432]" />
                 </Link>
               </div>
 
@@ -548,6 +555,7 @@ export default function LandingPage({ currentLang = 'mr' }) {
               <ul className="space-y-2 text-xs text-stone-300 font-medium">
                 <li><Link to="/farmer" className="hover:text-white transition-colors">{t.navFarmer}</Link></li>
                 <li><Link to="/buyer" className="hover:text-white transition-colors">{t.navBuyer}</Link></li>
+                <li><Link to="/transporter" className="hover:text-white transition-colors">{t.navTransporter || 'वाहतूकदार (Logistics)'}</Link></li>
                 <li><Link to="/login" className="hover:text-white transition-colors">{t.signIn}</Link></li>
                 <li><Link to="/register" className="hover:text-white transition-colors">{t.register}</Link></li>
               </ul>

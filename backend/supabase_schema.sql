@@ -190,3 +190,33 @@ ON CONFLICT (user_id) DO UPDATE SET
     district = EXCLUDED.district,
     saat_bara_number = EXCLUDED.saat_bara_number,
     is_verified = EXCLUDED.is_verified;
+
+-- ==========================================================
+-- 8. Service Provider (Transporter & Logistics Profiles)
+-- ==========================================================
+-- Update users role check to allow TRANSPORTER
+ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE public.users ADD CONSTRAINT users_role_check CHECK (role IN ('FARMER', 'BUYER', 'TRANSPORTER', 'ADMIN', 'SUPERADMIN'));
+
+CREATE TABLE IF NOT EXISTS public.transporter_profiles (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    user_id TEXT REFERENCES public.users(id) ON DELETE CASCADE,
+    driver_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    vehicle_number VARCHAR(20) UNIQUE NOT NULL,
+    vehicle_type VARCHAR(50) NOT NULL, -- 'Bolero Maxi Truck (1.5 MT)', 'Eicher 14ft (5 MT)', 'Tractor Trolley (4 MT)', '10-Wheeler (16 MT)'
+    capacity_mt NUMERIC(6,2) NOT NULL,
+    base_district VARCHAR(50) NOT NULL,
+    base_taluka VARCHAR(50),
+    per_km_rate NUMERIC(6,2) DEFAULT 4.20,
+    is_available BOOLEAN DEFAULT TRUE,
+    rating NUMERIC(3,2) DEFAULT 5.0,
+    trips_completed INT DEFAULT 0,
+    is_verified BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.transporter_profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read/write transporter_profiles" ON public.transporter_profiles;
+CREATE POLICY "Allow public read/write transporter_profiles" ON public.transporter_profiles FOR ALL USING (true) WITH CHECK (true);
+

@@ -13,8 +13,9 @@ export default function ProtectedRoute({ children, requiredRole }) {
   try {
     const user = JSON.parse(rawUser);
     if (requiredRole && user.role !== requiredRole) {
-      // If a logged-in Buyer tries to access /farmer, redirect them to /buyer, and vice-versa
-      return <Navigate to={user.role === 'BUYER' ? '/buyer' : '/farmer'} replace />;
+      // Role redirection based on authenticated user's actual role
+      const targetPath = user.role === 'BUYER' ? '/buyer' : user.role === 'TRANSPORTER' ? '/transporter' : '/farmer';
+      return <Navigate to={targetPath} replace />;
     }
     return children;
   } catch (e) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Sprout, ShoppingBag, Globe, LogIn, LogOut, User, ChevronDown, Menu, X } from 'lucide-react';
+import { Sprout, ShoppingBag, Truck, Globe, LogIn, LogOut, User, ChevronDown, Menu, X } from 'lucide-react';
 import { translations } from '../utils/translations';
 
 export default function Navbar({ currentLang = 'mr', onLangChange }) {
@@ -38,7 +38,8 @@ export default function Navbar({ currentLang = 'mr', onLangChange }) {
   const navLinks = [
     { label: t.navHome, path: '/' },
     { label: t.navFarmer, path: '/farmer', icon: Sprout },
-    { label: t.navBuyer, path: '/buyer', icon: ShoppingBag }
+    { label: t.navBuyer, path: '/buyer', icon: ShoppingBag },
+    { label: t.navTransporter || 'वाहतूकदार', path: '/transporter', icon: Truck }
   ];
 
   const languages = [

@@ -5,6 +5,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LandingPage from './pages/LandingPage';
 import FarmerPortal from './pages/FarmerPortal';
 import BuyerPortal from './pages/BuyerPortal';
+import TransporterPortal from './pages/TransporterPortal';
 import AuthPage from './pages/AuthPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 
@@ -87,6 +88,16 @@ export default function App() {
               element={
                 <ProtectedRoute requiredRole="BUYER">
                   <BuyerPortal currentLang={currentLang} />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Protected Transporter Portal: Requires login as TRANSPORTER */}
+            <Route 
+              path="/transporter" 
+              element={
+                <ProtectedRoute requiredRole="TRANSPORTER">
+                  <TransporterPortal currentLang={currentLang} />
                 </ProtectedRoute>
               } 
             />

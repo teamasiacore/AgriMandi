@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
-  Sprout, Building2, ShieldCheck, Phone, User, MapPin, 
+  Sprout, Building2, Truck, ShieldCheck, Phone, User, MapPin, 
   ArrowRight, CheckCircle2, AlertCircle, FileText, BadgeCheck, Clock
 } from 'lucide-react';
 import api from '../services/api';
-import { translations, DISTRICT_OPTIONS, CROP_OPTIONS, LICENSE_TYPE_OPTIONS } from '../utils/translations';
+import { translations, DISTRICT_OPTIONS, CROP_OPTIONS, LICENSE_TYPE_OPTIONS, VEHICLE_TYPE_OPTIONS } from '../utils/translations';
 
 export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) {
   const navigate = useNavigate();
@@ -17,7 +17,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
   const roleParam = queryParams.get('role');
 
   const [mode, setMode] = useState(location.pathname === '/register' ? 'register' : initialMode);
-  const [role, setRole] = useState(roleParam === 'BUYER' ? 'BUYER' : 'FARMER');
+  const [role, setRole] = useState(roleParam === 'BUYER' ? 'BUYER' : roleParam === 'TRANSPORTER' ? 'TRANSPORTER' : 'FARMER');
 
   // Common credentials
   const [phone, setPhone] = useState('');
@@ -41,6 +41,14 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
   const [licenseNumber, setLicenseNumber] = useState('');
   const [dailyCapacity, setDailyCapacity] = useState('');
   const [factoryAddress, setFactoryAddress] = useState('');
+
+  // Transporter specific registration state
+  const [driverName, setDriverName] = useState('');
+  const [vehicleNumber, setVehicleNumber] = useState('');
+  const [vehicleType, setVehicleType] = useState('Bolero Maxi Truck (1.5 MT)');
+  const [capacityMt, setCapacityMt] = useState('1.5');
+  const [perKmRate, setPerKmRate] = useState('4.20');
+  const [taluka, setTaluka] = useState('');
 
   // Status & notifications
   const [loading, setLoading] = useState(false);
@@ -102,6 +110,29 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
             saat_bara_number: saatBara.trim(),
             crops
           });
+        } else if (role === 'TRANSPORTER') {
+          if (!driverName.trim()) {
+            setErrorMsg(currentLang === 'en' ? 'Driver / Owner name is required.' : currentLang === 'hi' ? 'चालक का नाम आवश्यक है।' : 'चालकाचे नाव आवश्यक आहे.');
+            setLoading(false);
+            return;
+          }
+          if (!vehicleNumber.trim()) {
+            setErrorMsg(currentLang === 'en' ? 'Vehicle number is required.' : currentLang === 'hi' ? 'वाहन क्रमांक आवश्यक है।' : 'वाहन क्रमांक आवश्यक आहे.');
+            setLoading(false);
+            return;
+          }
+
+          res = await api.register({
+            phone,
+            role: 'TRANSPORTER',
+            name: driverName.trim(),
+            district,
+            taluka: taluka.trim(),
+            vehicle_number: vehicleNumber.toUpperCase().trim(),
+            vehicle_type: vehicleType,
+            capacity_mt: capacityMt,
+            per_km_rate: perKmRate
+          });
         } else {
           // BUYER validation
           if (!companyName.trim()) {
@@ -143,8 +174,11 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
           return;
         }
 
-        // Farmer redirection
-        navigate('/farmer');
+        if (role === 'TRANSPORTER') {
+          navigate('/transporter');
+        } else {
+          navigate('/farmer');
+        }
 
       } else {
         // LOGIN
@@ -164,6 +198,8 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
 
         if (redirectPath) {
           navigate(redirectPath);
+        } else if (res.user.role === 'TRANSPORTER') {
+          navigate('/transporter');
         } else if (res.user.role === 'BUYER') {
           navigate('/buyer');
         } else {
@@ -285,16 +321,16 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
           </button>
         </div>
 
-        {/* Role Switcher (Farmer vs Buyer) */}
+        {/* Role Switcher (Farmer vs Buyer vs Transporter) */}
         <div className="mt-5">
           <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-2 text-center">
             {t.selectRole}
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
               onClick={() => { setRole('FARMER'); setErrorMsg(''); setErrorCode(''); }}
-              className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 ${
+              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 cursor-pointer ${
                 role === 'FARMER'
                   ? 'border-[#1B4332] bg-[#FAF7F2] text-[#1B4332] shadow-xs'
                   : 'border-[#E5DFD4] bg-white text-stone-500 hover:bg-[#FAF7F2]'
@@ -308,7 +344,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
             <button
               type="button"
               onClick={() => { setRole('BUYER'); setErrorMsg(''); setErrorCode(''); }}
-              className={`p-3 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 ${
+              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 cursor-pointer ${
                 role === 'BUYER'
                   ? 'border-[#1B4332] bg-[#FAF7F2] text-[#1B4332] shadow-xs'
                   : 'border-[#E5DFD4] bg-white text-stone-500 hover:bg-[#FAF7F2]'
@@ -317,6 +353,20 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
               <Building2 className={`w-5 h-5 ${role === 'BUYER' ? 'text-[#C86432]' : 'text-stone-400'}`} />
               <span className="text-xs font-bold">{t.roleBuyer}</span>
               <span className="text-[10px] text-stone-400">{t.roleBuyerSub}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setRole('TRANSPORTER'); setErrorMsg(''); setErrorCode(''); }}
+              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                role === 'TRANSPORTER'
+                  ? 'border-[#1B4332] bg-[#FAF7F2] text-[#1B4332] shadow-xs'
+                  : 'border-[#E5DFD4] bg-white text-stone-500 hover:bg-[#FAF7F2]'
+              }`}
+            >
+              <Truck className={`w-5 h-5 ${role === 'TRANSPORTER' ? 'text-[#C86432]' : 'text-stone-400'}`} />
+              <span className="text-xs font-bold">{currentLang === 'en' ? 'Transporter' : currentLang === 'hi' ? 'ट्रांसपोर्टर' : 'वाहतूकदार'}</span>
+              <span className="text-[10px] text-stone-400">{currentLang === 'en' ? 'Logistics' : currentLang === 'hi' ? 'माल ढुलाई' : 'माल वाहतूक'}</span>
             </button>
           </div>
         </div>
@@ -752,6 +802,139 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     </button>
                   ))}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* REGISTRATION FIELDS FOR TRANSPORTER */}
+          {mode === 'register' && role === 'TRANSPORTER' && (
+            <div className="space-y-4 pt-2 border-t border-[#E5DFD4]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#1B4332] uppercase tracking-wider">
+                  {currentLang === 'en' ? 'Transporter & Vehicle Details' : currentLang === 'hi' ? 'वाहन एवं चालक विवरण' : 'वाहतूकदार व वाहन तपशील'}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md font-bold border border-emerald-200">
+                  {currentLang === 'en' ? 'Instant Activation' : currentLang === 'hi' ? 'तत्काल सक्रियता' : 'तात्काळ सक्रिय'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'Driver / Owner Name' : currentLang === 'hi' ? 'चालक / मालिक का नाम' : 'चालक / मालकाचे पूर्ण नाव'} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={driverName}
+                    onChange={(e) => setDriverName(e.target.value)}
+                    placeholder="उदा. ज्ञानेश्वर मुंडे (माऊली ट्रान्सपोर्ट)"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'Vehicle Number' : currentLang === 'hi' ? 'वाहन नंबर (प्लेट)' : 'गाडीचा नंबर (MH RTO)'} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={vehicleNumber}
+                    onChange={(e) => setVehicleNumber(e.target.value.toUpperCase())}
+                    placeholder="MH-24-AB-1234"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-mono font-bold uppercase tracking-wider"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'Vehicle Type' : currentLang === 'hi' ? 'वाहन का प्रकार' : 'वाहनाचा प्रकार'}
+                  </label>
+                  <select
+                    value={vehicleType}
+                    onChange={(e) => {
+                      setVehicleType(e.target.value);
+                      if (e.target.value.includes('1.5 MT')) setCapacityMt('1.5');
+                      else if (e.target.value.includes('5 MT')) setCapacityMt('5.0');
+                      else if (e.target.value.includes('4 MT')) setCapacityMt('4.0');
+                      else if (e.target.value.includes('16 MT')) setCapacityMt('16.0');
+                      else if (e.target.value.includes('1 MT')) setCapacityMt('1.0');
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                  >
+                    {VEHICLE_TYPE_OPTIONS.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v[currentLang] || v.en}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'Payload Capacity (MT)' : currentLang === 'hi' ? 'भार वहन क्षमता (टन)' : 'वहन क्षमता (टन / MT)'}
+                  </label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={capacityMt}
+                    onChange={(e) => setCapacityMt(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'Operating Base District' : currentLang === 'hi' ? 'कार्यक्षेत्र (जिला)' : 'मुख्य कार्यक्षेत्र (जिल्हा)'} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                  >
+                    {DISTRICT_OPTIONS.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d[currentLang] || d.en}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'Base Taluka / Village' : currentLang === 'hi' ? 'तहसील / गाँव' : 'तालुका / मुख्य थांबा (गाव)'}
+                  </label>
+                  <input
+                    type="text"
+                    value={taluka}
+                    onChange={(e) => setTaluka(e.target.value)}
+                    placeholder="उदा. औसा, बाभळगाव"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  {currentLang === 'en' ? 'Default Freight Tariff (₹/km)' : currentLang === 'hi' ? 'डिफ़ॉल्ट मालभाड़ा (₹/किमी)' : 'डिफ़ॉल्ट वाहतूक दर (₹/किमी)'}
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={perKmRate}
+                  onChange={(e) => setPerKmRate(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold font-mono"
+                />
+                <p className="text-[11px] text-stone-500 mt-1">
+                  {currentLang === 'en' ? 'Government standard rural tariff is ₹4.20/km for 5-Ton, ₹4.80/km for Pickup' :
+                   currentLang === 'hi' ? 'मानक ग्रामीण दर: आयशर ₹4.20/किमी, पिकअप ₹4.80/किमी' :
+                   'प्रमाणित ग्रामीण दर: आयशर ₹४.२०/किमी, पिकअप ₹४.८०/किमी'}
+                </p>
               </div>
             </div>
           )}

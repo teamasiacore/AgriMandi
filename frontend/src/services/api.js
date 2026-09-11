@@ -37,6 +37,14 @@ export const api = {
   getBuyers: () => client.get('/buyers').then(res => res.data),
   getDeals: (params) => client.get('/deals', { params }).then(res => res.data),
 
+  // Transporters & Logistics
+  getTransporters: (params) => client.get('/transporters', { params }).then(res => res.data),
+  getAvailableTrips: (params) => client.get('/transporters/available-trips', { params }).then(res => res.data),
+  getTransporterById: (id) => client.get(`/transporters/${id}`).then(res => res.data),
+  updateTransporterStatus: (id, is_available) => client.patch(`/transporters/${id}/status`, { is_available }).then(res => res.data),
+  acceptTrip: (data) => client.post('/transporters/accept-trip', data).then(res => res.data),
+  getTransporterTrips: (id) => client.get(`/transporters/${id}/trips`).then(res => res.data),
+
   // Auth
   login: (data) => client.post('/auth/login', data).then(res => res.data),
   register: (data) => client.post('/auth/register', data).then(res => res.data),

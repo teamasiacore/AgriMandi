@@ -53,6 +53,12 @@ Both backend and frontend services are compiled, verified, and running live:
     - Resolved Vercel serverless preflight failure by adding `app.options('*', cors())` and dual-mounting `/api/*` and root `/*` in `api/index.js`.
     - Resolved PostgreSQL unique constraint and foreign key collision in `db.createLot` and `db.createOffer` by checking existing user records by both `id` and `phone` before insert/upsert.
     - Added comprehensive error message extraction in `FarmerPortal.jsx` ensuring network or validation errors output actual server error messages instead of generic alerts.
+15. **Service Provider (Transporter & Rural Logistics) Ecosystem Complete**:
+    - Added `transporter_profiles` DDL and `users_role_check` expansion in `backend/supabase_schema.sql`.
+    - Added transporter database methods (`createTransporterProfile`, `getTransporters`, `updateTransporterStatus`, `acceptTrip`, `getTransporterTrips`) and endpoints in `marketRoutes.js`.
+    - Extended `authRoutes.js` and `AuthPage.jsx` with a 3-way Role Selector (`Farmer`, `Buyer`, `Transporter`) supporting vehicle types (Bolero, Eicher, Tractor, 10-Wheeler, Tata Ace), vehicle registration number, and per-km tariffs.
+    - Built dedicated `TransporterPortal.jsx` (`/transporter`) featuring driver profile, live duty status toggle (🟢 On-Duty vs 🔴 Off-Duty), trip requests queue, and official digital E-Waybill & QR Transit Pass modal.
+    - Integrated Transporter navigation links in `Navbar.jsx`, `LandingPage.jsx`, and `App.jsx` with role-based route protection in `ProtectedRoute.jsx`.
 
 ## 📦 2. Installed Dependencies & Architecture Breakdown
 

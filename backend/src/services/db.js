@@ -45,7 +45,8 @@ let memoryCache = {
   buyers: [],
   lots: [],
   offers: [],
-  deals: []
+  deals: [],
+  transporters: []
 };
 
 export const db = {
@@ -610,6 +611,30 @@ export const db = {
                 created_at: new Date().toISOString()
               }], { onConflict: 'user_id' });
             } catch (errProfile) {}
+          } else if (userData.role === 'TRANSPORTER') {
+            try {
+              const tpData = {
+                id: `tp-${Date.now()}`,
+                user_id: data.id,
+                driver_name: data.name,
+                phone: data.phone,
+                vehicle_number: userData.vehicle_number || `MH-${Date.now().toString().slice(-4)}`,
+                vehicle_type: userData.vehicle_type || 'Bolero Maxi Truck (1.5 MT)',
+                capacity_mt: Number(userData.capacity_mt) || 2.0,
+                base_district: data.district || 'Latur',
+                base_taluka: userData.taluka || userData.village || '',
+                per_km_rate: Number(userData.per_km_rate) || 4.20,
+                is_available: true,
+                rating: 5.0,
+                trips_completed: 0,
+                is_verified: true,
+                created_at: new Date().toISOString()
+              };
+              await supabase.from('transporter_profiles').upsert([tpData], { onConflict: 'vehicle_number' });
+              const existingTpIdx = memoryCache.transporters.findIndex(t => t.phone === data.phone || t.vehicle_number === tpData.vehicle_number);
+              if (existingTpIdx !== -1) memoryCache.transporters[existingTpIdx] = tpData;
+              else memoryCache.transporters.unshift(tpData);
+            } catch (errTp) {}
           }
 
           const existingIdx = memoryCache.users.findIndex(u => u.phone === userData.phone);
@@ -630,6 +655,29 @@ export const db = {
 
     const newUser = { ...userTablePayload, ...userData };
     memoryCache.users.unshift(newUser);
+
+    if (userData.role === 'TRANSPORTER') {
+      const tpData = {
+        id: `tp-${Date.now()}`,
+        user_id: newUser.id,
+        driver_name: newUser.name,
+        phone: newUser.phone,
+        vehicle_number: userData.vehicle_number || `MH-${Date.now().toString().slice(-4)}`,
+        vehicle_type: userData.vehicle_type || 'Bolero Maxi Truck (1.5 MT)',
+        capacity_mt: Number(userData.capacity_mt) || 2.0,
+        base_district: newUser.district || 'Latur',
+        base_taluka: userData.taluka || userData.village || '',
+        per_km_rate: Number(userData.per_km_rate) || 4.20,
+        is_available: true,
+        rating: 5.0,
+        trips_completed: 0,
+        is_verified: true,
+        created_at: new Date().toISOString()
+      };
+      const existingTpIdx = memoryCache.transporters.findIndex(t => t.phone === newUser.phone || t.vehicle_number === tpData.vehicle_number);
+      if (existingTpIdx !== -1) memoryCache.transporters[existingTpIdx] = tpData;
+      else memoryCache.transporters.unshift(tpData);
+    }
     return newUser;
   },
 
@@ -727,5 +775,126 @@ export const db = {
       totalEscrowVal,
       supabaseStatus: db.getSupabaseStatus()
     };
+  },
+
+  // ===================== TRANSPORTERS (LOGISTICS) =====================
+  createTransporterProfile: async (tpData) => {
+    const newTp = {
+      id: `tp-${Date.now()}`,
+      rating: 5.0,
+      trips_completed: 0,
+      is_available: true,
+      is_verified: true,
+      created_at: new Date().toISOString(),
+      ...tpData
+    };
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('transporter_profiles').upsert([newTp], { onConflict: 'vehicle_number' }).select().single();
+        if (!error && data) {
+          const idx = memoryCache.transporters.findIndex(t => t.vehicle_number === newTp.vehicle_number);
+          if (idx !== -1) memoryCache.transporters[idx] = data;
+          else memoryCache.transporters.unshift(data);
+          return data;
+        }
+      } catch (err) {}
+    }
+    const idx = memoryCache.transporters.findIndex(t => t.vehicle_number === newTp.vehicle_number);
+    if (idx !== -1) memoryCache.transporters[idx] = newTp;
+    else memoryCache.transporters.unshift(newTp);
+    return newTp;
+  },
+
+  getTransporters: async (filters = {}) => {
+    if (supabaseConnected) {
+      try {
+        let query = supabase.from('transporter_profiles').select('*').order('created_at', { ascending: false });
+        if (filters.district && filters.district !== 'all') query = query.eq('base_district', filters.district);
+        if (filters.available !== undefined) query = query.eq('is_available', filters.available === 'true' || filters.available === true);
+        const { data, error } = await query;
+        if (!error && data && data.length > 0) return data;
+      } catch (err) {}
+    }
+    let result = [...memoryCache.transporters];
+    if (filters.district && filters.district !== 'all') {
+      result = result.filter(t => t.base_district?.toLowerCase() === filters.district.toLowerCase());
+    }
+    if (filters.available !== undefined) {
+      const isAvail = filters.available === 'true' || filters.available === true;
+      result = result.filter(t => t.is_available === isAvail);
+    }
+    return result;
+  },
+
+  getTransporterById: async (id) => {
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('transporter_profiles').select('*').eq('id', id).single();
+        if (!error && data) return data;
+      } catch (err) {}
+    }
+    return memoryCache.transporters.find(t => t.id === id || t.user_id === id);
+  },
+
+  getTransporterByPhone: async (phone) => {
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('transporter_profiles').select('*').eq('phone', phone).single();
+        if (!error && data) return data;
+      } catch (err) {}
+    }
+    return memoryCache.transporters.find(t => t.phone === phone);
+  },
+
+  updateTransporterStatus: async (id, is_available) => {
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('transporter_profiles').update({ is_available }).eq('id', id).select().single();
+        if (!error && data) {
+          const idx = memoryCache.transporters.findIndex(t => t.id === id || t.user_id === id);
+          if (idx !== -1) memoryCache.transporters[idx] = data;
+          return data;
+        }
+      } catch (err) {}
+    }
+    const tp = memoryCache.transporters.find(t => t.id === id || t.user_id === id);
+    if (tp) tp.is_available = is_available;
+    return tp;
+  },
+
+  acceptTrip: async ({ deal_id, transporter_id, driver_name, driver_phone, vehicle_number, agreed_freight }) => {
+    const updatePayload = {
+      delivery_status: 'IN_TRANSIT',
+      transporter_id,
+      transporter_name: driver_name,
+      transporter_phone: driver_phone,
+      vehicle_number,
+      freight_amount: agreed_freight
+    };
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('deals').update(updatePayload).eq('id', deal_id).select().single();
+        if (!error && data) {
+          const idx = memoryCache.deals.findIndex(d => d.id === deal_id);
+          if (idx !== -1) memoryCache.deals[idx] = data;
+          return data;
+        }
+      } catch (err) {}
+    }
+    const deal = memoryCache.deals.find(d => d.id === deal_id);
+    if (deal) {
+      Object.assign(deal, updatePayload);
+    }
+    return deal;
+  },
+
+  getTransporterTrips: async (transporter_id) => {
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('deals').select('*').eq('transporter_id', transporter_id).order('created_at', { ascending: false });
+        if (!error && data) return data;
+      } catch (err) {}
+    }
+    return memoryCache.deals.filter(d => d.transporter_id === transporter_id);
   }
 };

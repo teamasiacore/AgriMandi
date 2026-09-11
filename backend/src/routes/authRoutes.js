@@ -25,7 +25,13 @@ router.post('/register', async (req, res) => {
       license_type = '',
       license_number = '',
       daily_capacity_mt = '',
-      address = ''
+      address = '',
+      // Transporter specific fields
+      vehicle_number = '',
+      vehicle_type = 'Bolero Maxi Truck (1.5 MT)',
+      capacity_mt = 2.0,
+      per_km_rate = 4.20,
+      taluka = ''
     } = req.body;
 
     if (!phone || (!name && !company_name)) {
@@ -46,7 +52,8 @@ router.post('/register', async (req, res) => {
     // Guard: Prevent duplicate registration
     const existingUser = await db.getUserByPhone(cleanPhone);
     if (existingUser) {
-      const existingRole = existingUser.role === 'BUYER' ? 'Buyer' : 'Farmer';
+      const getRoleName = (r) => r === 'BUYER' ? 'Buyer' : r === 'TRANSPORTER' ? 'Transporter' : 'Farmer';
+      const existingRole = getRoleName(existingUser.role);
       return res.status(409).json({
         status: 'error',
         code: 'ALREADY_REGISTERED',
@@ -54,10 +61,13 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const isFarmer = role.toUpperCase() === 'FARMER';
+    const roleUpper = (role || 'FARMER').toUpperCase();
+    const isFarmer = roleUpper === 'FARMER';
+    const isTransporter = roleUpper === 'TRANSPORTER';
 
     let user;
     let buyerProfile = null;
+    let transporterProfile = null;
 
     if (isFarmer) {
       const hasSaatBara = Boolean(saat_bara_number && saat_bara_number.trim().length > 0);
@@ -71,9 +81,34 @@ router.post('/register', async (req, res) => {
         saat_bara_number: saat_bara_number.trim(),
         crops: Array.isArray(crops) ? crops : [crops],
         bank_ifsc: bank_ifsc.trim(),
-        is_verified: hasSaatBara, // Instant priority badge if 7/12 number supplied
+        is_verified: hasSaatBara,
         status: 'ACTIVE'
       });
+    } else if (isTransporter) {
+      // Transporter Registration
+      if (!vehicle_number) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'Vehicle Registration Number is mandatory for Transporter registration.'
+        });
+      }
+
+      user = await db.createUser({
+        phone: cleanPhone,
+        role: 'TRANSPORTER',
+        name: name.trim(),
+        district,
+        village: (taluka || village).trim(),
+        vehicle_number: vehicle_number.toUpperCase().trim(),
+        vehicle_type: vehicle_type.trim(),
+        capacity_mt: Number(capacity_mt) || 2.0,
+        per_km_rate: Number(per_km_rate) || 4.20,
+        taluka: taluka.trim(),
+        status: 'ACTIVE',
+        is_verified: true
+      });
+
+      transporterProfile = await db.getTransporterByPhone(cleanPhone);
     } else {
       // Buyer Registration
       if (!gstin || !company_name) {
@@ -124,9 +159,12 @@ router.post('/register', async (req, res) => {
       status: 'success',
       message: isFarmer
         ? 'Farmer account registered successfully!'
+        : isTransporter
+        ? 'Transporter vehicle registered successfully! You can now accept farm-gate trips.'
         : 'Buyer application submitted! Verification by SuperAdmin (ASIACore) is currently underway.',
       user,
       buyerProfile,
+      transporterProfile,
       token: `token-${user.id}-${Date.now()}`
     });
   } catch (err) {
@@ -155,8 +193,9 @@ router.post('/login', async (req, res) => {
 
     // Role check: Ensure user is logging in under their registered role
     if (role && user.role && user.role.toUpperCase() !== role.toUpperCase()) {
-      const registeredAs = user.role.toUpperCase() === 'BUYER' ? 'Buyer' : 'Farmer';
-      const attemptedAs = role.toUpperCase() === 'BUYER' ? 'Buyer' : 'Farmer';
+      const getRoleLabel = (r) => r.toUpperCase() === 'BUYER' ? 'Buyer' : r.toUpperCase() === 'TRANSPORTER' ? 'Transporter' : 'Farmer';
+      const registeredAs = getRoleLabel(user.role);
+      const attemptedAs = getRoleLabel(role);
       return res.status(400).json({
         status: 'error',
         code: 'ROLE_MISMATCH',
