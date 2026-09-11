@@ -4,7 +4,8 @@ dotenv.config();
 
 // Supabase Configuration
 const SUPABASE_URL = process.env.SUPABASE_URL || 'https://eizzzlnlcdfuylnojijn.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || '';
+const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVpenp6bG5sY2RmdXlsbm9qaWpuIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODg4ODI2OTQsImV4cCI6MjEwNDQ1ODY5NH0.Rrw5zrg-3rQLt-Jqf7JrTatGY4DhWm51q-FzVVjOCDo';
+
 
 let supabase = null;
 let supabaseConnected = false;
