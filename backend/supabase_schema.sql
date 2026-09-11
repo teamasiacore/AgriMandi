@@ -220,3 +220,18 @@ ALTER TABLE public.transporter_profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow public read/write transporter_profiles" ON public.transporter_profiles;
 CREATE POLICY "Allow public read/write transporter_profiles" ON public.transporter_profiles FOR ALL USING (true) WITH CHECK (true);
 
+GRANT ALL ON public.transporter_profiles TO anon, authenticated, service_role;
+
+-- ==========================================================
+-- 9. Transporter Assignment on Deals Table
+-- ==========================================================
+ALTER TABLE public.deals 
+ADD COLUMN IF NOT EXISTS transporter_id TEXT,
+ADD COLUMN IF NOT EXISTS transporter_name TEXT,
+ADD COLUMN IF NOT EXISTS transporter_phone TEXT,
+ADD COLUMN IF NOT EXISTS vehicle_number TEXT,
+ADD COLUMN IF NOT EXISTS freight_amount NUMERIC;
+
+GRANT ALL ON public.deals TO anon, authenticated, service_role;
+
+
