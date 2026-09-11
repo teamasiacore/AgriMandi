@@ -14,6 +14,7 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
+app.options('*', cors());
 app.use(express.json());
 
 // 24x7 Cloud Health Check
@@ -25,13 +26,30 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'healthy',
+    platform: 'AgriMandi B2B Agro Engine (24/7 Vercel Cloud Serverless)',
+    version: '2.0.0',
+    timestamp: new Date().toISOString()
+  });
+});
 
-// Mount Routes
+// Mount Routes under both /api/* and root /* for seamless Vercel Serverless rewrite compatibility
 app.use('/api/mandi', mandiRoutes);
+app.use('/mandi', mandiRoutes);
+
 app.use('/api/realization', realizationRoutes);
+app.use('/realization', realizationRoutes);
+
 app.use('/api', marketRoutes);
+app.use('/', marketRoutes);
+
 app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
+
 app.use('/api/admin', adminRoutes);
+app.use('/admin', adminRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {

@@ -178,7 +178,8 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
             currentLang === 'hi' ? 'फसल लॉट सफलतापूर्वक मंडी में प्रकाशित हो गया है!' :
             'आपला शेतीमाल लॉट यशस्वीरित्या बाजारात लिस्ट झाला आहे!');
     } catch (err) {
-      alert('Error: ' + err.message);
+      const msg = err.response?.data?.message || err.response?.data?.error || err.message;
+      alert('Error: ' + msg);
     }
   };
 
@@ -193,7 +194,8 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
       setDealNotification(res.deal);
       loadLotsAndOffers();
     } catch (err) {
-      alert('Error: ' + err.message);
+      const msg = err.response?.data?.message || err.response?.data?.error || err.message;
+      alert('Error: ' + msg);
     }
   };
 

@@ -49,6 +49,10 @@ Both backend and frontend services are compiled, verified, and running live:
     - Resolved PostgreSQL foreign key constraint exceptions in Supabase (`produce_lots_farmer_id_fkey` and `offers_buyer_id_fkey`) ensuring user profiles exist in `users` table before lot/offer insertion.
     - Resolved schema mismatch in `db.createUser` separating `users` core columns from `farmer_profiles` extended fields (`bank_ifsc`, `land_size_acres`, `saat_bara_number`, `primary_crops`).
     - Verified full end-to-end deal execution: Buyer bids ➔ Farmer reviews & accepts ➔ Lot status becomes `DEAL_LOCKED`, competing offers auto-rejected, and locked deal record generated in `deals` table.
+14. **Production 'Network Error' on Lot Creation & Dual-Lookup Resolution**:
+    - Resolved Vercel serverless preflight failure by adding `app.options('*', cors())` and dual-mounting `/api/*` and root `/*` in `api/index.js`.
+    - Resolved PostgreSQL unique constraint and foreign key collision in `db.createLot` and `db.createOffer` by checking existing user records by both `id` and `phone` before insert/upsert.
+    - Added comprehensive error message extraction in `FarmerPortal.jsx` ensuring network or validation errors output actual server error messages instead of generic alerts.
 
 ## 📦 2. Installed Dependencies & Architecture Breakdown
 

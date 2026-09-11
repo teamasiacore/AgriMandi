@@ -130,19 +130,32 @@ export const db = {
     if (supabaseConnected) {
       try {
         // Ensure farmer exists in users table to satisfy foreign key constraint
-        if (newLot.farmer_id) {
-          const { data: existingUser } = await supabase.from('users').select('id').eq('id', newLot.farmer_id).single();
-          if (!existingUser) {
+        if (newLot.farmer_phone || newLot.farmer_id) {
+          let existingUser = null;
+          if (newLot.farmer_id) {
+            const { data } = await supabase.from('users').select('id, phone').eq('id', newLot.farmer_id).single();
+            existingUser = data;
+          }
+          if (!existingUser && newLot.farmer_phone) {
+            const { data } = await supabase.from('users').select('id, phone').eq('phone', newLot.farmer_phone).single();
+            existingUser = data;
+          }
+
+          if (existingUser) {
+            newLot.farmer_id = existingUser.id;
+          } else {
+            const farmerIdToInsert = newLot.farmer_id || `usr-${Date.now()}`;
             try {
-              await supabase.from('users').upsert([{
-                id: newLot.farmer_id,
+              const { data: createdU } = await supabase.from('users').insert([{
+                id: farmerIdToInsert,
                 phone: newLot.farmer_phone || `98${Date.now().toString().slice(-8)}`,
                 role: 'FARMER',
                 name: newLot.farmer_name || 'Farmer',
                 district: newLot.district || 'Latur',
                 status: 'ACTIVE',
                 is_verified: true
-              }], { onConflict: 'id' });
+              }]).select('id').single();
+              if (createdU) newLot.farmer_id = createdU.id;
             } catch (errUser) {}
           }
         }
@@ -249,18 +262,32 @@ export const db = {
     if (supabaseConnected) {
       try {
         // Ensure buyer exists in users table to satisfy foreign key constraint
-        if (newOffer.buyer_id) {
-          const { data: existingBuyer } = await supabase.from('users').select('id').eq('id', newOffer.buyer_id).single();
-          if (!existingBuyer) {
+        if (newOffer.buyer_phone || newOffer.buyer_id) {
+          let existingBuyer = null;
+          if (newOffer.buyer_id) {
+            const { data } = await supabase.from('users').select('id, phone').eq('id', newOffer.buyer_id).single();
+            existingBuyer = data;
+          }
+          if (!existingBuyer && newOffer.buyer_phone) {
+            const { data } = await supabase.from('users').select('id, phone').eq('phone', newOffer.buyer_phone).single();
+            existingBuyer = data;
+          }
+
+          if (existingBuyer) {
+            newOffer.buyer_id = existingBuyer.id;
+          } else {
+            const buyerIdToInsert = newOffer.buyer_id || `usr-buyer-${Date.now()}`;
             try {
-              await supabase.from('users').upsert([{
-                id: newOffer.buyer_id,
+              const { data: createdB } = await supabase.from('users').insert([{
+                id: buyerIdToInsert,
                 phone: newOffer.buyer_phone || `99${Date.now().toString().slice(-8)}`,
                 role: 'BUYER',
                 name: newOffer.buyer_name || 'Institutional Buyer',
+                district: newOffer.district || 'Latur',
                 status: 'ACTIVE',
                 is_verified: true
-              }], { onConflict: 'id' });
+              }]).select('id').single();
+              if (createdB) newOffer.buyer_id = createdB.id;
             } catch (errBuyer) {}
           }
         }
