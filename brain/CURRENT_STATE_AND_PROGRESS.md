@@ -42,6 +42,13 @@ Both backend and frontend services are compiled, verified, and running live:
     - Completely deleted pre-seeded dummy buyers (`Shree Ganesh`, `Vardhman`, `Sai Krishi`) from Supabase `buyer_profiles` table, `memoryCache.buyers`, and `supabase_schema.sql`.
     - Removed hardcoded fallback buyers array from `backend/src/routes/realizationRoutes.js`.
     - In `FarmerPortal.jsx`, if no verified direct mill has registered from the farmer's selected location yet, the UI displays a clean authentic status ("No registered direct mills in {district} yet — List your harvest lot so verified buyers across Maharashtra can bid") instead of showing fake mock mills. Real registered verified mills appear automatically once they register and are approved by Admin.
+13. **Buyer Procurement & Live Bidding Engine Complete (Phase 3)**:
+    - Built comprehensive B2B marketplace in `BuyerPortal.jsx` with real-time Haversine distance calculations from Buyer facility to farmer harvest lots.
+    - Implemented Interactive Digital Bidding Modal with requested quantity validation (`requested <= available`), delivery gate input, and live total price math.
+    - Created official B2B Deal Contract & Escrow Inspector Modal with full legal contract metadata (Deal ID, Seller/Buyer details, unit rate, total consideration, zero APMC cess waiver, and 100% Escrow Bank Protection Guarantee).
+    - Resolved PostgreSQL foreign key constraint exceptions in Supabase (`produce_lots_farmer_id_fkey` and `offers_buyer_id_fkey`) ensuring user profiles exist in `users` table before lot/offer insertion.
+    - Resolved schema mismatch in `db.createUser` separating `users` core columns from `farmer_profiles` extended fields (`bank_ifsc`, `land_size_acres`, `saat_bara_number`, `primary_crops`).
+    - Verified full end-to-end deal execution: Buyer bids ➔ Farmer reviews & accepts ➔ Lot status becomes `DEAL_LOCKED`, competing offers auto-rejected, and locked deal record generated in `deals` table.
 
 ## 📦 2. Installed Dependencies & Architecture Breakdown
 
@@ -138,8 +145,8 @@ Both backend and frontend services are compiled, verified, and running live:
 
 ## 🗺️ 6. Roadmap Status
  
-- [ ] **Phase 1: Foundation & Landing Page** — Ready to start
-- [ ] **Phase 2: Farmer Portal (शेतकरी डॅशबोर्ड)** — Pending
-- [ ] **Phase 3: Buyer Procurement Portal** — Pending
-- [ ] **Phase 4: FPO Aggregation Desk** — Pending
-- [ ] **Phase 5: Digital APMC Mandi Desk** — Pending
+- [x] **Phase 1: Foundation & Landing Page** — Complete (Live Agmarknet feed, Supabase PostgreSQL, Trilingual UI)
+- [x] **Phase 2: Farmer Portal (शेतकरी डॅशबोर्ड)** — Complete (Net Realization Engine, Lot creation, Offer acceptance)
+- [x] **Phase 3: Buyer Procurement Portal** — Complete (Live Marketplace, Haversine distances, Digital Bidding, Deal Contracts & Escrow)
+- [ ] **Phase 4: FPO Aggregation Desk** — Upcoming
+- [ ] **Phase 5: Digital APMC Mandi Desk & Logistics** — Upcoming

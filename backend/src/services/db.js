@@ -129,6 +129,24 @@ export const db = {
 
     if (supabaseConnected) {
       try {
+        // Ensure farmer exists in users table to satisfy foreign key constraint
+        if (newLot.farmer_id) {
+          const { data: existingUser } = await supabase.from('users').select('id').eq('id', newLot.farmer_id).single();
+          if (!existingUser) {
+            try {
+              await supabase.from('users').upsert([{
+                id: newLot.farmer_id,
+                phone: newLot.farmer_phone || `98${Date.now().toString().slice(-8)}`,
+                role: 'FARMER',
+                name: newLot.farmer_name || 'Farmer',
+                district: newLot.district || 'Latur',
+                status: 'ACTIVE',
+                is_verified: true
+              }], { onConflict: 'id' });
+            } catch (errUser) {}
+          }
+        }
+
         const { data, error } = await supabase.from('produce_lots').insert([newLot]).select().single();
         if (!error && data) {
           memoryCache.lots.unshift(data);
@@ -163,6 +181,28 @@ export const db = {
   },
 
   // ===================== OFFERS =====================
+  getOffers: async (filters = {}) => {
+    if (supabaseConnected) {
+      try {
+        let query = supabase.from('offers').select('*').order('created_at', { ascending: false });
+        if (filters.lot_id) query = query.eq('lot_id', filters.lot_id);
+        if (filters.buyer_id) query = query.eq('buyer_id', filters.buyer_id);
+        if (filters.buyer_phone) query = query.eq('buyer_phone', filters.buyer_phone);
+        if (filters.status) query = query.eq('status', filters.status);
+        const { data, error } = await query;
+        if (!error && data) return data;
+      } catch (err) {
+        console.warn('Supabase getOffers error:', err.message);
+      }
+    }
+    let result = [...memoryCache.offers];
+    if (filters.lot_id) result = result.filter(o => o.lot_id === filters.lot_id);
+    if (filters.buyer_id) result = result.filter(o => o.buyer_id === filters.buyer_id);
+    if (filters.buyer_phone) result = result.filter(o => o.buyer_phone === filters.buyer_phone);
+    if (filters.status) result = result.filter(o => o.status === filters.status);
+    return result;
+  },
+
   getOffersByLotId: async (lotId) => {
     if (supabaseConnected) {
       try {
@@ -196,6 +236,11 @@ export const db = {
   createOffer: async (offerData) => {
     const newOffer = {
       id: `off-${Date.now()}`,
+      buyer_id: offerData.buyer_id || 'usr-buyer-1',
+      buyer_name: offerData.buyer_name || 'Verified Buyer',
+      buyer_phone: offerData.buyer_phone || '',
+      delivery_destination: offerData.delivery_destination || 'Processing Mill Gate',
+      valid_hours: Number(offerData.valid_hours) || 24,
       status: 'PENDING',
       created_at: new Date().toISOString(),
       ...offerData
@@ -203,14 +248,36 @@ export const db = {
 
     if (supabaseConnected) {
       try {
+        // Ensure buyer exists in users table to satisfy foreign key constraint
+        if (newOffer.buyer_id) {
+          const { data: existingBuyer } = await supabase.from('users').select('id').eq('id', newOffer.buyer_id).single();
+          if (!existingBuyer) {
+            try {
+              await supabase.from('users').upsert([{
+                id: newOffer.buyer_id,
+                phone: newOffer.buyer_phone || `99${Date.now().toString().slice(-8)}`,
+                role: 'BUYER',
+                name: newOffer.buyer_name || 'Institutional Buyer',
+                status: 'ACTIVE',
+                is_verified: true
+              }], { onConflict: 'id' });
+            } catch (errBuyer) {}
+          }
+        }
+
         const { data, error } = await supabase.from('offers').insert([newOffer]).select().single();
         if (!error && data) {
           memoryCache.offers.unshift(data);
           // Increment offer count on lot in Supabase
-          await supabase.rpc('increment_lot_offers', { target_lot_id: offerData.lot_id }).catch(() => {});
+          try {
+            await supabase.rpc('increment_lot_offers', { target_lot_id: offerData.lot_id });
+          } catch (rpcErr) {}
           return data;
         }
-      } catch (err) {}
+        if (error) console.warn('Supabase createOffer error:', error.message);
+      } catch (err) {
+        console.warn('Supabase createOffer exception:', err.message);
+      }
     }
 
     memoryCache.offers.unshift(newOffer);
@@ -239,7 +306,7 @@ export const db = {
       try {
         const { data: updatedLot } = await supabase.from('produce_lots').update({ status: 'DEAL_LOCKED' }).eq('id', offer.lot_id).select().single();
         if (updatedLot) lot = updatedLot;
-        // Reject other offers in Supabase
+        // Reject all other competing offers for this lot in Supabase
         await supabase.from('offers').update({ status: 'REJECTED' }).eq('lot_id', offer.lot_id).neq('id', offerId).eq('status', 'PENDING');
       } catch (err) {}
     } else if (lot) {
@@ -256,12 +323,17 @@ export const db = {
       lot_id: offer.lot_id,
       offer_id: offer.id,
       crop: lot ? lot.crop : 'Agricultural Produce',
-      quantity_qtl: offer.quantity_requested_qtl,
-      price_per_qtl: offer.offered_price_per_qtl,
+      variety: lot ? lot.variety : 'FAQ',
+      quantity_qtl: Number(offer.quantity_requested_qtl),
+      price_per_qtl: Number(offer.offered_price_per_qtl),
       total_deal_value: Number(offer.offered_price_per_qtl) * Number(offer.quantity_requested_qtl),
-      buyer_name: offer.buyer_name,
-      farmer_name: lot ? lot.farmer_name : 'Farmer',
-      delivery_destination: offer.delivery_destination,
+      buyer_id: offer.buyer_id || '',
+      buyer_name: offer.buyer_name || 'Buyer Partner',
+      buyer_phone: offer.buyer_phone || '',
+      farmer_id: lot ? (lot.farmer_id || '') : '',
+      farmer_name: lot ? (lot.farmer_name || 'Farmer') : 'Farmer',
+      farmer_phone: lot ? (lot.farmer_phone || '') : '',
+      delivery_destination: offer.delivery_destination || 'Buyer Processing Facility',
       delivery_status: 'PENDING_PICKUP',
       escrow_status: 'SECURED_IN_ESCROW',
       created_at: new Date().toISOString()
@@ -274,7 +346,9 @@ export const db = {
           memoryCache.deals.unshift(insertedDeal);
           return { offer, lot, deal: insertedDeal };
         }
-      } catch (err) {}
+      } catch (err) {
+        console.warn('Supabase insert deal error:', err.message);
+      }
     }
 
     memoryCache.deals.unshift(deal);
@@ -356,6 +430,12 @@ export const db = {
       try {
         const { data, error } = await supabase.from('buyer_profiles').update(updatePayload).eq('id', buyerId).select().single();
         if (!error && data) {
+          if (data.user_id) {
+            await supabase.from('users').update({
+              is_verified: verified,
+              status: verified ? 'ACTIVE' : 'PENDING_VERIFICATION'
+            }).eq('id', data.user_id);
+          }
           const idx = memoryCache.buyers.findIndex(b => b.id === buyerId);
           if (idx !== -1) memoryCache.buyers[idx] = data;
           return data;
@@ -397,14 +477,22 @@ export const db = {
   },
 
   // ===================== DEALS =====================
-  getDeals: async () => {
+  getDeals: async (filters = {}) => {
     if (supabaseConnected) {
       try {
-        const { data, error } = await supabase.from('deals').select('*').order('created_at', { ascending: false });
+        let query = supabase.from('deals').select('*').order('created_at', { ascending: false });
+        if (filters.buyer_id) query = query.eq('buyer_id', filters.buyer_id);
+        if (filters.farmer_phone) query = query.eq('farmer_phone', filters.farmer_phone);
+        if (filters.lot_id) query = query.eq('lot_id', filters.lot_id);
+        const { data, error } = await query;
         if (!error && data) return data;
       } catch (err) {}
     }
-    return memoryCache.deals;
+    let result = [...memoryCache.deals];
+    if (filters.buyer_id) result = result.filter(d => d.buyer_id === filters.buyer_id);
+    if (filters.farmer_phone) result = result.filter(d => d.farmer_phone === filters.farmer_phone);
+    if (filters.lot_id) result = result.filter(d => d.lot_id === filters.lot_id);
+    return result;
   },
 
   // ===================== USERS & FARMERS =====================
@@ -460,38 +548,48 @@ export const db = {
   },
 
   createUser: async (userData) => {
-    const newUser = {
+    const userTablePayload = {
       id: userData.id || `usr-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      phone: userData.phone,
+      role: userData.role,
+      name: userData.name || userData.full_name || 'Agri User',
+      district: userData.district || 'Maharashtra',
+      village: userData.village || '',
+      status: userData.status || 'ACTIVE',
       is_verified: Boolean(userData.saat_bara_number || userData.is_verified),
-      ...userData
+      preferred_lang: userData.preferred_lang || 'mr',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
     };
 
     if (supabaseConnected) {
       try {
-        const { data, error } = await supabase.from('users').upsert([newUser], { onConflict: 'phone' }).select().single();
+        const { data, error } = await supabase.from('users').upsert([userTablePayload], { onConflict: 'phone' }).select().single();
         if (!error && data) {
           // If Farmer, also create in farmer_profiles
           if (userData.role === 'FARMER') {
-            await supabase.from('farmer_profiles').upsert([{
-              user_id: data.id,
-              full_name: data.name,
-              phone: data.phone,
-              district: data.district,
-              village: data.village,
-              land_size_acres: data.land_size_acres,
-              saat_bara_number: data.saat_bara_number,
-              primary_crops: data.crops,
-              bank_ifsc: data.bank_ifsc,
-              is_verified: data.is_verified
-            }], { onConflict: 'user_id' }).catch(() => {});
+            try {
+              await supabase.from('farmer_profiles').upsert([{
+                user_id: data.id,
+                full_name: data.name,
+                district: data.district,
+                taluka: userData.taluka || data.village || '',
+                village: data.village || '',
+                land_size_acres: userData.land_size_acres ? Number(userData.land_size_acres) : null,
+                saat_bara_number: userData.saat_bara_number || '',
+                primary_crops: Array.isArray(userData.crops) ? userData.crops : [userData.crops || 'Soybean'],
+                bank_ifsc: userData.bank_ifsc || '',
+                is_verified: data.is_verified,
+                created_at: new Date().toISOString()
+              }], { onConflict: 'user_id' });
+            } catch (errProfile) {}
           }
 
           const existingIdx = memoryCache.users.findIndex(u => u.phone === userData.phone);
-          if (existingIdx !== -1) memoryCache.users[existingIdx] = data;
-          else memoryCache.users.unshift(data);
-          return data;
+          const fullUser = { ...data, ...userData };
+          if (existingIdx !== -1) memoryCache.users[existingIdx] = fullUser;
+          else memoryCache.users.unshift(fullUser);
+          return fullUser;
         }
         if (error) console.warn('Supabase createUser error:', error.message);
       } catch (err) {}
@@ -503,6 +601,7 @@ export const db = {
       return memoryCache.users[existingIndex];
     }
 
+    const newUser = { ...userTablePayload, ...userData };
     memoryCache.users.unshift(newUser);
     return newUser;
   },

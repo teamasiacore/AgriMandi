@@ -35,7 +35,7 @@ export const api = {
 
   // Buyers & Deals
   getBuyers: () => client.get('/buyers').then(res => res.data),
-  getDeals: () => client.get('/deals').then(res => res.data),
+  getDeals: (params) => client.get('/deals', { params }).then(res => res.data),
 
   // Auth
   login: (data) => client.post('/auth/login', data).then(res => res.data),
