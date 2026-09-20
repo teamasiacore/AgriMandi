@@ -5,6 +5,7 @@ import realizationRoutes from '../backend/src/routes/realizationRoutes.js';
 import marketRoutes from '../backend/src/routes/marketRoutes.js';
 import authRoutes from '../backend/src/routes/authRoutes.js';
 import adminRoutes from '../backend/src/routes/adminRoutes.js';
+import fpoRoutes from '../backend/src/routes/fpoRoutes.js';
 
 const app = express();
 
@@ -50,6 +51,9 @@ app.use('/auth', authRoutes);
 
 app.use('/api/admin', adminRoutes);
 app.use('/admin', adminRoutes);
+
+app.use('/api/fpo', fpoRoutes);
+app.use('/fpo', fpoRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
