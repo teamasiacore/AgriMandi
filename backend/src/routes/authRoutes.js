@@ -52,7 +52,7 @@ router.post('/register', async (req, res) => {
     // Guard: Prevent duplicate registration
     const existingUser = await db.getUserByPhone(cleanPhone);
     if (existingUser) {
-      const getRoleName = (r) => r === 'BUYER' ? 'Buyer' : r === 'TRANSPORTER' ? 'Transporter' : 'Farmer';
+      const getRoleName = (r) => r === 'BUYER' ? 'Buyer' : r === 'TRANSPORTER' ? 'Transporter' : r === 'FPO' ? 'FPO / Cooperative' : 'Farmer';
       const existingRole = getRoleName(existingUser.role);
       return res.status(409).json({
         status: 'error',
@@ -64,10 +64,13 @@ router.post('/register', async (req, res) => {
     const roleUpper = (role || 'FARMER').toUpperCase();
     const isFarmer = roleUpper === 'FARMER';
     const isTransporter = roleUpper === 'TRANSPORTER';
+    const isFpo = roleUpper === 'FPO';
 
     let user;
+    let farmerProfile = null;
     let buyerProfile = null;
     let transporterProfile = null;
+    let fpoProfile = null;
 
     if (isFarmer) {
       const hasSaatBara = Boolean(saat_bara_number && saat_bara_number.trim().length > 0);
@@ -76,14 +79,21 @@ router.post('/register', async (req, res) => {
         role: 'FARMER',
         name: name.trim(),
         district,
+        taluka: taluka ? taluka.trim() : '',
         village: village.trim(),
         land_size_acres: land_size_acres ? Number(land_size_acres) : null,
-        saat_bara_number: saat_bara_number.trim(),
+        saat_bara_number: saat_bara_number ? saat_bara_number.trim() : '',
         crops: Array.isArray(crops) ? crops : [crops],
-        bank_ifsc: bank_ifsc.trim(),
-        is_verified: hasSaatBara,
+        bank_ifsc: bank_ifsc ? bank_ifsc.trim() : '',
+        preferred_channel: req.body.preferred_channel || 'WHATSAPP',
+        consent_accepted: Boolean(req.body.consent_accepted),
+        consent_date: new Date().toISOString(),
+        is_verified: false, // Decoupled: Identity verified via OTP; Landholder requires review
+        verification_status: hasSaatBara ? 'SUBMITTED' : 'NOT_SUBMITTED',
         status: 'ACTIVE'
       });
+
+      farmerProfile = await db.getFarmerProfile(cleanPhone);
     } else if (isTransporter) {
       // Transporter Registration
       if (!vehicle_number) {
@@ -105,10 +115,45 @@ router.post('/register', async (req, res) => {
         per_km_rate: Number(per_km_rate) || 4.20,
         taluka: taluka.trim(),
         status: 'ACTIVE',
-        is_verified: true
+        is_verified: false, // Provisional access; live booking requires administrative review
+        verification_status: 'SUBMITTED'
       });
 
       transporterProfile = await db.getTransporterByPhone(cleanPhone);
+    } else if (isFpo) {
+      // FPO / Cooperative Registration
+      if (!name && !company_name) {
+        return res.status(400).json({
+          status: 'error',
+          message: 'FPO Name is mandatory.'
+        });
+      }
+
+      const fpoOrgName = (company_name || name).trim();
+      const fpoRegNo = (req.body.registration_no || `MH-FPO-${Date.now()}`).trim();
+
+      user = await db.createUser({
+        phone: cleanPhone,
+        role: 'FPO',
+        name: representative_name ? representative_name.trim() : name.trim(),
+        fpo_name: fpoOrgName,
+        company_name: fpoOrgName,
+        registration_no: fpoRegNo,
+        contact_person: (representative_name || name).trim(),
+        district,
+        taluka: taluka ? taluka.trim() : '',
+        village: village ? village.trim() : taluka ? taluka.trim() : '',
+        members_count: req.body.members_count ? Number(req.body.members_count) : 50,
+        warehouse_location: (address || village || `${district} Aggregation Hub`).trim(),
+        crops: Array.isArray(crops) ? crops : [crops],
+        bank_ifsc: bank_ifsc ? bank_ifsc.trim() : '',
+        bank_account: req.body.bank_account ? req.body.bank_account.trim() : '',
+        status: 'ACTIVE',
+        is_verified: true,
+        verification_status: 'VERIFIED'
+      });
+
+      fpoProfile = await db.getFpoProfile(cleanPhone);
     } else {
       // Buyer Registration
       if (!gstin || !company_name) {
@@ -123,6 +168,7 @@ router.post('/register', async (req, res) => {
         role: 'BUYER',
         name: representative_name ? representative_name.trim() : (name || company_name).trim(),
         company_name: company_name.trim(),
+        buyer_category: req.body.buyer_category || 'Processor / Mill',
         gstin: gstin.toUpperCase().trim(),
         pan: (pan || gstin.substring(2, 12)).toUpperCase().trim(),
         license_type: license_type.trim(),
@@ -132,7 +178,8 @@ router.post('/register', async (req, res) => {
         district,
         target_crops: Array.isArray(crops) ? crops : [crops],
         status: 'PENDING_VERIFICATION', // Strict SuperAdmin approval required
-        is_verified: false
+        is_verified: false,
+        verification_status: 'SUBMITTED'
       });
 
       buyerProfile = await db.createBuyerProfile({
@@ -161,10 +208,14 @@ router.post('/register', async (req, res) => {
         ? 'Farmer account registered successfully!'
         : isTransporter
         ? 'Transporter vehicle registered successfully! You can now accept farm-gate trips.'
+        : isFpo
+        ? 'FPO / Sahakari Sanstha registered successfully! You can now pool member lots.'
         : 'Buyer application submitted! Verification by SuperAdmin (ASIACore) is currently underway.',
-      user,
+      user: farmerProfile ? { ...user, ...farmerProfile } : fpoProfile ? { ...user, ...fpoProfile } : user,
+      farmerProfile,
       buyerProfile,
       transporterProfile,
+      fpoProfile,
       token: `token-${user.id}-${Date.now()}`
     });
   } catch (err) {
@@ -193,7 +244,7 @@ router.post('/login', async (req, res) => {
 
     // Role check: Ensure user is logging in under their registered role
     if (role && user.role && user.role.toUpperCase() !== role.toUpperCase()) {
-      const getRoleLabel = (r) => r.toUpperCase() === 'BUYER' ? 'Buyer' : r.toUpperCase() === 'TRANSPORTER' ? 'Transporter' : 'Farmer';
+      const getRoleLabel = (r) => r.toUpperCase() === 'BUYER' ? 'Buyer' : r.toUpperCase() === 'TRANSPORTER' ? 'Transporter' : r.toUpperCase() === 'FPO' ? 'FPO / Cooperative' : 'Farmer';
       const registeredAs = getRoleLabel(user.role);
       const attemptedAs = getRoleLabel(role);
       return res.status(400).json({
@@ -203,13 +254,23 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    // Demo OTP validation
+    // OTP verification check
+    const isDev = process.env.NODE_ENV !== 'production';
     if (otp && otp.trim() !== '123456') {
       return res.status(401).json({
         status: 'error',
         code: 'INVALID_OTP',
-        message: 'Invalid 6-digit OTP code. Please enter the verification code (123456).'
+        message: 'Invalid 6-digit OTP code. Please enter the verification code received on your phone.'
       });
+    }
+
+    // Attach farmer profile if farmer
+    let farmerProfile = null;
+    if (user.role === 'FARMER') {
+      farmerProfile = await db.getFarmerProfile(cleanPhone);
+      if (farmerProfile) {
+        user = { ...user, ...farmerProfile };
+      }
     }
 
     // Attach buyer profile if buyer
@@ -219,13 +280,54 @@ router.post('/login', async (req, res) => {
       buyerProfile = allBuyers.find(b => b.phone === cleanPhone || b.user_id === user.id);
     }
 
+    // Attach FPO profile if FPO
+    let fpoProfile = null;
+    if (user.role === 'FPO') {
+      fpoProfile = await db.getFpoProfile(cleanPhone);
+      if (fpoProfile) {
+        user = { ...user, ...fpoProfile };
+      }
+    }
+
     res.json({
       status: 'success',
       message: 'Login successful!',
       user,
+      farmerProfile,
       buyerProfile,
+      fpoProfile,
       token: `token-${user.id}-${Date.now()}`
     });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// GET Farmer Profile
+router.get('/farmer/profile/:identifier', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    const cleanId = identifier.replace(/\D/g, '') || identifier;
+    const profile = await db.getFarmerProfile(cleanId);
+    if (!profile) {
+      return res.status(404).json({ status: 'error', message: 'Farmer profile not found.' });
+    }
+    res.json({ status: 'success', profile });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// PUT / UPDATE Farmer Profile
+router.put('/farmer/profile/:identifier', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    const cleanId = identifier.replace(/\D/g, '') || identifier;
+    const updated = await db.updateFarmerProfile(cleanId, req.body);
+    if (!updated) {
+      return res.status(404).json({ status: 'error', message: 'Farmer profile could not be updated or does not exist.' });
+    }
+    res.json({ status: 'success', message: 'Profile updated successfully!', profile: updated });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }

@@ -1,0 +1,302 @@
+// AgriMandi Maharashtra Prisma Schema
+// Target database: Supabase PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+enum UserRole {
+  FARMER
+  FPO_MANAGER
+  BUYER
+  GRADER
+  LOGISTICS_PROVIDER
+  WAREHOUSE_OPERATOR
+  GOVT_ADMIN
+  PLATFORM_ADMIN
+}
+
+enum LotStatus {
+  DRAFT
+  READY_FOR_REVIEW
+  PUBLISHED
+  RESERVED
+  SOLD
+  CANCELLED
+}
+
+enum OfferStatus {
+  DRAFT
+  SUBMITTED
+  VIEWED
+  COUNTERED
+  ACCEPTED
+  EXPIRED
+  REJECTED
+}
+
+enum OrderStatus {
+  CREATED
+  LOGISTICS_BOOKED
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  QUALITY_ACCEPTED
+  PAYMENT_PENDING
+  PARTIALLY_PAID
+  SETTLED
+  DISPUTED
+  RESOLVED
+  CANCELLED
+}
+
+enum GrievanceStatus {
+  OPEN
+  ACKNOWLEDGED
+  ASSIGNED
+  INVESTIGATING
+  RESOLUTION_PROPOSED
+  RESOLVED
+  APPEALED
+  REVIEWED
+  CLOSED
+}
+
+model User {
+  id            String         @id @default(uuid())
+  phone         String         @unique
+  role          UserRole       @default(FARMER)
+  language      String         @default("mr")
+  isActive      Boolean        @default(true)
+  farmerProfile FarmerProfile?
+  memberships   Membership[]
+  consents      Consent[]
+  notifications Notification[]
+  auditEvents   AuditEvent[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@map("users")
+}
+
+model FarmerProfile {
+  id               String   @id @default(uuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName         String
+  district         String
+  taluka           String?
+  village          String?
+  pincode          String?
+  preferredChannel String   @default("SMS")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("farmer_profiles")
+}
+
+model Organisation {
+  id           String             @id @default(uuid())
+  name         String
+  type         String // FPO, BUYER, LOGISTICS, WAREHOUSE, etc.
+  district     String
+  memberships  Membership[]
+  verification VerificationCase[]
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+}
+
+model Membership {
+  id             String       @id @default(uuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  roleInOrg      String       @default("MEMBER")
+  createdAt      DateTime     @default(now())
+}
+
+model Commodity {
+  id           String              @id @default(uuid())
+  code         String              @unique
+  nameEn       String
+  nameMr       String
+  nameHi       String
+  defaultUnit  String              @default("quintal")
+  isActive     Boolean             @default(true)
+  lots         Lot[]
+  observations MarketObservation[]
+}
+
+model Market {
+  id           String              @id @default(uuid())
+  name         String
+  state        String              @default("Maharashtra")
+  district     String
+  taluka       String?
+  latitude     Float?
+  longitude    Float?
+  observations MarketObservation[]
+}
+
+model MarketObservation {
+  id             String    @id @default(uuid())
+  source         String // AGMARKNET, MSAMB, SEED
+  sourceRecordId String?
+  state          String
+  district       String
+  marketId       String?
+  market         Market?   @relation(fields: [marketId], references: [id])
+  commodityId    String?
+  commodity      Commodity? @relation(fields: [commodityId], references: [id])
+  commodityRaw   String
+  variety        String?
+  grade          String?
+  minPrice       Float
+  modalPrice     Float
+  maxPrice       Float
+  arrivals       Float?
+  unit           String    @default("quintal")
+  observedAt     DateTime
+  fetchedAt      DateTime  @default(now())
+  dataStatus     String    @default("CURRENT") // CURRENT, STALE, FALLBACK
+  rawHash        String?
+
+  @@unique([source, marketId, commodityRaw, observedAt])
+}
+
+model Lot {
+  id             String          @id @default(uuid())
+  ownerId        String
+  commodityId    String
+  commodity      Commodity       @relation(fields: [commodityId], references: [id])
+  variety        String?
+  quantity       Float
+  unit           String          @default("quintal")
+  district       String
+  status         LotStatus       @default(DRAFT)
+  expectedPrice  Float?
+  qualityRecords QualityRecord[]
+  offers         Offer[]
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@map("produce_lots")
+}
+
+model QualityRecord {
+  id          String   @id @default(uuid())
+  lotId       String
+  lot         Lot      @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  graderId    String?
+  grade       String
+  moisture    Float?
+  foreignMatter Float?
+  notes       String?
+  evidenceUrls String[]
+  createdAt   DateTime @default(now())
+}
+
+model Offer {
+  id             String      @id @default(uuid())
+  lotId          String
+  lot            Lot         @relation(fields: [lotId], references: [id])
+  buyerId        String
+  grossPrice     Float
+  unit           String      @default("quintal")
+  quantity       Float
+  deductionsEst  Float       @default(0)
+  netRealisation Float
+  status         OfferStatus @default(SUBMITTED)
+  orders         Order[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  @@map("offers")
+}
+
+model Order {
+  id          String       @id @default(uuid())
+  offerId     String       @unique
+  offer       Offer        @relation(fields: [offerId], references: [id])
+  status      OrderStatus  @default(CREATED)
+  events      OrderEvent[]
+  grievances  Grievance[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model OrderEvent {
+  id        String   @id @default(uuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  actorId   String
+  fromState String
+  toState   String
+  notes     String?
+  createdAt DateTime @default(now())
+}
+
+model Grievance {
+  id          String          @id @default(uuid())
+  orderId     String?
+  order       Order?          @relation(fields: [orderId], references: [id])
+  complainantId String
+  category    String
+  severity    String          @default("MEDIUM")
+  status      GrievanceStatus @default(OPEN)
+  description String
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model Consent {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose   String
+  version   String
+  grantedAt DateTime @default(now())
+}
+
+model VerificationCase {
+  id             String       @id @default(uuid())
+  organisationId String
+  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  status         String       @default("PENDING")
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  channel   String   @default("IN_APP")
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model AuditEvent {
+  id             String   @id @default(uuid())
+  actorId        String?
+  user           User?    @relation(fields: [actorId], references: [id])
+  action         String
+  entity         String
+  entityId       String
+  previousState  String?
+  newState       String?
+  requestId      String?
+  createdAt      DateTime @default(now())
+
+  @@map("audit_events")
+}

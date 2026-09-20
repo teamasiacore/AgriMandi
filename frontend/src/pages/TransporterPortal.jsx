@@ -50,13 +50,20 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
         }
       }
 
-      // 2. Fetch available trip requests (locked deals needing pickup)
-      const tripsRes = await api.getAvailableTrips({ district: user?.district || 'all' });
+      // 2. Fetch available trip requests across region (locked deals needing pickup)
+      const tripsRes = await api.getAvailableTrips({ district: 'all' });
       setAvailableTrips(tripsRes.trips || []);
 
-      // 3. Fetch trips assigned to this transporter
-      const myTripsRes = await api.getTransporterTrips(user?.id || user?.phone || 'tp-1');
-      setMyTrips(myTripsRes.trips || []);
+      // 3. Fetch trips assigned to this transporter (using resolved transporter ID, user ID or phone)
+      const tpLookupId = user?.id || user?.phone || 'tp-1';
+      const myTripsRes = await api.getTransporterTrips(tpLookupId);
+      const fetchedMyTrips = myTripsRes.trips || [];
+      setMyTrips(fetchedMyTrips);
+
+      // Auto-switch to my-trips if there are assigned trips and no unassigned available trips
+      if (fetchedMyTrips.length > 0 && (tripsRes.trips || []).length === 0) {
+        setActiveTab('my-trips');
+      }
 
     } catch (err) {
       console.warn('Transporter data loading error:', err);
@@ -73,7 +80,10 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
     try {
       await api.updateTransporterStatus(transporter?.id || user?.id, newStatus);
       setTransporter(prev => ({ ...prev, is_available: newStatus }));
-      setActionNotice(newStatus ? '🟢 आपण ऑन-ड्युटी आला आहात. नवीन ट्रिप्स दिसतील.' : '🔴 आपण ऑफ-ड्युटी झाला आहात.');
+      setActionNotice(newStatus 
+        ? (currentLang === 'en' ? '🟢 You are now ON-DUTY. New trips will appear.' : currentLang === 'hi' ? '🟢 आप ऑन-ड्यूटी हैं। नई ट्रिप्स दिखेंगी।' : '🟢 आपण ऑन-ड्युटी आला आहात. नवीन ट्रिप्स दिसतील.')
+        : (currentLang === 'en' ? '🔴 You are now OFF-DUTY.' : currentLang === 'hi' ? '🔴 आप ऑफ-ड्यूटी हैं।' : '🔴 आपण ऑफ-ड्युटी झाला आहात.')
+      );
       setTimeout(() => setActionNotice(''), 4000);
     } catch (err) {
       alert('Status update error: ' + err.message);
@@ -83,6 +93,8 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
   const handleAcceptTrip = async (trip, agreedFreight) => {
     const confirmMsg = currentLang === 'en' 
       ? `Accept farm-gate pickup for ${trip.crop} (${agreedFreight ? '₹' + agreedFreight : ''})?` 
+      : currentLang === 'hi'
+      ? `क्या आप यह पिकअप व परिवहन ट्रिप स्वीकार करना चाहते हैं? (भाड़ा: ₹${agreedFreight?.toLocaleString() || '9,000'})`
       : `या शेतीमालाची उचल व वाहतूक ट्रिप स्वीकारायची आहे का? (भाडे: ₹${agreedFreight?.toLocaleString() || '9,000'})`;
     
     if (!window.confirm(confirmMsg)) return;
@@ -106,9 +118,25 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
     }
   };
 
+  const handleUpdateMilestone = async (dealId, nextMilestone) => {
+    try {
+      await api.updateTripMilestone(dealId, { milestone: nextMilestone });
+      const statusLabels = {
+        AT_FARM_GATE: currentLang === 'en' ? '📍 Driver arrived at Farm Gate. Loading in progress.' : currentLang === 'hi' ? '📍 चालक खेत पर पहुँच गए हैं। लोडिंग जारी।' : '📍 गाडी शेतावर पोहोचली आहे. लोडिंग सुरू.',
+        IN_TRANSIT: currentLang === 'en' ? '🚚 Produce loaded. In transit to destination mill.' : currentLang === 'hi' ? '🚚 माल लोड हो गया है। मिल की ओर रवाना।' : '🚚 माल लोड झाला. मिलकडे रवाना.',
+        DELIVERED: currentLang === 'en' ? '✅ Produce delivered at Mill Gate. Payout milestone unlocked.' : currentLang === 'hi' ? '✅ माल मिल में पहुँच गया। भुगतान चरण शुरू।' : '✅ माल मिलवर पोहोचला. सेटलमेंट सुरू.'
+      };
+      setActionNotice(statusLabels[nextMilestone] || 'Status updated');
+      setTimeout(() => setActionNotice(''), 4000);
+      loadData();
+    } catch (err) {
+      alert('Milestone update error: ' + err.message);
+    }
+  };
+
   // Metrics Calculations
-  const completedTripsCount = myTrips.filter(t => t.delivery_status === 'COMPLETED').length + (transporter?.trips_completed || 0);
-  const activeTrip = myTrips.find(t => t.delivery_status === 'IN_TRANSIT');
+  const completedTripsCount = myTrips.filter(t => t.delivery_status === 'DELIVERED' || t.delivery_status === 'COMPLETED').length + (transporter?.trips_completed || 0);
+  const activeTrip = myTrips.find(t => ['DISPATCHED', 'AT_FARM_GATE', 'IN_TRANSIT'].includes(t.delivery_status));
   const totalEarnings = myTrips.reduce((acc, t) => acc + (Number(t.freight_amount) || 0), 0);
 
   return (
@@ -150,7 +178,13 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
             </span>
             <p className="text-2xl font-bold font-mono text-[#C86432] mt-1">{activeTrip ? '1' : '0'}</p>
             <span className="text-[11px] text-stone-500 font-medium mt-0.5">
-              {activeTrip ? '🚚 शेतातून मिलकडे रवाना' : 'सध्या कोणतीही ट्रिप चालू नाही'}
+              {activeTrip 
+                ? activeTrip.delivery_status === 'AT_FARM_GATE'
+                  ? (currentLang === 'en' ? '📍 At Farm (Loading)' : currentLang === 'hi' ? '📍 खेत पर (लोडिंग जारी)' : '📍 शेतावर (लोडिंग)')
+                  : activeTrip.delivery_status === 'DISPATCHED'
+                  ? (currentLang === 'en' ? '🚚 Dispatched to Farm' : currentLang === 'hi' ? '🚚 खेत की ओर रवाना' : '🚚 शेताकडे रवाना')
+                  : (currentLang === 'en' ? '🚚 In Transit to Mill' : currentLang === 'hi' ? '🚚 मिल की ओर रवाना' : '🚚 शेतातून मिलकडे रवाना') 
+                : (currentLang === 'en' ? 'No active trip currently' : currentLang === 'hi' ? 'फिलहाल कोई चालू ट्रिप नहीं' : 'सध्या कोणतीही ट्रिप चालू नाही')}
             </span>
           </div>
 
@@ -160,7 +194,7 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
             </span>
             <p className="text-2xl font-bold font-mono text-stone-900 mt-1">₹{totalEarnings.toLocaleString()}</p>
             <span className="text-[11px] text-emerald-700 font-semibold mt-0.5 flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3" /> थेट बँक खात्यात जमा
+              <ShieldCheck className="w-3 h-3" /> {currentLang === 'en' ? 'Direct Bank Settlement' : currentLang === 'hi' ? 'सीधे बैंक खाते में जमा' : 'थेट बँक खात्यात जमा'}
             </span>
           </div>
 
@@ -170,7 +204,7 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
             </span>
             <p className="text-2xl font-bold font-mono text-amber-600 mt-1">⭐ 5.0 / 5.0</p>
             <span className="text-[11px] text-stone-500 font-medium mt-0.5">
-              शेतकरी व मिलर्स पसंती
+              {currentLang === 'en' ? 'Farmer & Mill Trust Score' : currentLang === 'hi' ? 'किसान व मिलर्स भरोसा' : 'शेतकरी व मिलर्स पसंती'}
             </span>
           </div>
         </div>
@@ -228,7 +262,9 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
             {loading ? (
               <div className="py-16 text-center text-stone-500 bg-white rounded-3xl border border-[#E5DFD4]">
                 <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#1B4332]" />
-                <p className="text-xs font-semibold">जवळपासच्या ट्रिप मागण्या शोधत आहे...</p>
+                <p className="text-xs font-semibold">
+                  {currentLang === 'en' ? 'Searching nearby farm-gate pickup demands...' : currentLang === 'hi' ? 'आसपास की पिकअप मांगों की खोज जारी है...' : 'जवळपासच्या ट्रिप मागण्या शोधत आहे...'}
+                </p>
               </div>
             ) : availableTrips.length > 0 ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -249,10 +285,14 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
                   <Truck className="w-7 h-7 text-stone-400" />
                 </div>
                 <h3 className="text-base font-bold text-stone-800 font-heading">
-                  सध्या तुमच्या कार्यक्षेत्रात नवीन पिकअप मागणी उपलब्ध नाही
+                  {currentLang === 'en' ? 'No new pickup demands available in your jurisdiction' : currentLang === 'hi' ? 'वर्तमान में आपके क्षेत्र में कोई नई पिकअप मांग उपलब्ध नहीं है' : 'सध्या तुमच्या कार्यक्षेत्रात नवीन पिकअप मागणी उपलब्ध नाही'}
                 </h3>
                 <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
-                  शेतकरी आणि खरेदीदार मिल यांच्यात सौदा पक्का होताच (DEAL LOCKED), शेतातून थेट वाहतुकीची मागणी येथे तात्काळ दिसेल.
+                  {currentLang === 'en' 
+                    ? 'As soon as a deal is locked between farmer and buyer mill, direct farm-gate transit demands will appear here immediately.' 
+                    : currentLang === 'hi'
+                    ? 'जैसे ही किसान और खरीदार मिल के बीच सौदा तय होगा (DEAL LOCKED), खेत से सीधी ढुलाई की मांग यहाँ तुरंत दिखाई देगी।'
+                    : 'शेतकरी आणि खरेदीदार मिल यांच्यात सौदा पक्का होताच (DEAL LOCKED), शेतातून थेट वाहतुकीची मागणी येथे तात्काळ दिसेल.'}
                 </p>
               </div>
             )}
@@ -267,6 +307,7 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
                     trip={trip}
                     onAccept={handleAcceptTrip}
                     onViewWaybill={setSelectedWaybillTrip}
+                    onUpdateMilestone={handleUpdateMilestone}
                     isAvailable={transporter?.is_available !== false}
                     currentLang={currentLang}
                   />
@@ -278,10 +319,14 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
                   <FileText className="w-7 h-7 text-stone-400" />
                 </div>
                 <h3 className="text-base font-bold text-stone-800 font-heading">
-                  कोणतीही ट्रिप अद्याप स्वीकारलेली नाही
+                  {currentLang === 'en' ? 'No trips accepted yet' : currentLang === 'hi' ? 'अभी तक कोई ट्रिप स्वीकार नहीं की गई है' : 'कोणतीही ट्रिप अद्याप स्वीकारलेली नाही'}
                 </h3>
                 <p className="text-xs text-stone-500 max-w-md mx-auto leading-relaxed">
-                  उपलब्ध ट्रिप्स टॅबमधून नवीन शेतीमाल पिकअप स्वीकारा आणि गाडीसाठी अधिकृत डिजिटल ई-वेबिल प्राप्त करा.
+                  {currentLang === 'en' 
+                    ? 'Accept new farm produce pickups from the Available Trips tab to generate official digital e-Waybills for your vehicle.' 
+                    : currentLang === 'hi'
+                    ? 'उपलब्ध ट्रिप्स टैब से नई फसल पिकअप स्वीकार करें और वाहन के लिए आधिकारिक डिजिटल ई-वेबिल प्राप्त करें।'
+                    : 'उपलब्ध ट्रिप्स टॅबमधून नवीन शेतीमाल पिकअप स्वीकारा आणि गाडीसाठी अधिकृत डिजिटल ई-वेबिल प्राप्त करा.'}
                 </p>
               </div>
             )}

@@ -1,39 +1,41 @@
-# Dependencies
+# Dependency directories
 node_modules/
-*/node_modules/
+.pnpm-store/
+
+# Environment files and secrets (NEVER COMMIT)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+service-account*.json
+*.cert
+*.crt
+
+# Build outputs
+dist/
+build/
+.next/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
 
-# Production Build outputs
-dist/
-frontend/dist/
-build/
+# Python ML service
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
 
-# Environment files and API keys (keep .env.example tracked)
-.env
-.env.local
-.env.*.local
-backend/.env
-frontend/.env
-*.env
-
-# Logs and runtime data
-*.log
-logs/
-
-# Operating System & IDE
+# OS and IDE files
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# Python venv (if any)
-.venv/
-__pycache__/
-*.pyc

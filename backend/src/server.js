@@ -6,6 +6,8 @@ import realizationRoutes from './routes/realizationRoutes.js';
 import marketRoutes from './routes/marketRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import fpoRoutes from './routes/fpoRoutes.js';
+import { mandiService } from './services/mandiService.js';
 
 dotenv.config();
 
@@ -42,6 +44,7 @@ app.use('/api/realization', realizationRoutes);
 app.use('/api', marketRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/fpo', fpoRoutes);
 
 // Global Error Handler
 app.use((err, req, res, next) => {
@@ -59,4 +62,7 @@ app.listen(PORT, () => {
   console.log(`🚜 Produce Lots: http://localhost:${PORT}/api/lots`);
   console.log(`💼 Verified Buyers: http://localhost:${PORT}/api/buyers`);
   console.log(`=============================================`);
+
+  // Start 24x7 Mandi APMC background sync worker
+  mandiService.initBackgroundSyncWorker();
 });

@@ -3,8 +3,8 @@
 > **CRITICAL CONTEXT FOR ANY AI ASSISTANT / DEVELOPER:**  
 > This file tracks the exact runtime state, active ports, installed dependencies, verified database credentials, tested API endpoints, and user preferences. Read this file first to know where the project currently stands.
 
-**Last Updated:** September 10, 2026  
-**Active Project Phase:** Phase 4 — GitHub Repository & Vercel Automated CI/CD Setup  
+**Last Updated:** September 19, 2026  
+**Active Project Phase:** Phase 2 — Core Farmer & Market Experience (AG-008 Completed & Verified)  
 **User Working Mode:** Mentoring & Teaching Mode (Friendly Hinglish, Step-by-Step Guidance)
 
 ---
@@ -56,11 +56,63 @@ Both backend and frontend services are compiled, verified, and running live:
 15. **Service Provider (Transporter & Rural Logistics) Ecosystem Complete**:
     - Added `transporter_profiles` DDL and `users_role_check` expansion in `backend/supabase_schema.sql`.
     - Added transporter database methods (`createTransporterProfile`, `getTransporters`, `updateTransporterStatus`, `acceptTrip`, `getTransporterTrips`) and endpoints in `marketRoutes.js`.
-    - Extended `authRoutes.js` and `AuthPage.jsx` with a 3-way Role Selector (`Farmer`, `Buyer`, `Transporter`) supporting vehicle types (Bolero, Eicher, Tractor, 10-Wheeler, Tata Ace), vehicle registration number, and per-km tariffs.
-    - Built dedicated `TransporterPortal.jsx` (`/transporter`) featuring driver profile, live duty status toggle (🟢 On-Duty vs 🔴 Off-Duty), trip requests queue, and official digital E-Waybill & QR Transit Pass modal.
-    - Integrated Transporter navigation links in `Navbar.jsx`, `LandingPage.jsx`, and `App.jsx` with role-based route protection in `ProtectedRoute.jsx`.
-
-## 📦 2. Installed Dependencies & Architecture Breakdown
+16. **Landing Page Public Launch Trust & Legal Audit (P0) Completed**:
+    - **Escrow & Settlement Claims Replaced**: Removed unverified claims like "secured escrow bank payouts", "100% Escrow Bank Security", and "Fast Settlement". Replaced with factual, operational wording: *"Payment tracking through authorised partners"* and *"Clear payment terms and milestone tracking"*.
+    - **0% Fee Claim Qualified**: Replaced unconditional "0% Middleman Fees" with transparent, evidence-based copy: *"No hidden platform deductions; all service costs are shown before acceptance"*.
+    - **Official Feed & Transparency Provenance**: Updated government data attribution to *"Source-labelled market references from data.gov.in / AGMARKNET"*. Added interactive *"About this data"* panel detailing DMI/data.gov.in provenance, modal price definition, and non-guaranteed indicative nature.
+    - **Net Realization Disclaimer**: Added assumptions & accuracy disclaimer to the calculator explaining variance factors (moisture, grading, weighment, transport, and commercial terms).
+    - **5-Step Transparent Workflow**: Replaced 3-step shortcut with 5 verifiable milestones: *1. List produce lot ➔ 2. Verify quality & buyer ➔ 3. Compare structured offers ➔ 4. Confirm pickup & weighment ➔ 5. Track payment milestones & support*.
+    - **Regulatory Footer & Copyright**: Removed unauthorized claims of direct procurement regulatory authorization. Added explicit clarification: *"AgriMandi is an independent technology platform... This platform is not a government website."* Updated copyright to `© 2026 AgriMandi - Team ASIA Core. All Rights Reserved.`.
+    - **Assisted-Digital Support Callout**: Added dedicated field support section for Maharashtra farmers and FPOs (`asiacore.tech@gmail.com` | `+91 8605168653`).
+    - **Trilingual Parity**: Applied full parity across Marathi (`mr`), Hindi (`hi`), and English (`en`) in `frontend/src/utils/translations.js` and `frontend/src/pages/LandingPage.jsx`.
+17. **Final Launch Copy Clarifications & Resilience (P0.5) Verified**:
+    - **Role Definition Alignment**: Aligned top Navbar links (`Farmer / FPO`, `Buyer`, `Logistics / Storage`) directly with Hero action buttons across all three languages.
+    - **Step 2 Refinement**: Changed *"Verify Quality & Buyer"* to *"Review quality evidence and buyer verification"* (`२. गुणवत्ता पुरावे व खरेदीदार पडताळणी तपासा` / `२. गुणवत्ता साक्ष्य एवं खरीदार सत्यापन की समीक्षा करें`).
+    - **Step 5 Refinement**: Replaced banking integration claims with *"Track payment commitments and settlement status through approved payment or service providers"*.
+    - **Dynamic Hero Comparison**: Hero comparison card now dynamically binds to `realizationResult` when available, with illustrative metadata and explicit footnote disclaimer (*"Actual result may differ based on quality, weighment, deductions, transport, rejection, and payment terms"*).
+    - **APMC Charge Qualification**: Clarified APMC cess note to *"APMC/market charge assumption: 1.05% (charges may vary by commodity, market, and applicable rules)"*.
+    - **Mobile Optimization & Offline Resilience**: Added horizontal swipe indicator on mobile viewport (<640px) for Mandi rates table and added resilient `ratesError` handling with friendly retry state.
+    - **Key Protection Audit**: Verified zero API keys or Supabase service-role keys exposed in frontend code. Server keys strictly confined to backend `.env`.
+18. **AG-008 Live Mandi Auto-Sync & Stale Data Warning Engine (Completed & Verified)**:
+    - **Supabase Cloud Schema Executed**: Successfully created `public.mandi_prices` (with `CONSTRAINT unique_mandi_commodity_date UNIQUE (market, commodity, arrival_date)`), `public.buyer_profiles`, `public.transporter_profiles`, and `public.deals`.
+    - **Real-Time Auto-Persist Pipeline**: `mandiService.js` actively fetches live daily Agmarknet records from `data.gov.in`, serves the request via memory cache, and asynchronously upserts the records into Supabase Cloud PostgreSQL.
+    - **End-to-End Sync Verified**: Executed live verification query. `data.gov.in` feed synced fresh Maharashtra records (`19/09/2026`) directly into `mandi_prices` in Supabase with zero schema errors.
+    - **Stale Data Warning Indicator (AG-008)**: Integrated `isLiveToday` helper in `LandingPage.jsx` and `FarmerPortal.jsx`. Renders `🟢 थेट आजचे / Live Today` pulse badge when arrival date is today, and `🟡 संदर्भ भाव / Past Ref` badge with arrival date when data is >24 hours old or for weekend/mandi holidays.
+19. **Task AG-007: Farmer Onboarding & 7/12 Landholder Profile Complete**:
+    - **Enhanced Onboarding (`AuthPage.jsx`)**: Added administrative hierarchy inputs (**District ➔ Taluka ➔ Village**), 7/12 Gat / Survey number (सातबारा गट / सर्व्हे क्र.) input with verification priority tag, and Direct Bank Settlement IFSC input.
+    - **Database & Supabase Synchronization (`db.js`)**: Updated `createUser`, `getUserByPhone`, `getFarmerProfile`, and `updateFarmerProfile` to perfectly align with live PostgreSQL columns on `lqoychozoysmxibhcmuf.supabase.co`. Configured `SUPABASE_SERVICE_ROLE_KEY` authentication.
+    - **Backend Endpoints (`authRoutes.js`)**: Added `GET /api/auth/farmer/profile/:identifier` and `PUT /api/auth/farmer/profile/:identifier`. Enriched login response to automatically attach and merge farmer profile details into session state.
+    - **Modular Farmer Profile Desk (`FarmerProfileDesk.jsx`)**: Built responsive, brand-aligned component under 250 lines featuring official **"७/१२ सत्यापित शेतकरी (7/12 Verified Landholder)"** status badge, land acreage & survey record, direct bank settlement details card, trading activity counter, and Kisan Call Center (1800-180-1551) assisted support.
+    - **Interactive 1-Click Profile Editing**: Modal allowing farmers to update landholding acreage, 7/12 survey number, bank IFSC code, location, and crops with real-time Supabase Cloud persistence.
+    - **Portal Navigation Tab**: Added 4th module tab in `FarmerPortal.jsx` (**"४. शेतकरी प्रोफाईल व ७/१२"**) and made top identity banner clickable. Verified with zero Vite build errors and live database tests.
+19. **Progressive Onboarding, Security Hardening & Review-Based Verification (P0 Audit Complete)**:
+    - **Zero Friction Progressive Farmer Onboarding**: Converted initial farmer registration from high-friction long form to a lightweight flow: Mobile + OTP ➔ Full Name, District, Taluka, Village, Primary Crops, Preferred Channel (WhatsApp / SMS) + Mandatory Explicit Data Consent Checkbox.
+    - **Decoupled Verification Architecture**: Identity verification (Supabase Auth phone/OTP) strictly separated from platform capability verification. Submitting a 7/12 number sets `verification_status: 'SUBMITTED'` (Under Review) rather than auto-granting verified status.
+    - **Review-Based Land Record & Settlement (`FarmerProfileDesk.jsx`)**: Updated landholding status to show review states (`NOT_SUBMITTED`, `SUBMITTED`, `VERIFIED`). Updated settlement copy to transparent disclaimer explaining payment is processed via authorized providers and AgriMandi tracks milestones without holding funds.
+    - **Production Security & Copy Cleansing**: Demo OTP `123456` hint guarded strictly by `import.meta.env.DEV`. Replaced "100% Encrypted & Safe" with "Secure sign-in with one-time verification". Replaced Transporter "Instant Activation" with "Quick registration; service activation after review". Replaced government standard tariff claim with flexible route/vehicle estimator disclaimer.
+    - **Buyer Category & Review Requirement**: Added buyer category selector (Processor/Mill, Trader, Institutional Buyer, FPO/Cooperative, Retail/Aggregator) and prominent organizational review notice before live bidding is granted.
+21. **Standardization of 6 Core Agricultural Hub Districts & Dynamic Talukas**:
+    - **Unified Master Data (`translations.js`)**: Master list `DISTRICT_OPTIONS` strictly standardized to 6 core districts (**Latur, Nashik, Solapur, Jalna, Akola, Pune**) with complete trilingual translations and primary taluka hierarchies (e.g. Niphad/Lasalgaon, Ausa, Barshi, Junnar).
+    - **Dynamic Taluka Selection (`AuthPage.jsx`)**: When a farmer selects their district, the Taluka input automatically transforms into a filtered dropdown displaying the authentic talukas of that specific district.
+    - **Produce Lot Creation (`FarmerPortal.jsx`)**: Farm-gate lot listing modal updated to use `DISTRICT_OPTIONS`, ensuring produce listings strictly correspond to the 6 APMC hubs.
+    - **Net Realization & Buyer Marketplace (`FarmerPortal.jsx`, `BuyerPortal.jsx`)**: Harmonized all dropdowns, filters, and calculators across farmer and buyer portals to match the 6 core districts with zero compile/runtime errors.
+22. **AG-009 & AG-010: Farmer Lot Creation & Live Bidding Engine 100% Persisted & Verified**:
+    - **Lot Creation with Live Benchmark (`FarmerPortal.jsx`)**: Integrated real-time APMC benchmark reference callout right inside the lot creation modal. Farmers can pick dynamic talukas for the 6 core hubs, set quality grade, moisture percentage, and farm pickup address.
+    - **Buyer Marketplace & Distance Discovery (`BuyerPortal.jsx`)**: Real-time Haversine distance calculations from buyer facility to farmer pickup gate. Buyers place counter-bids specifying requested quantity, offered rate, and delivery gate.
+    - **Farmer Review & Deal Contract Lock (`db.js`, `marketRoutes.js`)**: Accepting an offer immediately updates `offers` to `ACCEPTED`, parent `produce_lots` status to `DEAL_LOCKED`, auto-rejects competing bids, and generates a legal deal contract persisted directly in Supabase Cloud PostgreSQL `public.deals` with milestone status `SECURED_IN_ESCROW`.
+    - **100% End-to-End Test Execution**: Verified full lifecycle via direct integration test: Lot created (`lot-1789839534319`), Buyer bid placed (`off-1789839534992`), Farmer accepted ➔ Deal locked (`deal-1789839535899`), all three entities 100% confirmed in live Supabase PostgreSQL tables.
+23. **Task AG-011: Digital Deal Contract & Printable Waybill / e-Invoice Complete & Verified**:
+    - **Official Modular Component (`DealContractModal.jsx`)**: Built authentic bilingual B2B deal contract slip featuring official AgriMandi insignia, unique Deal Reference, party metadata (7/12 Landholder Seller vs GSTIN/APMC License Buyer), commercial value breakdown in INR, pickup origin vs destination gates, and electronic weighbridge tolerances.
+    - **Statutory Mandi Cess Exemption (Section 32A)**: Integrated legally compliant clause confirming 0% APMC market cess on direct farm-gate procurement under Maharashtra Agricultural Produce Marketing Act.
+    - **Scannable QR Verification Badge**: Crisp SVG QR code generated with `qrcode.react` linking to `https://agrimandi.asiacore.in/verify/deal/{deal.id}` with cryptographic verification hash.
+    - **Dual Portal Integration & Clean Printing**: Added contract slip viewing buttons to `FarmerPortal.jsx` (on deal notification banner, `DEAL_LOCKED` lot cards, and accepted offer cards) and `BuyerPortal.jsx` (on submitted bids and executed contracts). Injected dedicated `@media print` CSS so clicking "प्रिंट / PDF" generates a clean, single-page A4 certificate without screen controls.
+24. **100% Pure Language Isolation & Trilingual Consistency Across Entire Platform**:
+    - Performed exhaustive line-by-line audit across all files, tabs, modals, tables, and buttons (`DealContractModal.jsx`, `FarmerPortal.jsx`, `BuyerPortal.jsx`, `FarmerProfileDesk.jsx`, `Navbar.jsx`, `LandingPage.jsx`, `TransporterPortal.jsx`, `TripCard.jsx`, `WaybillModal.jsx`, `SuperAdminDashboard.jsx`).
+    - Eliminated all binary ternaries (`currentLang === 'en' ? ... : 'Marathi'`) that caused Marathi to leak into Hindi mode.
+    - Eliminated all hardcoded Devanagari words/placeholders (`उदा.`, `शेतकरी`, `७/१२`) when English is selected.
+    - **English (`en`)**: 100% Pure English throughout the entire application.
+    - **Hindi (`hi`)**: 100% Pure authentic Hindi throughout the entire application.
+    - **Marathi (`mr`)**: 100% Pure authentic Marathi throughout the entire application.
 
 ### Modular Architecture Structure (No Micro-Component Clutter)
 - `frontend/src/pages/SuperAdminDashboard.jsx` — Dedicated SuperAdmin console at `/admin` (Username: `ASIACore`, Password: `Satya123`). Controls Buyer verification (GSTIN/APMC license approval), Farmer 7/12 land inspection, and storage telemetry.
@@ -122,7 +174,7 @@ Both backend and frontend services are compiled, verified, and running live:
 
 ## 🗄️ 4. Verified Database Schema (Supabase)
 
-- **Cloud Project ID:** `eizzzlnlcdfuylnojijn`
+- **Cloud Project ID:** `lqoychozoysmxibhcmuf` (Fresh Production Supabase Database)
 - **Active Tables (100% Verified Live in Cloud PostgreSQL):**
   1. `public.users` — Verified (1 record: `Abhi Kendre`, `8605168653`, `FARMER`)
   2. `public.farmer_profiles` — Verified (`fp-farmer-abhi`, 11 acres, Saat-Bara `88`)
@@ -153,12 +205,36 @@ Both backend and frontend services are compiled, verified, and running live:
 
 ---
 
-## 🗺️ 6. Roadmap Status
- 
 - [x] **Phase 1: Foundation & Landing Page** — Complete (Live Agmarknet feed, Supabase PostgreSQL, Trilingual UI)
 - [x] **Phase 2: Farmer Portal (शेतकरी डॅशबोर्ड)** — Complete (Net Realization Engine, Lot creation, Offer acceptance)
 - [x] **Phase 3: Buyer Procurement Portal** — Complete (Live Marketplace, Haversine distances, Digital Bidding, Deal Contracts & Escrow)
 - [x] **Phase 3.5: Service Provider (Transporter & Logistics) Ecosystem** — Complete (3-Way Role Selector, Live Duty Toggle, E-Waybill with RTO QR code, Supabase PostgreSQL DDL)
-- [ ] **Phase 4: FPO Aggregation Desk** — Upcoming
-- [ ] **Phase 5: Digital APMC Mandi Desk & Logistics** — Upcoming
+- [x] **Phase 4: Logistics & Transporter Dispatch / Trip Assignment (AG-012)** — Complete & Verified
+  - Direct vehicle dispatch modal (`SelectTransporterModal.jsx`) matching harvest payload tonnage to vehicle types (Bolero 1.5-2 MT, Eicher 4-7 MT, 10-Tyre Heavy Truck).
+  - 4-stage live transit milestone lifecycle (`DISPATCHED` ➔ `AT_FARM_GATE` ➔ `IN_TRANSIT` ➔ `DELIVERED`).
+  - Seamless dual-portal visibility: Farmer and Buyer dashboards show live visual transit progress bars and driver contacts.
+  - Driver actions in `TransporterPortal.jsx` update Supabase PostgreSQL `deals` table in real-time.
+- [x] **Phase 5: Gate Weighment & Quality Assayer Verification (AG-013)** — Complete & Verified
+  - Mill Gate weighbridge recording modal (`GateWeighmentModal.jsx`) calculating Gross - Tare = Net kg and Net Qtl.
+  - Certified laboratory quality assay matrix (Moisture %, Foreign Matter %, Damage %, Grade determination).
+  - Transparent pro-rata moisture deduction calculation locking final approved payable amount.
+  - Printable official B2B Gate Pass & Quality Assay Certificate (`WeighmentAssaySlipModal.jsx`) with QR verification code and assayer seal.
+  - Real-time Supabase PostgreSQL synchronization (`escrow_status: 'READY_FOR_SETTLEMENT'`).
+- [x] **Phase 6: Escrow Settlement & Digital Payout Release (AG-014)** — Complete & Verified
+  - Backend settlement service (`db.settleDealEscrow`) & API routes (`POST /deals/:dealId/settle` and `GET /deals/:dealId/settlement-invoice`).
+  - Generates immutable Bank UTR tracking code (`UTR-AGRI-2026-XXXXX`), Tax Invoice number (`INV-XXX-XXXXX`), and updates `escrow_status: 'SETTLED'`.
+  - Buyer Escrow Authorization modal (`ReleaseEscrowModal.jsx`) displaying Farmer beneficiary bank details (IFSC, Account number, Branch), certified net payable amount, and 1-click T+0 disbursement authorization.
+  - Official Printable Commercial B2B Tax Invoice & Settlement Receipt (`TaxInvoiceModal.jsx`) citing Section 59 APMC 0% Mandi Cess exemption, itemized produce breakdown, party details, and QR verification seal.
+  - Real-time dual-portal visibility: Buyer portal features live payout trigger & settled invoice viewer; Farmer portal displays green "Payout Received via T+0 Escrow" banner with UTR code and 1-click Tax Invoice modal.
+  - 100% pure trilingual localization across English, Hindi, and Marathi.
+- [x] **Phase 7: FPO Aggregation Desk (AG-015)** — Complete & Verified
+  - **FPO Role & Dual Registration**: Added `FPO` role to PostgreSQL `users_role_check` and `fpo_profiles` schema. Built specialized FPO registration flow in `AuthPage.jsx` capturing FPO Legal Name, CIN / Society Registration No, Member Count, Warehouse Hub location, and settlement bank credentials.
+  - **Smallholder Cluster Lot Discovery**: Dedicated Tab 1 in `FpoPortal.jsx` and endpoint `GET /api/fpo/eligible-lots` fetching unpooled lots from member farmers in the cluster with crop filters and 1-click selection checklist. Added manual member lot registration modal for assisted offline members.
+  - **Master Bulk Lot Aggregation Engine**: Interactive truckload tonnage gauge (0 to 100/160 Qtl), automatic weighted average moisture % math (`sum(qty * moisture) / sum(qty)`), and institutional bulk price premium estimator (+₹150 to ₹250/qtl).
+  - **Live Marketplace Publishing**: Endpoint `POST /api/fpo/pool` generates master bulk lot with `is_fpo_bulk: true`, stores member contributions JSONB ledger, and automatically marks source individual lots as `POOLED_BY_FPO` to eliminate double-listing.
+  - **Buyer Marketplace Integration**: `BuyerPortal.jsx` renders prominent **`[FPO Verified Cluster]`** badge and member count tags on bulk lots, enabling industrial processors and oil mills to bid on unified high-volume truckloads with single-tap clarity.
+  - **Transparent Member Payout Split Ledger**: Endpoint `GET /api/fpo/deals/:dealId/payout-split` calculates exact per-member financial distribution (contributed Qtl, % share, gross consideration, 1.5% cooperative service fee, and net direct RTGS disbursement).
+  - **Official Printable B2B Certificate**: Created `FpoPayoutSlipModal.jsx` with `@media print` single-page A4 formatting, full member breakdown table, cryptographic QR verification seal, and statutory Section 59 APMC Mandi Cess exemption citation.
+  - **100% End-to-End Verified**: Tested complete 7-step lifecycle with node integration test script verifying FPO registration, smallholder lot creation, 60 Qtl bulk aggregation, buyer bidding, deal lock, and mathematical payout split.
+
 

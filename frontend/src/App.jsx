@@ -6,6 +6,7 @@ import LandingPage from './pages/LandingPage';
 import FarmerPortal from './pages/FarmerPortal';
 import BuyerPortal from './pages/BuyerPortal';
 import TransporterPortal from './pages/TransporterPortal';
+import FpoPortal from './pages/FpoPortal';
 import AuthPage from './pages/AuthPage';
 import SuperAdminDashboard from './pages/SuperAdminDashboard';
 
@@ -98,6 +99,16 @@ export default function App() {
               element={
                 <ProtectedRoute requiredRole="TRANSPORTER">
                   <TransporterPortal currentLang={currentLang} />
+                </ProtectedRoute>
+              } 
+            />
+
+            {/* Protected FPO Portal: Requires login as FPO */}
+            <Route 
+              path="/fpo" 
+              element={
+                <ProtectedRoute requiredRole="FPO">
+                  <FpoPortal currentLang={currentLang} />
                 </ProtectedRoute>
               } 
             />

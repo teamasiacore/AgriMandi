@@ -232,6 +232,48 @@ ADD COLUMN IF NOT EXISTS transporter_phone TEXT,
 ADD COLUMN IF NOT EXISTS vehicle_number TEXT,
 ADD COLUMN IF NOT EXISTS freight_amount NUMERIC;
 
-GRANT ALL ON public.deals TO anon, authenticated, service_role;
+-- ==========================================================
+-- 10. Farmer Producer Company (FPO / Cooperative Profiles)
+-- ==========================================================
+-- Update users role check to allow FPO
+ALTER TABLE public.users DROP CONSTRAINT IF EXISTS users_role_check;
+ALTER TABLE public.users ADD CONSTRAINT users_role_check CHECK (role IN ('FARMER', 'BUYER', 'TRANSPORTER', 'FPO', 'ADMIN', 'SUPERADMIN'));
+
+CREATE TABLE IF NOT EXISTS public.fpo_profiles (
+    id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+    user_id TEXT REFERENCES public.users(id) ON DELETE CASCADE,
+    fpo_name VARCHAR(150) NOT NULL,
+    registration_no VARCHAR(100) UNIQUE NOT NULL, -- CIN / Cooperative Society Reg
+    contact_person VARCHAR(100) NOT NULL,
+    phone VARCHAR(20) NOT NULL,
+    district VARCHAR(50) NOT NULL,
+    taluka VARCHAR(50),
+    members_count INT DEFAULT 50,
+    warehouse_location TEXT,
+    primary_crops TEXT[] DEFAULT ARRAY['Soybean'],
+    bank_ifsc VARCHAR(30),
+    bank_account VARCHAR(50),
+    is_verified BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+ALTER TABLE public.fpo_profiles ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow public read/write fpo_profiles" ON public.fpo_profiles;
+CREATE POLICY "Allow public read/write fpo_profiles" ON public.fpo_profiles FOR ALL USING (true) WITH CHECK (true);
+GRANT ALL ON public.fpo_profiles TO anon, authenticated, service_role;
+
+-- Add FPO bulk pooling fields to produce_lots
+ALTER TABLE public.produce_lots 
+ADD COLUMN IF NOT EXISTS is_fpo_bulk BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS fpo_id TEXT,
+ADD COLUMN IF NOT EXISTS fpo_name TEXT,
+ADD COLUMN IF NOT EXISTS pooled_members JSONB;
+
+-- Add FPO references to deals
+ALTER TABLE public.deals 
+ADD COLUMN IF NOT EXISTS is_fpo_deal BOOLEAN DEFAULT FALSE,
+ADD COLUMN IF NOT EXISTS fpo_id TEXT,
+ADD COLUMN IF NOT EXISTS fpo_name TEXT;
+
 
 

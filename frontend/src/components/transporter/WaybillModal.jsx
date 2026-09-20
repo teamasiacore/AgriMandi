@@ -58,7 +58,7 @@ export default function WaybillModal({ trip, transporter, onClose, currentLang =
               </span>
               <p className="text-xl font-bold font-mono text-[#1B4332]">{waybillNo}</p>
               <p className="text-xs text-stone-500 mt-0.5">
-                Issue Timestamp: {new Date().toLocaleDateString('mr-IN', { day: '2-digit', month: 'short', year: 'numeric' })} • Valid for 24 Hours
+                {currentLang === 'en' ? 'Issue Timestamp:' : currentLang === 'hi' ? 'जारी करने का समय:' : 'जारी वेळ:'} {new Date().toLocaleDateString(currentLang === 'en' ? 'en-IN' : currentLang === 'hi' ? 'hi-IN' : 'mr-IN', { day: '2-digit', month: 'short', year: 'numeric' })} • {currentLang === 'en' ? 'Valid for 24 Hours' : currentLang === 'hi' ? '२४ घंटे तक मान्य' : '२४ तास वैध'}
               </p>
             </div>
 
@@ -84,24 +84,26 @@ export default function WaybillModal({ trip, transporter, onClose, currentLang =
             {/* Consignor (Farmer) */}
             <div className="p-4 rounded-2xl border border-[#E5DFD4] bg-white space-y-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#C86432] flex items-center gap-1">
-                <User className="w-3.5 h-3.5" /> प्रेषक / शेतकरी (Consignor)
+                <User className="w-3.5 h-3.5" /> {currentLang === 'en' ? 'Consignor (Seller Farmer)' : currentLang === 'hi' ? 'प्रेषक / विक्रेता किसान' : 'प्रेषक / शेतकरी'}
               </span>
-              <p className="font-bold text-stone-900 text-sm">{trip.farmer_name || 'Farmer'}</p>
+              <p className="font-bold text-stone-900 text-sm">{trip.farmer_name || (currentLang === 'en' ? 'Farmer' : currentLang === 'hi' ? 'किसान' : 'शेतकरी')}</p>
               <p className="text-stone-600 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
-                {trip.farm_address || trip.district || 'Babhalgaon, Latur'}
+                {trip.farm_address || trip.district || (currentLang === 'en' ? 'Maharashtra' : 'महाराष्ट्र')}
               </p>
               {trip.farmer_phone && (
-                <p className="font-mono text-stone-500">मोबाईल: +91 {trip.farmer_phone}</p>
+                <p className="font-mono text-stone-500">
+                  {currentLang === 'en' ? 'Mobile:' : currentLang === 'hi' ? 'मोबाइल:' : 'मोबाईल:'} +91 {trip.farmer_phone}
+                </p>
               )}
             </div>
 
             {/* Consignee (Buyer) */}
             <div className="p-4 rounded-2xl border border-[#E5DFD4] bg-white space-y-2">
               <span className="text-[10px] font-bold uppercase tracking-wider text-[#1B4332] flex items-center gap-1">
-                <Building2 className="w-3.5 h-3.5" /> प्राप्तकर्ता / खरेदीदार (Consignee)
+                <Building2 className="w-3.5 h-3.5" /> {currentLang === 'en' ? 'Consignee (Buyer Entity)' : currentLang === 'hi' ? 'प्राप्तकर्ता / खरीदार मिल' : 'प्राप्तकर्ता / खरेदीदार'}
               </span>
-              <p className="font-bold text-stone-900 text-sm">{trip.buyer_name || 'Processing Mill'}</p>
+              <p className="font-bold text-stone-900 text-sm">{trip.buyer_name || (currentLang === 'en' ? 'Processing Mill' : currentLang === 'hi' ? 'प्रोसेसिंग मिल' : 'प्रक्रिया उद्योग')}</p>
               <p className="text-stone-600 flex items-center gap-1">
                 <MapPin className="w-3.5 h-3.5 text-stone-400 shrink-0" />
                 {trip.delivery_destination || 'MIDC Industrial Area'}
@@ -114,24 +116,32 @@ export default function WaybillModal({ trip, transporter, onClose, currentLang =
           {/* Vehicle & Cargo Details */}
           <div className="p-4 rounded-2xl border border-[#E5DFD4] bg-white text-xs space-y-3">
             <span className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block">
-              माल व वाहनाचा तपशील (Cargo & Vehicle Specs)
+              {currentLang === 'en' ? 'Cargo & Vehicle Specifications' : currentLang === 'hi' ? 'माल व वाहन विवरण' : 'माल व वाहनाचा तपशील'}
             </span>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-medium text-stone-700">
               <div>
-                <span className="text-stone-400 block text-[10px]">पीक व जात:</span>
+                <span className="text-stone-400 block text-[10px]">
+                  {currentLang === 'en' ? 'Crop & Variety:' : currentLang === 'hi' ? 'फसल व किस्म:' : 'पीक व जात:'}
+                </span>
                 <span className="font-bold text-stone-900">{trip.crop || 'Soybean'} ({trip.variety || 'FAQ'})</span>
               </div>
               <div>
-                <span className="text-stone-400 block text-[10px]">एकूण वजन:</span>
-                <span className="font-bold text-stone-900">{quantityQtl} क्विंटल</span>
+                <span className="text-stone-400 block text-[10px]">
+                  {currentLang === 'en' ? 'Total Quantity:' : currentLang === 'hi' ? 'कुल वजन:' : 'एकूण वजन:'}
+                </span>
+                <span className="font-bold text-stone-900">{quantityQtl} {currentLang === 'en' ? 'Quintals' : currentLang === 'hi' ? 'क्विंटल' : 'क्विंटल'}</span>
               </div>
               <div>
-                <span className="text-stone-400 block text-[10px]">गाडी नंबर:</span>
+                <span className="text-stone-400 block text-[10px]">
+                  {currentLang === 'en' ? 'Vehicle No:' : currentLang === 'hi' ? 'गाड़ी नंबर:' : 'गाडी नंबर:'}
+                </span>
                 <span className="font-bold font-mono text-[#1B4332]">{trip.vehicle_number || transporter?.vehicle_number || 'MH-24-VEHICLE'}</span>
               </div>
               <div>
-                <span className="text-stone-400 block text-[10px]">वाहतूक भाडे:</span>
+                <span className="text-stone-400 block text-[10px]">
+                  {currentLang === 'en' ? 'Freight Consideration:' : currentLang === 'hi' ? 'वाहन भाड़ा:' : 'वाहतूक भाडे:'}
+                </span>
                 <span className="font-bold font-mono text-[#C86432]">₹{freight.toLocaleString()}</span>
               </div>
             </div>
@@ -141,7 +151,11 @@ export default function WaybillModal({ trip, transporter, onClose, currentLang =
           <div className="p-3 rounded-xl bg-emerald-50/70 border border-emerald-200 text-[11px] text-emerald-950 flex items-start gap-2">
             <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <p className="leading-relaxed">
-              हा ई-वेबिल थेट शेतकरी-खरेदीदार B2B करारावर आधारित आहे. महाराष्ट्र कृषी उत्पन्न पणन (नियमन) कायद्यानुसार शेतावरून थेट कारखान्याकडे जाणार्‍या मालासाठी कोणत्याही मंडई नाक्यावर अडवणूक करता येत नाही.
+              {currentLang === 'en' 
+                ? 'This e-Waybill is issued under direct farm-gate B2B trade agreement. As per Maharashtra APMC Act regulations, produce in direct farm-to-mill transit is exempt from mandi yard interception.' 
+                : currentLang === 'hi' 
+                ? 'यह ई-वेबिल सीधे खेत-से-मिल B2B व्यापार समझौते पर आधारित है। महाराष्ट्र कृषि उपज मंडी कानून के तहत खेत से सीधे मिल जा रहे माल पर मंडी नाके पर रोक नहीं लगाई जा सकती।' 
+                : 'हा ई-वेबिल थेट शेतकरी-खरेदीदार B2B करारावर आधारित आहे. महाराष्ट्र कृषी उत्पन्न पणन (नियमन) कायद्यानुसार शेतावरून थेट कारखान्याकडे जाणार्‍या मालासाठी कोणत्याही मंडई नाक्यावर अडवणूक करता येत नाही.'}
             </p>
           </div>
 

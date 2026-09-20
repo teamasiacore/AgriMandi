@@ -11,7 +11,7 @@
 ---
 
 ## The 6 Core Inviolable Developer Rules:
-1. **ZERO SIMULATION / ZERO MOCK MATH:** All prices and mandi arrivals MUST come from the real `data.gov.in` feed and Supabase PostgreSQL (`eizzzlnlcdfuylnojijn.supabase.co`). Never write fake random formulas (e.g. `* 260 extra profit`).
+1. **ZERO SIMULATION / ZERO MOCK MATH:** All prices and mandi arrivals MUST come from the real `data.gov.in` feed and Supabase PostgreSQL (`lqoychozoysmxibhcmuf.supabase.co`). Never write fake random formulas (e.g. `* 260 extra profit`).
 2. **ZERO HACKATHON / GOVT CLUTTER:** The UI is an authentic commercial B2B platform. Never display "SIH 2026", "Problem Statement ID", or "College Prototype" on the public UI.
 3. **UNIFIED BRAND THEME (100% COHESIVE):** The entire website MUST strictly share the exact Landing Page design DNA: `#FAF7F2` warm earth background, `#1B4332` deep forest green, `#FCFAF6` header, `#E5DFD4` sand borders, `#C86432` terracotta accents, official logo PNG (`/images/AgriMandi Logo without background.png`), and `font-heading` Outfit typography. Never use generic slate/emerald templates.
 4. **LOCALIZATION POLICY:** ONLY the Landing Page uses dynamic translation dictionaries (`mr.json`, `hi.json`, `en.json`). For all inner portals (Farmer, Buyer, FPO, Admin), simply display the language option selector in the header for visual consistency, but do NOT write translation keys or files. Keep UI text direct, authentic, and clean.

@@ -635,7 +635,7 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-stone-700">
-                Farmer Landholding & Saat-Bara (७/१२) Directory
+                Farmer Landholding & 7/12 (Saat-Bara) Directory
               </span>
               <span className="text-xs text-emerald-800 font-semibold">
                 ✓ Validated against Maharashtra Revenue & Land Records format
@@ -683,21 +683,21 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
 
                           <div className="flex flex-wrap items-center gap-4 text-xs pt-1">
                             <div className="p-2 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
-                              <span className="text-stone-400 text-[10px] block font-bold">७/१२ गट / सर्व्हे नंबर</span>
+                              <span className="text-stone-400 text-[10px] block font-bold">7/12 Gat / Survey No.</span>
                               <span className="font-mono font-bold text-stone-900">
                                 {farmer.saat_bara_number || 'Not Submitted'}
                               </span>
                             </div>
 
                             <div className="p-2 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
-                              <span className="text-stone-400 text-[10px] block font-bold">जमीन क्षेत्र</span>
+                              <span className="text-stone-400 text-[10px] block font-bold">Landholding Area</span>
                               <span className="font-bold text-stone-900">
-                                {farmer.land_size_acres ? `${farmer.land_size_acres} एकर` : 'N/A'}
+                                {farmer.land_size_acres ? `${farmer.land_size_acres} Acres` : 'N/A'}
                               </span>
                             </div>
 
                             <div className="p-2 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
-                              <span className="text-stone-400 text-[10px] block font-bold">पिके</span>
+                              <span className="text-stone-400 text-[10px] block font-bold">Crops</span>
                               <span className="font-semibold text-stone-800">
                                 {farmerCrops.join(', ')}
                               </span>
@@ -738,19 +738,22 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <span className="text-xs font-bold text-stone-700">
-                Live Farm-Gate Lots & Escrow Contracts
+                Live Farm-Gate Produce Lots (All Districts)
+              </span>
+              <span className="text-xs font-mono text-stone-500">
+                Total Lots: <strong>{lots.length}</strong>
               </span>
             </div>
 
             <div className="bg-white rounded-3xl border border-[#E5DFD4] overflow-hidden shadow-xs">
               {lots.length === 0 ? (
                 <div className="p-12 text-center text-stone-500 text-xs">
-                  No produce lots listed currently. Lots created by farmers in the Farmer Portal will appear here live.
+                  No active lots listed in the marketplace yet.
                 </div>
               ) : (
                 <div className="divide-y divide-[#E5DFD4]">
                   {lots.map(lot => (
-                    <div key={lot.id} className="p-6 hover:bg-[#FAF7F2]/50 transition-colors space-y-2">
+                    <div key={lot.id} className="p-6 hover:bg-[#FAF7F2]/50 transition-colors space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span className="font-bold text-stone-900 text-sm">{lot.crop} ({lot.variety})</span>
@@ -763,7 +766,7 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
                           </span>
                         </div>
                         <span className="font-bold text-sm text-[#1B4332]">
-                          ₹{lot.expected_price_per_qtl} / क्विंटल
+                          ₹{lot.expected_price_per_qtl} / Qtl
                         </span>
                       </div>
 

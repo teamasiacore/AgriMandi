@@ -2,10 +2,95 @@ import React, { useState, useEffect } from 'react';
 import { 
   Building2, ShieldCheck, ShoppingBag, MapPin, Filter, 
   Clock, Plus, X, FileText, CheckCircle2, AlertCircle, 
-  Printer, ArrowRight, Lock, Scale, Truck, Search, Eye
+  Printer, ArrowRight, Lock, Scale, Truck, Search, Eye,
+  DollarSign, Users
 } from 'lucide-react';
 import api from '../services/api';
-import { translations } from '../utils/translations';
+import { translations, DISTRICT_OPTIONS } from '../utils/translations';
+import DealContractModal from '../components/DealContractModal';
+import SelectTransporterModal from '../components/farmer/SelectTransporterModal';
+import GateWeighmentModal from '../components/buyer/GateWeighmentModal';
+import WeighmentAssaySlipModal from '../components/WeighmentAssaySlipModal';
+import ReleaseEscrowModal from '../components/buyer/ReleaseEscrowModal';
+import TaxInvoiceModal from '../components/TaxInvoiceModal';
+
+const LOGISTICS_LABELS = {
+  en: {
+    logisticsTracker: 'Logistics & Dispatch Tracking',
+    unassignedTitle: 'No Transporter Assigned Yet',
+    unassignedDesc: 'Assign a verified local transporter to dispatch to farm gate',
+    assignTransporterBtn: 'Book / Assign Transporter',
+    stageDispatched: 'Transporter Assigned',
+    stageAtFarmGate: 'At Farm Gate',
+    stageInTransit: 'In Transit',
+    stageDelivered: 'Delivered at Mill',
+    driver: 'Driver:',
+    vehicle: 'Vehicle:',
+    freight: 'Freight:',
+    callDriver: 'Call Driver',
+    recordWeighmentBtn: 'Record Gate Weighment & Quality Assay',
+    viewWeighmentBtn: 'View Weighment & Assay Certificate',
+    weighmentCertifiedBadge: 'Gate Weighment Certified'
+  },
+  hi: {
+    logisticsTracker: 'लॉजिस्टिक्स एवं वाहन ट्रैकिंग',
+    unassignedTitle: 'कोई ट्रांसपोर्टर असाइन नहीं है',
+    unassignedDesc: 'खेत पर वाहन भेजने के लिए सत्यापित स्थानीय ट्रांसपोर्टर चुनें',
+    assignTransporterBtn: 'ट्रांसपोर्टर बुक / असाइन करें',
+    stageDispatched: 'ट्रांसपोर्टर असाइन किया',
+    stageAtFarmGate: 'खेत पर वाहन मौजूद',
+    stageInTransit: 'रास्ते में (ट्रांजिट)',
+    stageDelivered: 'मिल गेट पर पहुंच गया',
+    driver: 'चालक:',
+    vehicle: 'वाहन:',
+    freight: 'भाड़ा:',
+    callDriver: 'चालक से संपर्क करें',
+    recordWeighmentBtn: 'गेट वे-ब्रिज एवं गुणवत्ता परीक्षण दर्ज करें',
+    viewWeighmentBtn: 'प्रमाणित वे-ब्रिज एवं गुणवत्ता पावती देखें',
+    weighmentCertifiedBadge: 'वेब्रिज वजन प्रमाणित'
+  },
+  mr: {
+    logisticsTracker: 'वाहतूक व वाहन ट्रॅकिंग',
+    unassignedTitle: 'अद्याप वाहतूकदार नियुक्त नाही',
+    unassignedDesc: 'शेतकऱ्याच्या शेतावर वाहन पाठवण्यासाठी सत्यापित स्थानिक वाहतूकदार निवडा',
+    assignTransporterBtn: 'वाहतूकदार बुक / नियुक्त करा',
+    stageDispatched: 'वाहतूकदार नियुक्त',
+    stageAtFarmGate: 'शेतावर पोहोचले',
+    stageInTransit: 'वाहतुकीत (प्रवासात)',
+    stageDelivered: 'कारखान्यावर पोहोचले',
+    driver: 'चालक:',
+    vehicle: 'वाहन क्रमांक:',
+    freight: 'भाडे रक्कम:',
+    callDriver: 'चालकाशी संपर्क',
+    recordWeighmentBtn: 'गेट वेब्रिज व गुणवत्ता तपासणी नोंदवा',
+    viewWeighmentBtn: 'प्रमाणित वेब्रिज व गुणवत्ता पावती पहा',
+    weighmentCertifiedBadge: 'वेब्रिज वजन प्रमाणित'
+  }
+};
+
+const ESCROW_LABELS = {
+  en: {
+    releaseEscrowBtn: 'Release Escrow Payout (T+0)',
+    readyForSettlement: 'Weighment Certified — Ready for Payout',
+    escrowSettledBadge: 'Escrow Settled & Disbursed',
+    viewInvoiceBtn: 'B2B Tax Invoice',
+    utrLabel: 'Bank UTR:'
+  },
+  hi: {
+    releaseEscrowBtn: 'किसान को एस्क्रो भुगतान जारी करें (T+0)',
+    readyForSettlement: 'वेब्रिज प्रमाणित — भुगतान जारी करने हेतु तैयार',
+    escrowSettledBadge: 'एस्क्रो भुगतान सीधे किसान खाते में जमा',
+    viewInvoiceBtn: 'टैक्स इनवॉइस',
+    utrLabel: 'बैंक यूटीआर:'
+  },
+  mr: {
+    releaseEscrowBtn: 'शेतकऱ्यास एस्क्रो देयक वर्ग करा (T+0)',
+    readyForSettlement: 'वेब्रिज प्रमाणित — रक्कम वर्ग करण्यासाठी सज्ज',
+    escrowSettledBadge: 'एस्क्रो देयक शेतकऱ्याच्या खात्यात जमा',
+    viewInvoiceBtn: 'टॅक्स इनव्हॉईस',
+    utrLabel: 'बँक यूटीआर:'
+  }
+};
 
 // Maharashtra District Coordinates for Haversine Distance Math
 const DISTRICT_COORDS = {
@@ -77,8 +162,13 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
     valid_hours: 24
   });
 
-  // Deal Contract Modal State
+  // Deal Contract, Logistics & Weighment Modal State
   const [selectedDealForContract, setSelectedDealForContract] = useState(null);
+  const [selectedDealForDispatch, setSelectedDealForDispatch] = useState(null);
+  const [selectedDealForWeighment, setSelectedDealForWeighment] = useState(null);
+  const [selectedDealForWeighmentSlip, setSelectedDealForWeighmentSlip] = useState(null);
+  const [selectedDealForPayout, setSelectedDealForPayout] = useState(null);
+  const [selectedDealForInvoice, setSelectedDealForInvoice] = useState(null);
 
   // Buyer Profile loaded dynamically from session
   const [buyerProfile, setBuyerProfile] = useState({
@@ -259,7 +349,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                   {t.buyerWelcome}
                 </span>
                 <span className="flex items-center gap-1 text-xs text-emerald-300 font-semibold">
-                  <ShieldCheck className="w-3.5 h-3.5" /> {buyerProfile.is_verified ? t.buyerVerified : (currentLang === 'en' ? 'GSTIN Registered' : 'नोंदणीकृत व्यापारी')}
+                  <ShieldCheck className="w-3.5 h-3.5" /> {buyerProfile.is_verified ? t.buyerVerified : (currentLang === 'en' ? 'GSTIN Registered' : currentLang === 'hi' ? 'GSTIN पंजीकृत' : 'नोंदणीकृत व्यापारी')}
                 </span>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold font-heading mt-1">
@@ -290,7 +380,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
               <span className="text-lg font-bold font-mono text-white">
                 {(lots.reduce((acc, l) => acc + Number(l.quantity_qtl || 0), 0) / 10).toFixed(1)} MT
               </span>
-              <span className="text-[10px] text-stone-300 block mt-0.5">{currentLang === 'en' ? 'Farm-Gate Harvest' : currentLang === 'hi' ? 'फार्म-गेट' : 'शेतातून थेट'}</span>
+              <span className="text-[10px] text-stone-300 block mt-0.5">{currentLang === 'en' ? 'Farm-Gate Harvest' : currentLang === 'hi' ? 'फार्म-गेट उपज' : 'शेतातून थेट'}</span>
             </div>
 
             <div className="bg-[#0F261C]/50 p-3 rounded-xl border border-[#2D6A4F]">
@@ -404,15 +494,11 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                   className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold text-stone-800"
                 >
                   <option value="all">{t.allDistricts}</option>
-                  <option value="Latur">Latur / लातूर</option>
-                  <option value="Jalna">Jalna / जालना</option>
-                  <option value="Nashik">Nashik / नाशिक</option>
-                  <option value="Solapur">Solapur / सोलापूर</option>
-                  <option value="Akola">Akola / अकोला</option>
-                  <option value="Nanded">Nanded / नांदेड</option>
-                  <option value="Pune">Pune / पुणे</option>
-                  <option value="Nagpur">Nagpur / नागपूर</option>
-                  <option value="Ahmednagar">Ahmednagar / अहिल्यानगर</option>
+                  {DISTRICT_OPTIONS.map(d => (
+                    <option key={d.id} value={d.id}>
+                      {d[currentLang] || d.en}
+                    </option>
+                  ))}
                 </select>
 
                 <div className="flex items-center gap-2 text-xs font-medium text-stone-600">
@@ -485,6 +571,19 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                             <p className="text-xs text-stone-600 font-medium">
                               {lot.variety || 'FAQ Standard'}
                             </p>
+                            {lot.is_fpo_bulk && (
+                              <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                                <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[10px] flex items-center gap-1">
+                                  <Users className="w-3 h-3 text-amber-700" />
+                                  <span>FPO Verified Cluster</span>
+                                </span>
+                                {Array.isArray(lot.pooled_members) && lot.pooled_members.length > 0 && (
+                                  <span className="px-1.5 py-0.5 rounded bg-stone-100 text-stone-700 text-[10px] font-mono font-medium">
+                                    {lot.pooled_members.length} Farmers Pooled
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase flex items-center gap-1 ${
@@ -560,7 +659,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                           {/* Zero Cess & Middleman Benefit Note */}
                           <div className="px-2.5 py-1.5 rounded-lg bg-emerald-50/70 border border-emerald-200 text-[11px] text-emerald-900 flex items-center gap-1.5">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                            <span>{currentLang === 'en' ? 'Direct Farm-Gate Procurement (Saves ₹45/Qtl APMC Cess)' : 'थेट शेतातून खरेदी (मंडी सेस व दलाली ०%)'}</span>
+                            <span>{currentLang === 'en' ? 'Direct Farm-Gate Procurement (Saves ₹45/Qtl APMC Cess)' : currentLang === 'hi' ? 'खेत से सीधी खरीद (मंडी शुल्क व दलाली ०%)' : 'थेट शेतातून खरेदी (मंडी सेस व दलाली ०%)'}</span>
                           </div>
                         </div>
                       </div>
@@ -568,8 +667,8 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                       {/* Actions */}
                       <div className="mt-5 pt-4 border-t border-[#E5DFD4] flex items-center justify-between">
                         <div className="text-[11px] text-stone-500">
-                          <span className="text-stone-400 block">{currentLang === 'en' ? 'Farmer:' : 'शेतकरी:'}</span>
-                          <strong className="text-stone-700">{lot.farmer_name || 'Verified Farmer'}</strong>
+                          <span className="text-stone-400 block">{currentLang === 'en' ? 'Farmer:' : currentLang === 'hi' ? 'किसान:' : 'शेतकरी:'}</span>
+                          <strong className="text-stone-700">{lot.farmer_name || (currentLang === 'en' ? 'Verified Farmer' : currentLang === 'hi' ? 'सत्यापित किसान' : 'सत्यापित शेतकरी')}</strong>
                         </div>
 
                         {!isLocked ? (
@@ -583,7 +682,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                         ) : (
                           <div className="flex items-center gap-1 text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1.5 rounded-lg">
                             <Lock className="w-3.5 h-3.5" />
-                            <span>{currentLang === 'en' ? 'Contract Executed' : 'करार पक्का झाला'}</span>
+                            <span>{currentLang === 'en' ? 'Contract Executed' : currentLang === 'hi' ? 'सौदा तय' : 'करार पक्का झाला'}</span>
                           </div>
                         )}
                       </div>
@@ -610,11 +709,11 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                     {t.tabMyBids}
                   </h3>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    {currentLang === 'en' ? 'Track digital offers placed on farmer harvest lots' : 'शेतकरी लॉट्सवर लावलेल्या आपल्या बोलींची स्थिती'}
+                    {currentLang === 'en' ? 'Track digital offers placed on farmer harvest lots' : currentLang === 'hi' ? 'किसान फसल लॉट्स पर लगाई गई बोलियों की स्थिति ट्रैक करें' : 'शेतकरी लॉट्सवर लावलेल्या आपल्या बोलींची स्थिती'}
                   </p>
                 </div>
                 <span className="text-xs font-bold font-mono text-stone-700 bg-[#FAF7F2] px-3 py-1 rounded-lg border border-[#E5DFD4]">
-                  {myOffers.length} {currentLang === 'en' ? 'Offers' : 'बोली'}
+                  {myOffers.length} {currentLang === 'en' ? 'Offers' : currentLang === 'hi' ? 'बोलियां' : 'बोली'}
                 </span>
               </div>
 
@@ -622,7 +721,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                 <div className="py-12 text-center text-xs text-stone-500">
                   <Clock className="w-10 h-10 text-stone-300 mx-auto mb-2" />
                   <p className="font-bold text-stone-700">{t.noBidsYetBuyer}</p>
-                  <p className="mt-1">{currentLang === 'en' ? 'Explore the marketplace and place your first binding offer.' : 'बाजारातील लॉट्स पहा आणि शेतकर्‍याला पहिली थेट बोली लावा.'}</p>
+                  <p className="mt-1">{currentLang === 'en' ? 'Explore the marketplace and place your first binding offer.' : currentLang === 'hi' ? 'बाजार में उपलब्ध लॉट्स देखें और किसान को सीधी बोली लगाएं।' : 'बाजारातील लॉट्स पहा आणि शेतकर्‍याला पहिली थेट बोली लावा.'}</p>
                   <button
                     onClick={() => setActiveTab('marketplace')}
                     className="mt-4 px-4 py-2 bg-[#1B4332] text-white rounded-xl text-xs font-bold"
@@ -635,14 +734,14 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                   <table className="w-full text-left text-sm">
                     <thead className="bg-[#FAF7F2] text-xs font-bold text-[#1B4332] uppercase tracking-wider border-b border-[#E5DFD4]">
                       <tr>
-                        <th className="py-3 px-4">{currentLang === 'en' ? 'Offer ID' : 'ऑफर ID'}</th>
-                        <th className="py-3 px-4">{currentLang === 'en' ? 'Lot ID' : 'लॉट ID'}</th>
+                        <th className="py-3 px-4">{currentLang === 'en' ? 'Offer ID' : currentLang === 'hi' ? 'बोली ID' : 'ऑफर ID'}</th>
+                        <th className="py-3 px-4">{currentLang === 'en' ? 'Lot ID' : currentLang === 'hi' ? 'लॉट ID' : 'लॉट ID'}</th>
                         <th className="py-3 px-4 text-right">{t.labelReqQty}</th>
                         <th className="py-3 px-4 text-right">{t.labelOfferedPrice}</th>
                         <th className="py-3 px-4 text-right">{t.totalBidValue}</th>
                         <th className="py-3 px-4">{t.labelDeliveryDest}</th>
-                        <th className="py-3 px-4">{currentLang === 'en' ? 'Status' : 'स्थिती'}</th>
-                        <th className="py-3 px-4 text-center">{currentLang === 'en' ? 'Action' : 'कृती'}</th>
+                        <th className="py-3 px-4">{currentLang === 'en' ? 'Status' : currentLang === 'hi' ? 'स्थिति' : 'स्थिती'}</th>
+                        <th className="py-3 px-4 text-center">{currentLang === 'en' ? 'Action' : currentLang === 'hi' ? 'कार्रवाई' : 'कृती'}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E5DFD4]">
@@ -697,13 +796,13 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                                   className="px-3 py-1.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-xs cursor-pointer"
                                 >
                                   <FileText className="w-3 h-3" />
-                                  <span>{currentLang === 'en' ? 'Deal Contract' : 'करार पहा'}</span>
+                                  <span>{currentLang === 'en' ? 'Deal Contract' : currentLang === 'hi' ? 'करार देखें' : 'करार पहा'}</span>
                                 </button>
                               ) : (
                                 <span className="text-[11px] text-stone-400 italic">
                                   {isRejected 
-                                    ? (currentLang === 'en' ? 'Lot Closed' : 'लॉट पूर्ण झाला') 
-                                    : (currentLang === 'en' ? 'Awaiting Farmer' : 'शेतकरी प्रतिसादाची प्रतीक्षा')}
+                                    ? (currentLang === 'en' ? 'Lot Closed' : currentLang === 'hi' ? 'लॉट बंद हुआ' : 'लॉट पूर्ण झाला') 
+                                    : (currentLang === 'en' ? 'Awaiting Farmer' : currentLang === 'hi' ? 'किसान की प्रतिक्रिया प्रतीक्षित' : 'शेतकरी प्रतिसादाची प्रतीक्षा')}
                                 </span>
                               )}
                             </td>
@@ -722,14 +821,14 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                 <div className="flex items-center justify-between pb-4 border-b border-[#E5DFD4]">
                   <div>
                     <h3 className="text-lg font-bold font-heading text-[#1B4332]">
-                      📄 {currentLang === 'en' ? 'Executed B2B Trade Contracts & Escrow' : 'कायदेशीर खरेदी करार व एस्क्रो हमी'}
+                      📄 {currentLang === 'en' ? 'Executed B2B Trade Contracts & Escrow' : currentLang === 'hi' ? 'निष्पादित B2B व्यापार अनुबंध एवं एस्क्रो' : 'कायदेशीर खरेदी करार व एस्क्रो हमी'}
                     </h3>
                     <p className="text-xs text-stone-500">
-                      {currentLang === 'en' ? 'Legally binding contracts locked upon farmer acceptance' : 'शेतकर्‍याने बोली स्वीकारल्यानंतर तयार झालेले डिजिटल करार'}
+                      {currentLang === 'en' ? 'Legally binding contracts locked upon farmer acceptance' : currentLang === 'hi' ? 'किसान द्वारा बोली स्वीकार किए जाने पर पक्के हुए अनुबंध' : 'शेतकर्‍याने बोली स्वीकारल्यानंतर तयार झालेले डिजिटल करार'}
                     </p>
                   </div>
                   <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-3 py-1 rounded-lg">
-                    {myDeals.length} {currentLang === 'en' ? 'Contracts' : 'करार'}
+                    {myDeals.length} {currentLang === 'en' ? 'Contracts' : currentLang === 'hi' ? 'अनुबंध' : 'करार'}
                   </span>
                 </div>
 
@@ -746,36 +845,223 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
 
                         <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
                           <div>
-                            <span className="text-stone-400 block">{currentLang === 'en' ? 'Farmer:' : 'शेतकरी:'}</span>
+                            <span className="text-stone-400 block">{currentLang === 'en' ? 'Farmer:' : currentLang === 'hi' ? 'किसान:' : 'शेतकरी:'}</span>
                             <span className="font-bold text-stone-800">{deal.farmer_name}</span>
                           </div>
                           <div>
-                            <span className="text-stone-400 block">{currentLang === 'en' ? 'Crop:' : 'पीक:'}</span>
+                            <span className="text-stone-400 block">{currentLang === 'en' ? 'Crop:' : currentLang === 'hi' ? 'फसल:' : 'पीक:'}</span>
                             <span className="font-bold text-stone-800">{deal.crop}</span>
                           </div>
                           <div>
-                            <span className="text-stone-400 block">{currentLang === 'en' ? 'Quantity:' : 'प्रमाण:'}</span>
+                            <span className="text-stone-400 block">{currentLang === 'en' ? 'Quantity:' : currentLang === 'hi' ? 'मात्रा:' : 'प्रमाण:'}</span>
                             <span className="font-bold font-mono text-stone-800">{deal.quantity_qtl} Qtl</span>
                           </div>
                           <div>
-                            <span className="text-stone-400 block">{currentLang === 'en' ? 'Agreed Rate:' : 'मंजूर दर:'}</span>
+                            <span className="text-stone-400 block">{currentLang === 'en' ? 'Agreed Rate:' : currentLang === 'hi' ? 'स्वीकृत भाव:' : 'मंजूर दर:'}</span>
                             <span className="font-bold font-mono text-[#C86432]">₹{deal.price_per_qtl} / Qtl</span>
                           </div>
                         </div>
 
                         <div className="mt-3 p-2 bg-white rounded-lg border border-[#E5DFD4] flex items-center justify-between text-xs">
-                          <span className="text-stone-600 font-medium">{currentLang === 'en' ? 'Total Consideration:' : 'एकूण करार रक्कम:'}</span>
+                          <span className="text-stone-600 font-medium">{currentLang === 'en' ? 'Total Consideration:' : currentLang === 'hi' ? 'कुल अनुबंध राशि:' : 'एकूण करार रक्कम:'}</span>
                           <span className="font-bold font-mono text-base text-[#1B4332]">₹{deal.total_deal_value.toLocaleString()}</span>
                         </div>
+
+                        {/* B2B Logistics & Transporter Tracker Strip */}
+                        {(() => {
+                          const status = deal.delivery_status || 'PENDING_PICKUP';
+                          const isAssigned = Boolean(deal.transporter_id || deal.driver_name);
+                          const currentStep = 
+                            status === 'DELIVERED' ? 4 :
+                            status === 'IN_TRANSIT' ? 3 :
+                            status === 'AT_FARM_GATE' ? 2 :
+                            status === 'DISPATCHED' ? 1 : 0;
+
+                          const labels = LOGISTICS_LABELS[currentLang] || LOGISTICS_LABELS.mr;
+
+                          return (
+                            <div className="mt-3 p-3 rounded-xl bg-white border border-[#E5DFD4]">
+                              <div className="flex items-center justify-between pb-2 border-b border-[#E5DFD4]">
+                                <div className="flex items-center gap-1.5">
+                                  <Truck className="w-3.5 h-3.5 text-[#1B4332]" />
+                                  <span className="text-[11px] font-bold text-[#1B4332] uppercase tracking-wide">
+                                    {labels.logisticsTracker}
+                                  </span>
+                                </div>
+                                {isAssigned ? (
+                                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800">
+                                    {status === 'DELIVERED' ? labels.stageDelivered :
+                                     status === 'IN_TRANSIT' ? labels.stageInTransit :
+                                     status === 'AT_FARM_GATE' ? labels.stageAtFarmGate : labels.stageDispatched}
+                                  </span>
+                                ) : (
+                                  <button
+                                    onClick={() => setSelectedDealForDispatch(deal)}
+                                    className="px-2.5 py-1 bg-[#C86432] hover:bg-[#b05528] text-white text-[11px] font-bold rounded-lg flex items-center gap-1 shadow-2xs transition-all cursor-pointer"
+                                  >
+                                    <Truck className="w-3 h-3" />
+                                    <span>{labels.assignTransporterBtn}</span>
+                                  </button>
+                                )}
+                              </div>
+
+                              {/* 4-step transit milestones */}
+                              <div className="mt-2.5 grid grid-cols-4 gap-1.5 text-center">
+                                {[
+                                  { step: 1, label: labels.stageDispatched },
+                                  { step: 2, label: labels.stageAtFarmGate },
+                                  { step: 3, label: labels.stageInTransit },
+                                  { step: 4, label: labels.stageDelivered }
+                               ].map(m => {
+                                  const isDone = currentStep >= m.step;
+                                  const isCurrent = currentStep === m.step;
+                                  return (
+                                    <div key={m.step} className="flex flex-col items-center">
+                                      <div className={`w-full h-1 rounded-full mb-1 transition-all ${
+                                        isDone ? 'bg-emerald-600' : 'bg-stone-200'
+                                      }`} />
+                                      <span className={`text-[10px] leading-tight ${
+                                        isCurrent ? 'text-emerald-700 font-bold' : isDone ? 'text-stone-800 font-medium' : 'text-stone-400'
+                                      }`}>
+                                        {m.label}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Driver info if assigned */}
+                              {isAssigned && (
+                                <div className="mt-2 pt-2 border-t border-[#E5DFD4] flex flex-wrap items-center justify-between gap-1 text-[11px] text-stone-600">
+                                  <div className="flex items-center gap-2">
+                                    <span>{labels.driver} <strong className="text-stone-900">{deal.driver_name}</strong></span>
+                                    <span className="font-mono font-bold text-stone-800">({deal.vehicle_number})</span>
+                                  </div>
+                                  {deal.driver_phone && (
+                                    <a
+                                      href={`tel:${deal.driver_phone}`}
+                                      className="font-bold text-[#1B4332] hover:underline"
+                                    >
+                                      📞 {deal.driver_phone}
+                                    </a>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
 
-                      <button
-                        onClick={() => setSelectedDealForContract(deal)}
-                        className="mt-4 w-full py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-all cursor-pointer"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>{currentLang === 'en' ? 'View Full Contract & Invoice' : 'सविस्तर करार व पावती पहा'}</span>
-                      </button>
+                      {/* Weighment, Assay & Escrow Settlement Actions */}
+                      {(() => {
+                        const escLabels = ESCROW_LABELS[currentLang] || ESCROW_LABELS.mr;
+                        const isSettled = deal.escrow_status === 'SETTLED';
+                        const isReadyForPayout = deal.escrow_status === 'READY_FOR_SETTLEMENT';
+                        const hasWeighment = Boolean(deal.weighment);
+
+                        if (isSettled) {
+                          return (
+                            <div className="mt-3 p-3 bg-emerald-50 border border-emerald-300 rounded-xl space-y-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="inline-flex items-center gap-1.5 font-bold text-emerald-950">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                                  {escLabels.escrowSettledBadge}
+                                </span>
+                                <span className="font-mono font-black text-emerald-900 text-sm">
+                                  ₹{Number(deal.total_deal_value).toLocaleString('en-IN')}
+                                </span>
+                              </div>
+                              <div className="text-[11px] text-emerald-800 flex items-center justify-between">
+                                <span>{escLabels.utrLabel} <strong className="font-mono">{deal.settlement_utr || deal.settlement?.utr || 'UTR-AGRI-2026-9214'}</strong></span>
+                                <button
+                                  onClick={() => setSelectedDealForInvoice(deal)}
+                                  className="px-2.5 py-1 bg-[#1B4332] hover:bg-[#143326] text-white rounded-lg font-bold text-[11px] flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                                >
+                                  <FileText className="w-3 h-3 text-[#A3E635]" />
+                                  <span>{escLabels.viewInvoiceBtn}</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (isReadyForPayout) {
+                          return (
+                            <div className="mt-3 p-3 bg-amber-50 border border-amber-300 rounded-xl space-y-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-bold text-amber-950 flex items-center gap-1.5">
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                                  {escLabels.readyForSettlement}
+                                </span>
+                                <span className="font-mono font-bold text-stone-900">
+                                  {deal.weighment?.net_qtl || deal.quantity_qtl} Qtl
+                                </span>
+                              </div>
+                              <button
+                                onClick={() => setSelectedDealForPayout(deal)}
+                                className="w-full py-2 bg-[#1B4332] hover:bg-[#143326] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                              >
+                                <DollarSign className="w-4 h-4 text-[#A3E635]" />
+                                <span>{escLabels.releaseEscrowBtn} (₹{Number(deal.total_deal_value).toLocaleString('en-IN')})</span>
+                              </button>
+                            </div>
+                          );
+                        }
+
+                        if (hasWeighment) {
+                          return (
+                            <div className="mt-3 p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                              <div className="flex items-center gap-1.5">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+                                <span className="font-bold text-emerald-950">
+                                  {labels.weighmentCertifiedBadge}
+                                </span>
+                              </div>
+                              <span className="font-mono font-bold text-emerald-900">
+                                {deal.weighment?.net_qtl || deal.quantity_qtl} Qtl (₹{deal.total_deal_value?.toLocaleString()})
+                              </span>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <button
+                            onClick={() => setSelectedDealForWeighment(deal)}
+                            className="mt-3 w-full py-2 bg-[#C86432] hover:bg-[#b05528] text-white rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
+                          >
+                            <Scale className="w-3.5 h-3.5" />
+                            <span>{labels.recordWeighmentBtn}</span>
+                          </button>
+                        );
+                      })()}
+
+                      <div className="mt-3 grid grid-cols-3 gap-1.5">
+                        <button
+                          onClick={() => setSelectedDealForContract(deal)}
+                          className="py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
+                        >
+                          <Eye className="w-3 h-3" />
+                          <span>{currentLang === 'en' ? 'Contract' : currentLang === 'hi' ? 'अनुबंध' : 'करार'}</span>
+                        </button>
+                        <button
+                          onClick={() => setSelectedDealForWeighmentSlip(deal)}
+                          className="py-2 bg-white border border-[#E5DFD4] hover:bg-[#FAF7F2] text-stone-700 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
+                        >
+                          <Scale className="w-3 h-3 text-[#C86432]" />
+                          <span>{currentLang === 'en' ? 'Weighment' : currentLang === 'hi' ? 'वेब्रिज' : 'वेब्रिज'}</span>
+                        </button>
+                        <button
+                          onClick={() => setSelectedDealForInvoice(deal)}
+                          className={`py-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer ${
+                            deal.escrow_status === 'SETTLED'
+                              ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
+                              : 'bg-stone-100 border border-[#E5DFD4] text-stone-500 hover:bg-stone-200'
+                          }`}
+                        >
+                          <FileText className="w-3 h-3" />
+                          <span>{currentLang === 'en' ? 'Invoice' : currentLang === 'hi' ? 'बीजक' : 'इनव्हॉईस'}</span>
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -797,11 +1083,11 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                     {t.tabBuyersDir}
                   </h3>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    {currentLang === 'en' ? 'Licensed Agro-Processing Mills and Institutional Buyers' : 'महाराष्ट्र शासन परवानाधारक व GSTIN नोंदणीकृत खरेदीदार'}
+                    {currentLang === 'en' ? 'Licensed Agro-Processing Mills and Institutional Buyers' : currentLang === 'hi' ? 'लाइसेंस प्राप्त कृषि प्रसंस्करण मिलें और संस्थागत खरीदार' : 'महाराष्ट्र शासन परवानाधारक व GSTIN नोंदणीकृत खरेदीदार'}
                   </p>
                 </div>
                 <span className="text-xs font-bold text-stone-600 bg-[#FAF7F2] px-3 py-1 rounded-lg border border-[#E5DFD4]">
-                  {buyers.length} {currentLang === 'en' ? 'Verified Units' : 'सत्यापित कारखाने'}
+                  {buyers.length} {currentLang === 'en' ? 'Verified Units' : currentLang === 'hi' ? 'सत्यापित मिलें' : 'सत्यापित कारखाने'}
                 </span>
               </div>
 
@@ -809,10 +1095,10 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                 <div className="py-12 text-center text-xs text-stone-500">
                   <Building2 className="w-10 h-10 text-stone-300 mx-auto mb-2" />
                   <p className="font-bold text-stone-700">
-                    {currentLang === 'en' ? 'No other verified buyers registered in this district yet' : 'या भागात अद्याप इतर कोणत्याही कारखान्याची नोंदणी झालेली नाही'}
+                    {currentLang === 'en' ? 'No other verified buyers registered in this district yet' : currentLang === 'hi' ? 'इस जिले में अभी तक कोई अन्य सत्यापित खरीदार पंजीकृत नहीं है' : 'या भागात अद्याप इतर कोणत्याही कारखान्याची नोंदणी झालेली नाही'}
                   </p>
                   <p className="mt-1">
-                    {currentLang === 'en' ? 'Only genuine GSTIN-verified buyers appear here.' : 'केवळ GSTIN व परवाना तपासणी पूर्ण झालेले खरेदीदार येथे दिसतात.'}
+                    {currentLang === 'en' ? 'Only genuine GSTIN-verified buyers appear here.' : currentLang === 'hi' ? 'केवल GSTIN-सत्यापित वास्तविक खरीदार यहां दिखाई देते हैं।' : 'केवळ GSTIN व परवाना तपासणी पूर्ण झालेले खरेदीदार येथे दिसतात.'}
                   </p>
                 </div>
               ) : (
@@ -832,7 +1118,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
 
                         <div className="text-right">
                           <span className="text-xs font-bold text-amber-600">★ {b.rating || '5.0'}</span>
-                          <span className="text-[10px] text-stone-400 block">({b.reviews_count || 0} {currentLang === 'en' ? 'Trades' : 'सौदे'})</span>
+                          <span className="text-[10px] text-stone-400 block">({b.reviews_count || 0} {currentLang === 'en' ? 'Trades' : currentLang === 'hi' ? 'सौदे' : 'सौदे'})</span>
                         </div>
                       </div>
 
@@ -842,16 +1128,16 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                           <span className="font-mono font-bold text-stone-800">{b.gstin}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>{currentLang === 'en' ? 'License:' : 'परवाना:'}</span>
+                          <span>{currentLang === 'en' ? 'License:' : currentLang === 'hi' ? 'लाइसेंस:' : 'परवाना:'}</span>
                           <span className="font-medium text-stone-800">{b.license_type}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>{currentLang === 'en' ? 'Location:' : 'स्थान:'}</span>
+                          <span>{currentLang === 'en' ? 'Location:' : currentLang === 'hi' ? 'स्थान:' : 'स्थान:'}</span>
                           <span className="font-medium text-stone-800">{b.city || b.district} ({b.district})</span>
                         </div>
                         {b.target_crops && (
                           <div className="flex justify-between">
-                            <span>{currentLang === 'en' ? 'Target Crops:' : 'उद्दिष्ट पिके:'}</span>
+                            <span>{currentLang === 'en' ? 'Target Crops:' : currentLang === 'hi' ? 'लक्षित फसलें:' : 'उद्दिष्ट पिके:'}</span>
                             <span className="font-semibold text-[#1B4332]">
                               {Array.isArray(b.target_crops) ? b.target_crops.join(', ') : b.target_crops}
                             </span>
@@ -935,7 +1221,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                     onClick={() => setBidForm({ ...bidForm, quantity_requested_qtl: selectedLotForBid.quantity_qtl })}
                     className="text-[11px] font-bold text-[#C86432] hover:underline cursor-pointer"
                   >
-                    {currentLang === 'en' ? 'Select 100% Full Lot' : 'पूर्ण लॉट निवडा'}
+                    {currentLang === 'en' ? 'Select 100% Full Lot' : currentLang === 'hi' ? 'पूरा १००% लॉट चुनें' : 'पूर्ण लॉट निवडा'}
                   </button>
                 </div>
                 <input
@@ -997,148 +1283,77 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
       {/* ============================================================ */}
       {/* MODAL 2: B2B DEAL CONTRACT & ESCROW INSPECTOR */}
       {/* ============================================================ */}
-      {selectedDealForContract && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 border border-[#E5DFD4] shadow-2xl relative max-h-[90vh] overflow-y-auto">
-            
-            {/* Contract Header */}
-            <div className="flex items-start justify-between pb-4 border-b-2 border-[#1B4332]">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold uppercase tracking-wider text-[#C86432] bg-amber-50 px-2.5 py-0.5 rounded border border-amber-200">
-                    B2B Agricultural Sale Agreement
-                  </span>
-                  <span className="text-xs font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
-                    LEGAL CONTRACT
-                  </span>
-                </div>
-                <h3 className="text-xl sm:text-2xl font-bold font-heading text-[#1B4332] mt-1.5">
-                  AgriMandi Digital Trade Contract
-                </h3>
-                <p className="text-xs font-mono text-stone-500 mt-0.5">
-                  Contract ID: {selectedDealForContract.id} | Date: {new Date(selectedDealForContract.created_at || Date.now()).toLocaleDateString('en-IN')}
-                </p>
-              </div>
+      <DealContractModal
+        deal={selectedDealForContract}
+        isOpen={Boolean(selectedDealForContract)}
+        onClose={() => setSelectedDealForContract(null)}
+        currentLang={currentLang}
+      />
 
-              <button
-                onClick={() => setSelectedDealForContract(null)}
-                className="text-stone-400 hover:text-stone-600 p-1 cursor-pointer"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
+      {/* ============================================================ */}
+      {/* MODAL 3: TRANSPORTER DISPATCH & MILESTONE ASSIGNMENT */}
+      {/* ============================================================ */}
+      <SelectTransporterModal
+        isOpen={Boolean(selectedDealForDispatch)}
+        onClose={() => setSelectedDealForDispatch(null)}
+        deal={selectedDealForDispatch}
+        currentLang={currentLang}
+        onAssigned={() => {
+          loadMarketData(buyerProfile);
+          setSelectedDealForDispatch(null);
+        }}
+      />
 
-            {/* Contract Content */}
-            <div className="mt-6 space-y-5 text-xs text-stone-800">
-              
-              {/* Parties Box */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="p-4 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#1B4332] block">
-                    SELLER (विक्रेता / शेतकरी)
-                  </span>
-                  <h5 className="font-bold text-sm text-stone-900 mt-1">
-                    {selectedDealForContract.farmer_name}
-                  </h5>
-                  <p className="text-stone-600 mt-0.5">
-                    {selectedDealForContract.farmer_phone ? `Mobile: ${selectedDealForContract.farmer_phone}` : '7/12 Verified Landholder'}
-                  </p>
-                  <p className="text-stone-500 text-[11px] mt-0.5">
-                    Farm-Gate Origin, Maharashtra
-                  </p>
-                </div>
+      {/* ============================================================ */}
+      {/* MODAL 4: MILL GATE WEIGHBRIDGE & QUALITY ASSAY RECORDING */}
+      {/* ============================================================ */}
+      <GateWeighmentModal
+        isOpen={Boolean(selectedDealForWeighment)}
+        onClose={() => setSelectedDealForWeighment(null)}
+        deal={selectedDealForWeighment}
+        currentLang={currentLang}
+        onSuccess={(updatedDeal, weighment) => {
+          loadMarketData(buyerProfile);
+          setSelectedDealForWeighment(null);
+          setSelectedDealForWeighmentSlip({ ...updatedDeal, weighment });
+        }}
+      />
 
-                <div className="p-4 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#1B4332] block">
-                    PURCHASER (खरेदीदार / मिल)
-                  </span>
-                  <h5 className="font-bold text-sm text-stone-900 mt-1">
-                    {selectedDealForContract.buyer_name}
-                  </h5>
-                  <p className="text-stone-600 mt-0.5">
-                    GSTIN: {buyerProfile.gstin || 'Registered Institutional Unit'}
-                  </p>
-                  <p className="text-stone-500 text-[11px] mt-0.5">
-                    Destination: {selectedDealForContract.delivery_destination}
-                  </p>
-                </div>
-              </div>
+      {/* ============================================================ */}
+      {/* MODAL 5: PRINTABLE WEIGHMENT & QUALITY ASSAY CERTIFICATE */}
+      {/* ============================================================ */}
+      <WeighmentAssaySlipModal
+        isOpen={Boolean(selectedDealForWeighmentSlip)}
+        onClose={() => setSelectedDealForWeighmentSlip(null)}
+        deal={selectedDealForWeighmentSlip}
+        weighmentData={selectedDealForWeighmentSlip?.weighment}
+        currentLang={currentLang}
+      />
 
-              {/* Commodity & Financial Consideration Table */}
-              <div className="border border-[#E5DFD4] rounded-xl overflow-hidden">
-                <table className="w-full text-left">
-                  <thead className="bg-[#FAF7F2] text-[11px] font-bold text-[#1B4332] uppercase border-b border-[#E5DFD4]">
-                    <tr>
-                      <th className="py-2.5 px-3">Commodity Specification</th>
-                      <th className="py-2.5 px-3 text-right">Quantity</th>
-                      <th className="py-2.5 px-3 text-right">Contract Price</th>
-                      <th className="py-2.5 px-3 text-right">Total Consideration</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E5DFD4] font-medium">
-                    <tr>
-                      <td className="py-3 px-3">
-                        <strong className="block text-stone-900">{selectedDealForContract.crop}</strong>
-                        <span className="text-[11px] text-stone-500">{selectedDealForContract.variety || 'FAQ Quality Standard'}</span>
-                      </td>
-                      <td className="py-3 px-3 text-right font-mono font-bold">
-                        {selectedDealForContract.quantity_qtl} Qtl
-                        <span className="block text-[10px] text-stone-400">({(Number(selectedDealForContract.quantity_qtl) / 10).toFixed(1)} MT)</span>
-                      </td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-[#C86432]">
-                        ₹{selectedDealForContract.price_per_qtl} / Qtl
-                      </td>
-                      <td className="py-3 px-3 text-right font-mono font-bold text-stone-900 text-sm">
-                        ₹{Number(selectedDealForContract.total_deal_value).toLocaleString()}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+      {/* ============================================================ */}
+      {/* MODAL 6: BUYER ESCROW PAYOUT AUTHORIZATION & DISBURSEMENT */}
+      {/* ============================================================ */}
+      <ReleaseEscrowModal
+        isOpen={Boolean(selectedDealForPayout)}
+        onClose={() => setSelectedDealForPayout(null)}
+        deal={selectedDealForPayout}
+        currentLang={currentLang}
+        onSuccess={(updatedDeal) => {
+          loadMarketData(buyerProfile);
+          setSelectedDealForPayout(null);
+          setSelectedDealForInvoice(updatedDeal);
+        }}
+      />
 
-              {/* Escrow & Payout Guarantee Badge */}
-              <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 space-y-1.5">
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-5 h-5 text-emerald-700" />
-                  <span className="font-bold text-emerald-950 text-sm">
-                    100% Escrow Protection Guarantee (RBI Trustee Compliant)
-                  </span>
-                </div>
-                <p className="text-emerald-900 text-[11px] leading-relaxed">
-                  Status: <strong>{selectedDealForContract.escrow_status || 'SECURED_IN_ESCROW'}</strong>. The purchaser's purchase consideration is held securely. Funds are automatically disbursed directly to the farmer's registered bank account within 2 hours of factory gate weighbridge receipt and moisture verification.
-                </p>
-              </div>
-
-              {/* Legal Note */}
-              <p className="text-[10px] text-stone-400 italic leading-normal">
-                This electronic contract is generated and authenticated via AgriMandi (कृषीसेतू) platform in compliance with the Information Technology Act, 2000 and Section 31 of the Maharashtra Agricultural Produce Marketing (Regulation) Act for direct farm-gate procurement.
-              </p>
-
-            </div>
-
-            {/* Footer Actions */}
-            <div className="mt-6 pt-4 border-t border-[#E5DFD4] flex items-center justify-between">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="px-4 py-2.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] hover:bg-[#F3EDE2] text-xs font-bold text-stone-700 flex items-center gap-2 cursor-pointer"
-              >
-                <Printer className="w-4 h-4" />
-                <span>{currentLang === 'en' ? 'Print / Download Contract' : 'करार प्रिंट / डाउनलोड करा'}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setSelectedDealForContract(null)}
-                className="px-6 py-2.5 rounded-xl bg-[#1B4332] text-white text-xs font-bold shadow-xs cursor-pointer"
-              >
-                {currentLang === 'en' ? 'Close Contract' : 'करार बंद करा'}
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      {/* ============================================================ */}
+      {/* MODAL 7: OFFICIAL COMMERCIAL B2B TAX INVOICE & RECEIPT */}
+      {/* ============================================================ */}
+      <TaxInvoiceModal
+        isOpen={Boolean(selectedDealForInvoice)}
+        onClose={() => setSelectedDealForInvoice(null)}
+        deal={selectedDealForInvoice}
+        currentLang={currentLang}
+      />
 
     </div>
   );

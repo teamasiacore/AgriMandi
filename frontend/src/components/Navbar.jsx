@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Sprout, ShoppingBag, Truck, Globe, LogIn, LogOut, User, ChevronDown, Menu, X } from 'lucide-react';
+import { Sprout, ShoppingBag, Truck, Globe, LogIn, LogOut, User, ChevronDown, Menu, X, Users } from 'lucide-react';
 import { translations } from '../utils/translations';
 
 export default function Navbar({ currentLang = 'mr', onLangChange }) {
@@ -39,12 +39,13 @@ export default function Navbar({ currentLang = 'mr', onLangChange }) {
     { label: t.navHome, path: '/' },
     { label: t.navFarmer, path: '/farmer', icon: Sprout },
     { label: t.navBuyer, path: '/buyer', icon: ShoppingBag },
-    { label: t.navTransporter || 'वाहतूकदार', path: '/transporter', icon: Truck }
+    { label: t.navFpo || (currentLang === 'en' ? 'FPO Desk' : currentLang === 'hi' ? 'FPO डेस्क' : 'FPO डेस्क'), path: '/fpo', icon: Users },
+    { label: t.navTransporter || (currentLang === 'en' ? 'Logistics / Storage' : currentLang === 'hi' ? 'परिवहन / भंडारण' : 'वाहतूक / साठवणूक'), path: '/transporter', icon: Truck }
   ];
 
   const languages = [
-    { code: 'mr', name: 'मराठी (Marathi)' },
-    { code: 'hi', name: 'हिंदी (Hindi)' },
+    { code: 'mr', name: currentLang === 'en' ? 'Marathi' : currentLang === 'hi' ? 'मराठी' : 'मराठी' },
+    { code: 'hi', name: currentLang === 'en' ? 'Hindi' : currentLang === 'hi' ? 'हिंदी' : 'हिंदी' },
     { code: 'en', name: 'English' }
   ];
 
@@ -138,7 +139,7 @@ export default function Navbar({ currentLang = 'mr', onLangChange }) {
                   <div className="text-left">
                     <p className="text-xs font-bold text-[#1B4332] leading-tight max-w-[120px] truncate">{user.name}</p>
                     <span className="inline-block text-[10px] font-semibold text-[#C86432] uppercase">
-                      {user.role === 'FARMER' ? t.roleFarmer : t.roleBuyer}
+                      {user.role === 'FARMER' ? t.roleFarmer : user.role === 'FPO' ? 'FPO' : user.role === 'TRANSPORTER' ? 'Logistics' : t.roleBuyer}
                     </span>
                   </div>
                 </div>
@@ -199,7 +200,9 @@ export default function Navbar({ currentLang = 'mr', onLangChange }) {
             ))}
 
             <div className="pt-3 border-t border-[#E5DFD4] flex items-center justify-between px-2">
-              <span className="text-xs font-semibold text-stone-500">भाषा / Language:</span>
+              <span className="text-xs font-semibold text-stone-500">
+                {currentLang === 'en' ? 'Language:' : currentLang === 'hi' ? 'भाषा:' : 'भाषा:'}
+              </span>
               <div className="flex gap-1.5">
                 {languages.map((l) => (
                   <button

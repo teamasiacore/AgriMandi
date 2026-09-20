@@ -174,6 +174,19 @@ router.get('/deals', async (req, res) => {
   }
 });
 
+// Get Single Deal Details
+router.get('/deals/:id', async (req, res) => {
+  try {
+    const deal = await db.getDealById(req.params.id);
+    if (!deal) {
+      return res.status(404).json({ status: 'error', message: 'Deal not found' });
+    }
+    res.json({ status: 'success', deal });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // ===================== TRANSPORTERS (LOGISTICS) =====================
 
 // Get Registered Transporters
@@ -240,7 +253,7 @@ router.patch('/transporters/:id/status', async (req, res) => {
 // Transporter Accepts Farm-Gate Trip
 router.post('/transporters/accept-trip', async (req, res) => {
   try {
-    const { deal_id, transporter_id, driver_name, driver_phone, vehicle_number, agreed_freight } = req.body;
+    const { deal_id, transporter_id, driver_name, driver_phone, vehicle_number, agreed_freight, vehicle_type } = req.body;
     if (!deal_id || !transporter_id) {
       return res.status(400).json({ status: 'error', message: 'Deal ID and Transporter ID are required.' });
     }
@@ -251,12 +264,70 @@ router.post('/transporters/accept-trip', async (req, res) => {
       driver_name: driver_name || 'Verified Driver',
       driver_phone: driver_phone || '',
       vehicle_number: vehicle_number || 'MH-24-VEHICLE',
+      vehicle_type: vehicle_type || 'Bolero Maxi Truck (1.5 MT)',
       agreed_freight: Number(agreed_freight) || 0
     });
 
     res.json({
       status: 'success',
-      message: '🚚 Trip accepted! Goods are now IN_TRANSIT. Digital E-Waybill generated.',
+      message: '🚚 Trip accepted! Vehicle DISPATCHED for farm-gate pickup. Digital E-Waybill generated.',
+      deal: updatedDeal
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Buyer or Farmer Dispatches / Assigns a Transporter to a Locked Deal
+router.post('/transporters/dispatch-deal', async (req, res) => {
+  try {
+    const { deal_id, transporter_id, driver_name, driver_phone, vehicle_number, freight_amount, vehicle_type } = req.body;
+    if (!deal_id || !transporter_id) {
+      return res.status(400).json({ status: 'error', message: 'Deal ID and Transporter ID are required.' });
+    }
+
+    const updatedDeal = await db.assignTransporterToDeal({
+      deal_id,
+      transporter_id,
+      driver_name: driver_name || 'Verified Driver',
+      driver_phone: driver_phone || '',
+      vehicle_number: vehicle_number || 'MH-24-VEHICLE',
+      vehicle_type: vehicle_type || 'Bolero Maxi Truck (1.5 MT)',
+      freight_amount: Number(freight_amount) || 0
+    });
+
+    res.json({
+      status: 'success',
+      message: `🚚 Transporter ${driver_name || vehicle_number} dispatched successfully!`,
+      deal: updatedDeal
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Advance Trip Milestone (DISPATCHED ➔ AT_FARM_GATE ➔ IN_TRANSIT ➔ DELIVERED)
+router.patch('/transporters/trips/:dealId/milestone', async (req, res) => {
+  try {
+    const { milestone, notes, weighment_data } = req.body;
+    const validMilestones = ['PENDING_PICKUP', 'DISPATCHED', 'AT_FARM_GATE', 'IN_TRANSIT', 'DELIVERED'];
+    if (!milestone || !validMilestones.includes(milestone)) {
+      return res.status(400).json({ 
+        status: 'error', 
+        message: `Invalid milestone. Must be one of: ${validMilestones.join(', ')}` 
+      });
+    }
+
+    const updatedDeal = await db.updateTripMilestone({
+      deal_id: req.params.dealId,
+      milestone,
+      notes,
+      weighment_data
+    });
+
+    res.json({
+      status: 'success',
+      message: `Trip milestone updated to ${milestone}.`,
       deal: updatedDeal
     });
   } catch (err) {
@@ -269,6 +340,107 @@ router.get('/transporters/:id/trips', async (req, res) => {
   try {
     const trips = await db.getTransporterTrips(req.params.id);
     res.json({ status: 'success', count: trips.length, trips });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Record Mill Gate Weighment & Certified Quality Assay
+router.post('/deals/:dealId/weighment-assay', async (req, res) => {
+  try {
+    const { dealId } = req.params;
+    const {
+      operator_name,
+      gross_kg,
+      tare_kg,
+      moisture_tested,
+      foreign_matter,
+      damage_percentage,
+      quality_grade,
+      notes
+    } = req.body;
+
+    if (!gross_kg || !tare_kg) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Gross weight and Tare weight are required.'
+      });
+    }
+
+    if (Number(gross_kg) <= Number(tare_kg)) {
+      return res.status(400).json({
+        status: 'error',
+        message: 'Gross weight must be strictly greater than Tare weight.'
+      });
+    }
+
+    const result = await db.recordGateWeighmentAndAssay({
+      deal_id: dealId,
+      operator_name,
+      gross_kg,
+      tare_kg,
+      moisture_tested,
+      foreign_matter,
+      damage_percentage,
+      quality_grade,
+      notes
+    });
+
+    res.json({
+      status: 'success',
+      message: `⚖️ Gate weighment and quality assay certified successfully! Slip: ${result.weighment.slip_no}`,
+      deal: result.deal,
+      weighment: result.weighment
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Get Certified Weighment & Assay Slip for a Deal
+router.get('/deals/:dealId/weighment-assay', async (req, res) => {
+  try {
+    const weighment = await db.getWeighmentAssay(req.params.dealId);
+    if (!weighment) {
+      return res.status(404).json({ status: 'error', message: 'Weighment slip not found for this deal.' });
+    }
+    res.json({ status: 'success', weighment });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Settle Deal Escrow and Release Payout to Farmer
+router.post('/deals/:dealId/settle', async (req, res) => {
+  try {
+    const { dealId } = req.params;
+    const { authorized_by, payment_mode } = req.body;
+
+    const result = await db.settleDealEscrow({
+      deal_id: dealId,
+      authorized_by,
+      payment_mode
+    });
+
+    res.json({
+      status: 'success',
+      message: `💸 Escrow payout of ₹${Number(result.deal.total_deal_value).toLocaleString('en-IN')} released to ${result.deal.farmer_name || 'Farmer'} successfully! Bank UTR: ${result.settlement.settlement_utr}`,
+      deal: result.deal,
+      settlement: result.settlement
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Get Printable B2B Tax Invoice & Settlement Receipt for a Deal
+router.get('/deals/:dealId/settlement-invoice', async (req, res) => {
+  try {
+    const invoice = await db.getSettlementInvoice(req.params.dealId);
+    if (!invoice) {
+      return res.status(404).json({ status: 'error', message: 'Settlement tax invoice not found for this deal.' });
+    }
+    res.json({ status: 'success', invoice });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }

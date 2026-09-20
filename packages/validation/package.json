@@ -1,0 +1,18 @@
+{
+  "name": "@agrimandi/validation",
+  "version": "0.1.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo '@agrimandi/validation lint ok'",
+    "test": "echo '@agrimandi/validation test ok'"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}

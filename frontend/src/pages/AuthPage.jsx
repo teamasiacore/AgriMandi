@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { 
   Sprout, Building2, Truck, ShieldCheck, Phone, User, MapPin, 
-  ArrowRight, CheckCircle2, AlertCircle, FileText, BadgeCheck, Clock
+  ArrowRight, CheckCircle2, AlertCircle, FileText, BadgeCheck, Clock, Users
 } from 'lucide-react';
 import api from '../services/api';
 import { translations, DISTRICT_OPTIONS, CROP_OPTIONS, LICENSE_TYPE_OPTIONS, VEHICLE_TYPE_OPTIONS } from '../utils/translations';
@@ -17,7 +17,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
   const roleParam = queryParams.get('role');
 
   const [mode, setMode] = useState(location.pathname === '/register' ? 'register' : initialMode);
-  const [role, setRole] = useState(roleParam === 'BUYER' ? 'BUYER' : roleParam === 'TRANSPORTER' ? 'TRANSPORTER' : 'FARMER');
+  const [role, setRole] = useState(roleParam === 'BUYER' ? 'BUYER' : roleParam === 'TRANSPORTER' ? 'TRANSPORTER' : roleParam === 'FPO' ? 'FPO' : 'FARMER');
 
   // Common credentials
   const [phone, setPhone] = useState('');
@@ -30,9 +30,13 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
   const [village, setVillage] = useState('');
   const [landSize, setLandSize] = useState('');
   const [saatBara, setSaatBara] = useState('');
+  const [bankIfsc, setBankIfsc] = useState('');
   const [crops, setCrops] = useState(['Soybean']);
+  const [preferredChannel, setPreferredChannel] = useState('WHATSAPP');
+  const [consentAccepted, setConsentAccepted] = useState(false);
 
   // Buyer specific registration state
+  const [buyerCategory, setBuyerCategory] = useState('Processor / Mill');
   const [companyName, setCompanyName] = useState('');
   const [repName, setRepName] = useState('');
   const [gstin, setGstin] = useState('');
@@ -81,7 +85,9 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
     setErrorMsg('');
     setErrorCode('');
     setOtpSent(true);
-    setOtp('123456'); // Standard demo testing code
+    if (import.meta.env.DEV) {
+      setOtp('123456'); // Standard demo testing code in development only
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -99,16 +105,29 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
             setLoading(false);
             return;
           }
+          if (!consentAccepted) {
+            setErrorMsg(currentLang === 'en' 
+              ? 'Please accept the data use consent to continue.' 
+              : currentLang === 'hi' 
+              ? 'आगे बढ़ने के लिए कृपया डेटा उपयोग सहमति स्वीकार करें।' 
+              : 'पुढे जाण्यासाठी कृपया माहिती वापर संमती स्वीकारा.');
+            setLoading(false);
+            return;
+          }
 
           res = await api.register({
             phone,
             role: 'FARMER',
             name: name.trim(),
             district,
+            taluka: taluka.trim(),
             village: village.trim(),
+            crops,
+            preferred_channel: preferredChannel,
+            consent_accepted: true,
             land_size_acres: landSize ? Number(landSize) : null,
-            saat_bara_number: saatBara.trim(),
-            crops
+            saat_bara_number: saatBara ? saatBara.trim() : null,
+            bank_ifsc: bankIfsc ? bankIfsc.trim() : null
           });
         } else if (role === 'TRANSPORTER') {
           if (!driverName.trim()) {
@@ -133,6 +152,35 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
             capacity_mt: capacityMt,
             per_km_rate: perKmRate
           });
+        } else if (role === 'FPO') {
+          if (!companyName.trim()) {
+            setErrorMsg(currentLang === 'en' ? 'FPO Organization name is required.' : currentLang === 'hi' ? 'FPO संस्था का नाम आवश्यक है।' : 'FPO संस्थेचे नाव आवश्यक आहे.');
+            setLoading(false);
+            return;
+          }
+          if (!consentAccepted) {
+            setErrorMsg(currentLang === 'en' ? 'Please accept data consent.' : currentLang === 'hi' ? 'कृपया डेटा सहमति स्वीकार करें।' : 'कृपया माहिती संमती स्वीकारा.');
+            setLoading(false);
+            return;
+          }
+
+          res = await api.register({
+            phone,
+            role: 'FPO',
+            name: repName.trim() || companyName.trim(),
+            company_name: companyName.trim(),
+            fpo_name: companyName.trim(),
+            registration_no: licenseNumber.trim() || `MH-FPO-${Date.now().toString().slice(-6)}`,
+            representative_name: repName.trim() || name.trim(),
+            district,
+            taluka: taluka.trim(),
+            village: village.trim(),
+            members_count: dailyCapacity ? Number(dailyCapacity) : 50,
+            address: factoryAddress.trim() || `${taluka || district} FPO Aggregation Center`,
+            crops,
+            bank_ifsc: bankIfsc.trim(),
+            bank_account: saatBara.trim()
+          });
         } else {
           // BUYER validation
           if (!companyName.trim()) {
@@ -154,6 +202,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
             name: repName.trim() || companyName.trim(),
             gstin: gstin.toUpperCase().trim(),
             pan: pan ? pan.toUpperCase().trim() : gstin.substring(2, 12).toUpperCase(),
+            buyer_category: buyerCategory,
             license_type: licenseType,
             license_number: licenseNumber.trim(),
             daily_capacity_mt: dailyCapacity ? Number(dailyCapacity) : 0,
@@ -176,6 +225,8 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
 
         if (role === 'TRANSPORTER') {
           navigate('/transporter');
+        } else if (role === 'FPO') {
+          navigate('/fpo');
         } else {
           navigate('/farmer');
         }
@@ -200,6 +251,8 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
           navigate(redirectPath);
         } else if (res.user.role === 'TRANSPORTER') {
           navigate('/transporter');
+        } else if (res.user.role === 'FPO') {
+          navigate('/fpo');
         } else if (res.user.role === 'BUYER') {
           navigate('/buyer');
         } else {
@@ -326,7 +379,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
           <label className="block text-xs font-bold text-stone-700 uppercase tracking-wider mb-2 text-center">
             {t.selectRole}
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <button
               type="button"
               onClick={() => { setRole('FARMER'); setErrorMsg(''); setErrorCode(''); }}
@@ -339,6 +392,20 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
               <Sprout className={`w-5 h-5 ${role === 'FARMER' ? 'text-[#C86432]' : 'text-stone-400'}`} />
               <span className="text-xs font-bold">{t.roleFarmer}</span>
               <span className="text-[10px] text-stone-400">{t.roleFarmerSub}</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setRole('FPO'); setErrorMsg(''); setErrorCode(''); }}
+              className={`p-2.5 rounded-2xl border text-center transition-all flex flex-col items-center gap-1 cursor-pointer ${
+                role === 'FPO'
+                  ? 'border-[#1B4332] bg-[#FAF7F2] text-[#1B4332] shadow-xs'
+                  : 'border-[#E5DFD4] bg-white text-stone-500 hover:bg-[#FAF7F2]'
+              }`}
+            >
+              <Users className={`w-5 h-5 ${role === 'FPO' ? 'text-[#C86432]' : 'text-stone-400'}`} />
+              <span className="text-xs font-bold">{currentLang === 'en' ? 'FPO / Co-op' : currentLang === 'hi' ? 'FPO / समिति' : 'FPO / संस्था'}</span>
+              <span className="text-[10px] text-stone-400">{currentLang === 'en' ? 'Aggregation' : currentLang === 'hi' ? 'एकत्रीकरण' : 'एकत्रीकरण'}</span>
             </button>
 
             <button
@@ -504,7 +571,11 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                 required
               />
               <div className="flex items-center justify-between text-[10px] text-stone-400 mt-1">
-                <span>{t.demoOtpNote}</span>
+                {import.meta.env.DEV ? (
+                  <span>{t.demoOtpNote}</span>
+                ) : (
+                  <span>{currentLang === 'en' ? 'Enter 6-digit OTP received via SMS' : currentLang === 'hi' ? 'SMS द्वारा प्राप्त ६-अंकीय OTP दर्ज करें' : 'SMS द्वारे प्राप्त झालेला ६-अंकी OTP प्रविष्ट करा'}</span>
+                )}
                 {otpSent && <span className="text-emerald-700 font-bold">{t.otpSentSuccess}</span>}
               </div>
             </div>
@@ -520,6 +591,12 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                 <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md font-bold border border-emerald-200">
                   {t.badgeSaatBaraPriority}
                 </span>
+              </div>
+
+              {/* Informative Progressive Registration Note */}
+              <div className="p-3 rounded-xl bg-stone-50 border border-[#E5DFD4] text-[11px] text-stone-600 flex items-start gap-2">
+                <FileText className="w-4 h-4 text-stone-400 shrink-0 mt-0.5" />
+                <span>{t.authProgressiveNote}</span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -543,7 +620,10 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                   </label>
                   <select
                     value={district}
-                    onChange={(e) => setDistrict(e.target.value)}
+                    onChange={(e) => {
+                      setDistrict(e.target.value);
+                      setTaluka('');
+                    }}
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   >
                     {DISTRICT_OPTIONS.map((d) => (
@@ -558,6 +638,24 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'Taluka (Tehsil)' : currentLang === 'hi' ? 'तालुका / तहसील' : 'तालुका'}
+                  </label>
+                  <select
+                    value={taluka}
+                    onChange={(e) => setTaluka(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                  >
+                    <option value="">{currentLang === 'en' ? '-- Select Taluka --' : currentLang === 'hi' ? '-- तहसील चुनें --' : '-- तालुका निवडा --'}</option>
+                    {(DISTRICT_OPTIONS.find(d => d.id === district)?.talukas || []).map((tItem) => (
+                      <option key={tItem.id} value={tItem.id}>
+                        {tItem[currentLang] || tItem.en}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
                     {t.villageLabel}
                   </label>
                   <input
@@ -568,43 +666,6 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                     className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
                   />
                 </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">
-                    {t.labelLandSize}
-                  </label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={landSize}
-                    onChange={(e) => setLandSize(e.target.value)}
-                    placeholder={t.placeholderLandSize}
-                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
-                  />
-                </div>
-              </div>
-
-              {/* 7/12 Land Record Input */}
-              <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-1.5">
-                <label className="block text-xs font-bold text-emerald-950 flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <BadgeCheck className="w-4 h-4 text-emerald-700" />
-                    {t.labelSaatBara}
-                  </span>
-                  <span className="text-[10px] text-emerald-700 font-semibold">
-                    {t.labelSaatBaraBadge}
-                  </span>
-                </label>
-                <input
-                  type="text"
-                  value={saatBara}
-                  onChange={(e) => setSaatBara(e.target.value)}
-                  placeholder={t.placeholderSaatBara}
-                  className="w-full px-3 py-2 rounded-xl border border-emerald-300 bg-white text-xs font-semibold text-stone-900 focus:outline-hidden focus:border-emerald-600"
-                />
-                <p className="text-[11px] text-emerald-800">
-                  {t.labelSaatBaraNote}
-                </p>
               </div>
 
               {/* Crop Selection Tags */}
@@ -629,6 +690,53 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                   ))}
                 </div>
               </div>
+
+              {/* Preferred Communication Channel */}
+              <div className="p-3 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4] space-y-2">
+                <label className="block text-xs font-bold text-stone-700">
+                  {t.preferredContactLabel}
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPreferredChannel('WHATSAPP')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      preferredChannel === 'WHATSAPP'
+                        ? 'bg-[#1B4332] text-white shadow-xs'
+                        : 'bg-white text-stone-600 border border-[#E5DFD4]'
+                    }`}
+                  >
+                    <span>WhatsApp</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPreferredChannel('SMS')}
+                    className={`py-2 px-3 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      preferredChannel === 'SMS'
+                        ? 'bg-[#1B4332] text-white shadow-xs'
+                        : 'bg-white text-stone-600 border border-[#E5DFD4]'
+                    }`}
+                  >
+                    <span>SMS</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Explicit Mandatory Data Consent */}
+              <div className="p-3 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4]">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={consentAccepted}
+                    onChange={(e) => setConsentAccepted(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-[#E5DFD4] text-[#1B4332] focus:ring-[#1B4332]"
+                    required
+                  />
+                  <span className="text-xs text-stone-700 leading-snug">
+                    {t.authConsentFarmer} <span className="text-red-500">*</span>
+                  </span>
+                </label>
+              </div>
             </div>
           )}
 
@@ -642,6 +750,30 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                 <span className="text-[10px] px-2 py-0.5 bg-amber-50 text-amber-800 rounded-md font-bold border border-amber-200">
                   {t.badgeSuperAdminApproval}
                 </span>
+              </div>
+
+              {/* Organisation Review Notice */}
+              <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200 text-xs text-amber-900 font-medium flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>{t.buyerUnderReviewNotice}</span>
+              </div>
+
+              {/* Buyer Category Selector */}
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  {t.buyerCategoryLabel} <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={buyerCategory}
+                  onChange={(e) => setBuyerCategory(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                >
+                  <option value="Processor / Mill">{currentLang === 'en' ? 'Processor / Mill (Oil / Dal / Sugar)' : currentLang === 'hi' ? 'प्रसंस्करणकर्ता / मिल (तेल, दाल)' : 'प्रक्रियादार / मिल (ऑइल, डाळ, साखर)'}</option>
+                  <option value="Trader">{currentLang === 'en' ? 'Licensed APMC Trader / Commission Agent' : currentLang === 'hi' ? 'लाइसेंसधारी APMC व्यापारी' : 'परवानाधारक APMC व्यापारी / आडतदार'}</option>
+                  <option value="Institutional Buyer">{currentLang === 'en' ? 'Institutional Buyer / Corporate FMCG' : currentLang === 'hi' ? 'संस्थागत खरीदार / FMCG' : 'संस्थात्मक खरेदीदार / कॉर्पोरेट FMCG'}</option>
+                  <option value="FPO / Cooperative">{currentLang === 'en' ? 'FPO / Farmers Cooperative Society' : currentLang === 'hi' ? 'FPO / किसान सहकारी समिति' : 'FPO / शेतकरी उत्पादक सहकारी संस्था'}</option>
+                  <option value="Retail / Aggregator">{currentLang === 'en' ? 'Retailer / Bulk Aggregator' : currentLang === 'hi' ? 'थोक एग्रीगेटर / खुदरा व्यापारी' : 'घाऊक संकलक / किरकोळ विक्रेता'}</option>
+                </select>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -814,7 +946,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                   {currentLang === 'en' ? 'Transporter & Vehicle Details' : currentLang === 'hi' ? 'वाहन एवं चालक विवरण' : 'वाहतूकदार व वाहन तपशील'}
                 </span>
                 <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md font-bold border border-emerald-200">
-                  {currentLang === 'en' ? 'Instant Activation' : currentLang === 'hi' ? 'तत्काल सक्रियता' : 'तात्काळ सक्रिय'}
+                  {t.transporterActivationNotice}
                 </span>
               </div>
 
@@ -931,10 +1063,208 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                   className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold font-mono"
                 />
                 <p className="text-[11px] text-stone-500 mt-1">
-                  {currentLang === 'en' ? 'Government standard rural tariff is ₹4.20/km for 5-Ton, ₹4.80/km for Pickup' :
-                   currentLang === 'hi' ? 'मानक ग्रामीण दर: आयशर ₹4.20/किमी, पिकअप ₹4.80/किमी' :
-                   'प्रमाणित ग्रामीण दर: आयशर ₹४.२०/किमी, पिकअप ₹४.८०/किमी'}
+                  {t.transporterTariffDisclaimer}
                 </p>
+              </div>
+            </div>
+          )}
+
+          {/* REGISTRATION FIELDS FOR FPO (FARMER PRODUCER COMPANY) */}
+          {mode === 'register' && role === 'FPO' && (
+            <div className="space-y-4 pt-2 border-t border-[#E5DFD4]">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-[#1B4332] uppercase tracking-wider">
+                  {currentLang === 'en' ? 'FPO / Farmer Cooperative Registration' : currentLang === 'hi' ? 'FPO / कृषक उत्पादक कंपनी पंजीकरण' : 'शेतकरी उत्पादक संस्था (FPO) नोंदणी'}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 bg-emerald-50 text-emerald-800 rounded-md font-bold border border-emerald-200">
+                  {currentLang === 'en' ? 'Institutional Aggregator' : currentLang === 'hi' ? 'संस्थागत एकत्रीकरण' : 'अधिकृत शेतकरी संघ'}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'FPO Legal / Society Name' : currentLang === 'hi' ? 'FPO / समिति का नाम' : 'FPO / संस्थेचे अधिकृत नाव'} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="उदा. सह्याद्री शेतकरी उत्पादक कंपनी लि."
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'CIN / Society Reg. Number' : currentLang === 'hi' ? 'पंजीकरण / CIN संख्या' : 'नोंदणी / CIN क्रमांक'} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={licenseNumber}
+                    onChange={(e) => setLicenseNumber(e.target.value.toUpperCase())}
+                    placeholder="U01409MH2024PTC392811"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-mono font-bold uppercase tracking-wider"
+                    required
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'Authorized Director / Manager' : currentLang === 'hi' ? 'अधिकृत संचालक / प्रबंधक' : 'अधिकृत संचालक / व्यवस्थापक'} <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={repName}
+                    onChange={(e) => setRepName(e.target.value)}
+                    placeholder="उदा. कैलासराव शिंदे"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'Active Member Farmers Count' : currentLang === 'hi' ? 'सक्रिय किसान सदस्य संख्या' : 'एकूण सभासद शेतकरी संख्या'}
+                  </label>
+                  <input
+                    type="number"
+                    value={dailyCapacity}
+                    onChange={(e) => setDailyCapacity(e.target.value)}
+                    placeholder="उदा. 120 सभासद"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {t.fieldDistrict} <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={district}
+                    onChange={(e) => {
+                      const newDist = e.target.value;
+                      setDistrict(newDist);
+                      const opt = DISTRICT_OPTIONS.find(d => d.id === newDist);
+                      if (opt && opt.talukas && opt.talukas.length > 0) {
+                        setTaluka(opt.talukas[0].en);
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                  >
+                    {DISTRICT_OPTIONS.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d[currentLang] || d.en}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {t.fieldTaluka}
+                  </label>
+                  <select
+                    value={taluka}
+                    onChange={(e) => setTaluka(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                  >
+                    {(() => {
+                      const selectedDistObj = DISTRICT_OPTIONS.find(d => d.id === district) || DISTRICT_OPTIONS[0];
+                      const talukas = selectedDistObj.talukas || [];
+                      return talukas.map((tal) => (
+                        <option key={tal.id} value={tal.en}>
+                          {tal[currentLang] || tal.en}
+                        </option>
+                      ));
+                    })()}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  {currentLang === 'en' ? 'FPO Aggregation Center / Warehouse Address' : currentLang === 'hi' ? 'FPO संकलन केंद्र / गोदाम का पता' : 'FPO संकलन केंद्र / गोदाम पत्ता'}
+                </label>
+                <input
+                  type="text"
+                  value={factoryAddress}
+                  onChange={(e) => setFactoryAddress(e.target.value)}
+                  placeholder="उदा. प्लॉट नं. १२, ॲग्रो इंडस्ट्रियल पार्क, MIDC औसा"
+                  className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'Bank Settlement IFSC' : currentLang === 'hi' ? 'बैंक IFSC कोड' : 'FPO बँक खाते IFSC कोड'}
+                  </label>
+                  <input
+                    type="text"
+                    value={bankIfsc}
+                    onChange={(e) => setBankIfsc(e.target.value.toUpperCase())}
+                    placeholder="MAHB0000214"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-mono font-bold uppercase"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-stone-700 mb-1">
+                    {currentLang === 'en' ? 'Bank Account Number' : currentLang === 'hi' ? 'बैंक खाता संख्या' : 'FPO बँक खाते क्रमांक'}
+                  </label>
+                  <input
+                    type="text"
+                    value={saatBara}
+                    onChange={(e) => setSaatBara(e.target.value)}
+                    placeholder="६०१२९९८३४१२"
+                    className="w-full px-3 py-2 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-mono font-bold"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1.5">
+                  {currentLang === 'en' ? 'Primary Aggregated Commodities' : currentLang === 'hi' ? 'प्रमुख संकलित फसलें' : 'प्रमुख संकलित पिके'}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {CROP_OPTIONS.map(crop => (
+                    <button
+                      type="button"
+                      key={crop.id}
+                      onClick={() => toggleCrop(crop.id)}
+                      className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                        crops.includes(crop.id)
+                          ? 'bg-[#1B4332] text-white'
+                          : 'bg-[#FAF7F2] text-stone-600 border border-[#E5DFD4] hover:border-[#1B4332]'
+                      }`}
+                    >
+                      {crop[currentLang] || crop.en}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200">
+                <label className="flex items-start gap-2.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={consentAccepted}
+                    onChange={(e) => setConsentAccepted(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 text-[#1B4332] rounded focus:ring-[#1B4332]"
+                  />
+                  <span className="text-[11px] text-stone-700 leading-snug">
+                    {currentLang === 'en' 
+                      ? 'I certify that this FPO is authorized to pool member produce and represent farmers for collective procurement under Maharashtra APMC Rules.' 
+                      : currentLang === 'hi' 
+                      ? 'मैं प्रमाणित करता हूँ कि यह FPO महाराष्ट्र APMC नियमों के तहत सामूहिक खरीद के लिए किसान उपज एकत्र करने हेतु अधिकृत है।' 
+                      : 'मी प्रमाणित करतो की ही FPO संस्था महाराष्ट्र APMC नियमांनुसार सभासद शेतकऱ्यांचा शेतमाल एकत्र करून सामूहिक विक्री करण्यास अधिकृत आहे.'}
+                  </span>
+                </label>
               </div>
             </div>
           )}
@@ -965,7 +1295,7 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
         <div className="mt-6 pt-4 border-t border-[#E5DFD4] flex items-center justify-center text-[11px] text-stone-500">
           <span className="flex items-center gap-1.5 font-medium">
             <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            100% Encrypted & Safe
+            {t.authSecureVerification}
           </span>
         </div>
 

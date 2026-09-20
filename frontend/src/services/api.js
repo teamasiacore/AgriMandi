@@ -36,6 +36,11 @@ export const api = {
   // Buyers & Deals
   getBuyers: () => client.get('/buyers').then(res => res.data),
   getDeals: (params) => client.get('/deals', { params }).then(res => res.data),
+  getDealById: (id) => client.get(`/deals/${id}`).then(res => res.data),
+  recordWeighmentAssay: (dealId, data) => client.post(`/deals/${dealId}/weighment-assay`, data).then(res => res.data),
+  getWeighmentAssay: (dealId) => client.get(`/deals/${dealId}/weighment-assay`).then(res => res.data),
+  settleDealEscrow: (dealId, data = {}) => client.post(`/deals/${dealId}/settle`, data).then(res => res.data),
+  getSettlementInvoice: (dealId) => client.get(`/deals/${dealId}/settlement-invoice`).then(res => res.data),
 
   // Transporters & Logistics
   getTransporters: (params) => client.get('/transporters', { params }).then(res => res.data),
@@ -43,11 +48,15 @@ export const api = {
   getTransporterById: (id) => client.get(`/transporters/${id}`).then(res => res.data),
   updateTransporterStatus: (id, is_available) => client.patch(`/transporters/${id}/status`, { is_available }).then(res => res.data),
   acceptTrip: (data) => client.post('/transporters/accept-trip', data).then(res => res.data),
+  dispatchDeal: (data) => client.post('/transporters/dispatch-deal', data).then(res => res.data),
+  updateTripMilestone: (dealId, data) => client.patch(`/transporters/trips/${dealId}/milestone`, data).then(res => res.data),
   getTransporterTrips: (id) => client.get(`/transporters/${id}/trips`).then(res => res.data),
 
-  // Auth
+  // Auth & Profile
   login: (data) => client.post('/auth/login', data).then(res => res.data),
   register: (data) => client.post('/auth/register', data).then(res => res.data),
+  getFarmerProfile: (id) => client.get(`/auth/farmer/profile/${id}`).then(res => res.data),
+  updateFarmerProfile: (id, data) => client.put(`/auth/farmer/profile/${id}`, data).then(res => res.data),
 
   // SuperAdmin Desk (ASIACore / Satya123)
   adminLogin: (data) => client.post('/admin/login', data).then(res => res.data),
@@ -61,7 +70,15 @@ export const api = {
   deleteFarmer: (id) => client.delete(`/admin/farmers/${id}`).then(res => res.data),
   getAdminLots: () => client.get('/admin/lots').then(res => res.data),
   getAdminDeals: () => client.get('/admin/deals').then(res => res.data),
-  getSupabaseStatus: () => client.get('/admin/supabase-status').then(res => res.data)
+  getSupabaseStatus: () => client.get('/admin/supabase-status').then(res => res.data),
+
+  // FPO Aggregation Desk
+  getFpoProfile: (identifier) => client.get(`/fpo/profile/${identifier}`).then(res => res.data),
+  getFpoEligibleLots: (params) => client.get('/fpo/eligible-lots', { params }).then(res => res.data),
+  poolFpoLots: (data) => client.post('/fpo/pool', data).then(res => res.data),
+  getFpoBulkLots: (fpoId) => client.get('/fpo/bulk-lots', { params: { fpo_id: fpoId } }).then(res => res.data),
+  getFpoDeals: (fpoId) => client.get('/fpo/deals', { params: { fpo_id: fpoId } }).then(res => res.data),
+  getFpoPayoutSplit: (dealId) => client.get(`/fpo/deals/${dealId}/payout-split`).then(res => res.data)
 };
 
 export default api;

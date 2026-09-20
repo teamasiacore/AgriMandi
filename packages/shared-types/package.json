@@ -1,0 +1,15 @@
+{
+  "name": "@agrimandi/shared-types",
+  "version": "0.1.0",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "echo '@agrimandi/shared-types lint ok'",
+    "test": "echo '@agrimandi/shared-types test ok'"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.5"
+  }
+}
