@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Truck, ShieldCheck, MapPin, Gauge, Power, Star, Phone, FileCheck } from 'lucide-react';
+import { Truck, ShieldCheck, MapPin, Gauge, Power, Star, Phone, FileCheck, Clock } from 'lucide-react';
 
 export default function DriverHeader({ transporter, onStatusChange, currentLang = 'mr' }) {
   const [updating, setUpdating] = useState(false);
   const isAvailable = transporter?.is_available !== false;
+  const isVerified = Boolean(transporter?.is_verified && (transporter?.status === 'ACTIVE_FOR_BOOKINGS' || transporter?.status === 'ACTIVE'));
 
   const handleToggle = async () => {
     setUpdating(true);
@@ -29,10 +30,17 @@ export default function DriverHeader({ transporter, onStatusChange, currentLang 
               <h1 className="text-2xl sm:text-3xl font-bold font-heading text-[#1B4332]">
                 {transporter?.name || transporter?.driver_name || 'Agri Transporter'}
               </h1>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                {currentLang === 'en' ? 'Verified Logistics Partner' : currentLang === 'hi' ? 'सत्यापित वाहन चालक' : 'सत्यापित कृषी वाहतूकदार'}
-              </span>
+              {isVerified ? (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                  {currentLang === 'en' ? 'Verified Logistics Partner' : currentLang === 'hi' ? 'सत्यापित वाहन चालक' : 'सत्यापित कृषी वाहतूकदार'}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 text-xs font-bold">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  {currentLang === 'en' ? 'Vehicle Under Review' : currentLang === 'hi' ? 'समीक्षाधीन वाहन प्रोफाइल' : 'वाहन पुनरावलोकनाधीन'}
+                </span>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center gap-3 text-xs text-stone-600 font-medium">

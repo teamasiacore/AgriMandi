@@ -71,6 +71,9 @@ export const api = {
   deleteFarmer: (id) => client.delete(`/admin/farmers/${id}`).then(res => res.data),
   getAdminLots: () => client.get('/admin/lots').then(res => res.data),
   getAdminDeals: () => client.get('/admin/deals').then(res => res.data),
+  getAdminTransporters: () => client.get('/admin/transporters').then(res => res.data),
+  verifyTransporter: (id, data = {}) => client.post(`/admin/transporters/${id}/verify`, data).then(res => res.data),
+  rejectTransporter: (id, data = {}) => client.post(`/admin/transporters/${id}/reject`, data).then(res => res.data),
   getSupabaseStatus: () => client.get('/admin/supabase-status').then(res => res.data),
 
   // FPO Aggregation Desk

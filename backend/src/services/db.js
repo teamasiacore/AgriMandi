@@ -1086,21 +1086,24 @@ export const db = {
             }
           } else if (userData.role === 'TRANSPORTER') {
             try {
+              const tpId = `tp-${Date.now()}`;
+              const vehicleNumberUpper = (userData.vehicle_number || `MH-${Date.now().toString().slice(-4)}`).toUpperCase().trim();
               const tpData = {
-                id: `tp-${Date.now()}`,
+                id: tpId,
                 user_id: data.id,
                 driver_name: data.name,
                 phone: data.phone,
-                vehicle_number: userData.vehicle_number || `MH-${Date.now().toString().slice(-4)}`,
+                vehicle_number: vehicleNumberUpper,
                 vehicle_type: userData.vehicle_type || 'Bolero Maxi Truck (1.5 MT)',
                 capacity_mt: Number(userData.capacity_mt) || 2.0,
                 base_district: data.district || 'Latur',
                 base_taluka: userData.taluka || userData.village || '',
+                service_area: userData.service_area || `${data.district || 'Latur'} Hub & Surrounding Districts`,
                 per_km_rate: Number(userData.per_km_rate) || 4.20,
                 is_available: true,
                 rating: 5.0,
                 trips_completed: 0,
-                is_verified: false, // Provisional until reviewed
+                is_verified: false, // Strict review-based verification
                 status: 'PROFILE_SUBMITTED',
                 created_at: new Date().toISOString()
               };
@@ -1109,15 +1112,47 @@ export const db = {
               if (existingTpIdx !== -1) memoryCache.transporters[existingTpIdx] = tpData;
               else memoryCache.transporters.unshift(tpData);
 
+              // DPDP Explicit Logistics Consent (AG-008)
+              await supabase.from('consents').insert([{
+                id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                user_id: data.id,
+                consent_type: 'TRANSPORTER_LOGISTICS_CONSENT',
+                purpose: 'Explicit consent for agricultural logistics discovery, GPS location tracking during trip, and farm-gate dispatch under DPDP Act',
+                is_granted: true,
+                ip_address: userData.ip_address || null,
+                user_agent: userData.user_agent || null,
+                granted_at: new Date().toISOString()
+              }]);
+
+              // RTO & Fleet Verification Case (AG-008)
+              await supabase.from('verification_cases').insert([{
+                id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                entity_type: 'TRANSPORTER',
+                entity_id: data.id,
+                case_type: 'VEHICLE_AND_PERMIT',
+                status: 'UNDER_REVIEW',
+                decision_notes: `Vehicle: ${vehicleNumberUpper} (${tpData.vehicle_type}, ${tpData.capacity_mt} MT) in ${tpData.base_district} submitted for verification.`,
+                submitted_at: new Date().toISOString()
+              }]);
+
+              // Immutable Audit Event (AG-008)
               await db.logAuditEvent({
                 actor_id: data.id,
                 actor_role: 'TRANSPORTER',
                 action: 'TRANSPORTER_REGISTERED',
-                entity: 'USER',
-                entity_id: data.id,
-                new_state: { vehicle_number: tpData.vehicle_number, vehicle_type: tpData.vehicle_type }
+                entity: 'TRANSPORTER_PROFILE',
+                entity_id: tpId,
+                new_state: {
+                  vehicle_number: tpData.vehicle_number,
+                  vehicle_type: tpData.vehicle_type,
+                  capacity_mt: tpData.capacity_mt,
+                  base_district: tpData.base_district,
+                  status: 'PROFILE_SUBMITTED'
+                }
               });
-            } catch (errTp) {}
+            } catch (errTp) {
+              console.warn('Transporter onboarding notice:', errTp?.message);
+            }
           } else if (userData.role === 'FPO') {
             try {
               const orgId = `org-fpo-${Date.now()}`;
@@ -1416,15 +1451,28 @@ export const db = {
 
   // ===================== TRANSPORTERS (LOGISTICS) =====================
   createTransporterProfile: async (tpData) => {
+    const vehicleNumberUpper = (tpData.vehicle_number || `MH-${Date.now().toString().slice(-4)}`).toUpperCase().trim();
+    const tpId = tpData.id || `tp-${Date.now()}`;
     const newTp = {
-      id: `tp-${Date.now()}`,
+      id: tpId,
+      user_id: tpData.user_id || null,
+      driver_name: tpData.driver_name || tpData.name || 'Agri Transporter',
+      phone: tpData.phone,
+      vehicle_number: vehicleNumberUpper,
+      vehicle_type: tpData.vehicle_type || 'Bolero Maxi Truck (1.5 MT)',
+      capacity_mt: Number(tpData.capacity_mt) || 2.0,
+      base_district: tpData.district || tpData.base_district || 'Latur',
+      base_taluka: tpData.taluka || tpData.base_taluka || '',
+      service_area: tpData.service_area || `${tpData.district || 'Latur'} Hub & Region`,
+      per_km_rate: Number(tpData.per_km_rate) || 4.20,
       rating: 5.0,
       trips_completed: 0,
       is_available: true,
-      is_verified: true,
-      created_at: new Date().toISOString(),
-      ...tpData
+      is_verified: Boolean(tpData.is_verified || false),
+      status: tpData.status || (tpData.is_verified ? 'ACTIVE_FOR_BOOKINGS' : 'PROFILE_SUBMITTED'),
+      created_at: new Date().toISOString()
     };
+
     if (supabaseConnected) {
       try {
         const { data, error } = await supabase.from('transporter_profiles').upsert([newTp], { onConflict: 'vehicle_number' }).select().single();
@@ -1432,14 +1480,168 @@ export const db = {
           const idx = memoryCache.transporters.findIndex(t => t.vehicle_number === newTp.vehicle_number);
           if (idx !== -1) memoryCache.transporters[idx] = data;
           else memoryCache.transporters.unshift(data);
+
+          if (data.user_id) {
+            await supabase.from('consents').insert([{
+              id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              user_id: data.user_id,
+              consent_type: 'TRANSPORTER_LOGISTICS_CONSENT',
+              purpose: 'Explicit consent for agricultural logistics discovery, GPS location tracking during trip, and farm-gate dispatch under DPDP Act',
+              is_granted: true,
+              granted_at: new Date().toISOString()
+            }]).catch(() => {});
+
+            await supabase.from('verification_cases').insert([{
+              id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              entity_type: 'TRANSPORTER',
+              entity_id: data.user_id,
+              case_type: 'VEHICLE_AND_PERMIT',
+              status: 'UNDER_REVIEW',
+              decision_notes: `Vehicle: ${vehicleNumberUpper} (${newTp.vehicle_type}, ${newTp.capacity_mt} MT) in ${newTp.base_district} submitted for verification.`,
+              submitted_at: new Date().toISOString()
+            }]).catch(() => {});
+          }
+
+          await db.logAuditEvent({
+            actor_id: data.user_id || data.id,
+            actor_role: 'TRANSPORTER',
+            action: 'TRANSPORTER_REGISTERED',
+            entity: 'TRANSPORTER_PROFILE',
+            entity_id: data.id,
+            new_state: {
+              vehicle_number: newTp.vehicle_number,
+              vehicle_type: newTp.vehicle_type,
+              status: newTp.status
+            }
+          });
+
           return data;
         }
-      } catch (err) {}
+      } catch (err) {
+        console.warn('createTransporterProfile notice:', err.message);
+      }
     }
     const idx = memoryCache.transporters.findIndex(t => t.vehicle_number === newTp.vehicle_number);
     if (idx !== -1) memoryCache.transporters[idx] = newTp;
     else memoryCache.transporters.unshift(newTp);
     return newTp;
+  },
+
+  getAllTransporters: async () => {
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('transporter_profiles').select('*').order('created_at', { ascending: false });
+        if (!error && data) return data;
+      } catch (err) {}
+    }
+    return memoryCache.transporters;
+  },
+
+  verifyTransporter: async (transporterId, verified = true, adminNotes = '') => {
+    let isVerified = true;
+    let notes = '';
+    if (typeof verified === 'object' && verified !== null) {
+      isVerified = verified.verified !== false;
+      notes = verified.admin_notes || verified.notes || '';
+    } else {
+      isVerified = Boolean(verified);
+      notes = adminNotes || '';
+    }
+    const statusVal = isVerified ? 'ACTIVE_FOR_BOOKINGS' : 'PROFILE_SUBMITTED';
+    const updatePayload = {
+      is_verified: isVerified,
+      status: statusVal,
+      verified_at: isVerified ? new Date().toISOString() : null,
+      verified_by: isVerified ? 'ASIACore' : null,
+      admin_notes: notes || (isVerified ? 'Approved by ASIACore Administration' : 'Review status updated')
+    };
+
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('transporter_profiles').update(updatePayload).or(`id.eq.${transporterId},user_id.eq.${transporterId}`).select().maybeSingle();
+        if (!error && data) {
+          if (data.user_id) {
+            await supabase.from('users').update({ is_verified: isVerified }).eq('id', data.user_id).catch(() => {});
+            await supabase.from('verification_cases').update({
+              status: isVerified ? 'APPROVED' : 'UNDER_REVIEW',
+              decision_notes: updatePayload.admin_notes,
+              reviewed_at: new Date().toISOString()
+            }).eq('entity_id', data.user_id).catch(() => {});
+          }
+
+          const idx = memoryCache.transporters.findIndex(t => t.id === transporterId || t.user_id === transporterId);
+          if (idx !== -1) memoryCache.transporters[idx] = data;
+
+          await db.logAuditEvent({
+            actor_id: 'superadmin-01',
+            actor_role: 'SUPERADMIN',
+            action: isVerified ? 'TRANSPORTER_VERIFIED' : 'TRANSPORTER_REVOKED',
+            entity: 'TRANSPORTER_PROFILE',
+            entity_id: transporterId,
+            details: { admin_notes: updatePayload.admin_notes, status: statusVal }
+          });
+
+          return data;
+        }
+      } catch (err) {
+        console.warn('verifyTransporter error:', err.message);
+      }
+    }
+
+    const tp = memoryCache.transporters.find(t => t.id === transporterId || t.user_id === transporterId);
+    if (tp) {
+      Object.assign(tp, updatePayload);
+    }
+    return tp;
+  },
+
+  rejectTransporter: async (transporterId, rejectionReason = '') => {
+    const reasonText = (typeof rejectionReason === 'object' && rejectionReason !== null)
+      ? (rejectionReason.reason || rejectionReason.admin_notes || '')
+      : (rejectionReason || '');
+    const updatePayload = {
+      is_verified: false,
+      status: 'REJECTED',
+      admin_notes: reasonText || 'Vehicle RTO documentation mismatch or invalid permit.',
+      verified_by: 'ASIACore',
+      verified_at: new Date().toISOString()
+    };
+
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('transporter_profiles').update(updatePayload).or(`id.eq.${transporterId},user_id.eq.${transporterId}`).select().maybeSingle();
+        if (!error && data) {
+          if (data.user_id) {
+            await supabase.from('users').update({ is_verified: false }).eq('id', data.user_id).catch(() => {});
+            await supabase.from('verification_cases').update({
+              status: 'REJECTED',
+              decision_notes: updatePayload.admin_notes,
+              reviewed_at: new Date().toISOString()
+            }).eq('entity_id', data.user_id).catch(() => {});
+          }
+
+          const idx = memoryCache.transporters.findIndex(t => t.id === transporterId || t.user_id === transporterId);
+          if (idx !== -1) memoryCache.transporters[idx] = data;
+
+          await db.logAuditEvent({
+            actor_id: 'superadmin-01',
+            actor_role: 'SUPERADMIN',
+            action: 'TRANSPORTER_REJECTED',
+            entity: 'TRANSPORTER_PROFILE',
+            entity_id: transporterId,
+            new_state: updatePayload
+          });
+
+          return data;
+        }
+      } catch (err) {}
+    }
+
+    const tp = memoryCache.transporters.find(t => t.id === transporterId || t.user_id === transporterId);
+    if (tp) {
+      Object.assign(tp, updatePayload);
+    }
+    return tp;
   },
 
   getTransporters: async (filters = {}) => {

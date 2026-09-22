@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, ShieldCheck, CheckCircle2, XCircle, Clock, 
   Building2, Sprout, Database, RefreshCw, LogOut, ArrowRight,
-  UserCheck, AlertTriangle, Eye, Award, ExternalLink, Lock, BadgeCheck, Trash2
+  UserCheck, AlertTriangle, Eye, Award, ExternalLink, Lock, BadgeCheck, Trash2, Truck
 } from 'lucide-react';
 import api from '../services/api';
 
@@ -27,14 +27,16 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
   const [loginError, setLoginError] = useState('');
 
   // Dashboard Data State
-  const [activeTab, setActiveTab] = useState('buyers'); // 'overview', 'buyers', 'farmers', 'lots'
+  const [activeTab, setActiveTab] = useState('buyers'); // 'overview', 'buyers', 'transporters', 'farmers', 'lots'
   const [stats, setStats] = useState(null);
   const [buyers, setBuyers] = useState([]);
+  const [transporters, setTransporters] = useState([]);
   const [farmers, setFarmers] = useState([]);
   const [lots, setLots] = useState([]);
   const [deals, setDeals] = useState([]);
   const [supabaseInfo, setSupabaseInfo] = useState(null);
   const [buyerFilter, setBuyerFilter] = useState('ALL'); // 'ALL', 'PENDING', 'VERIFIED'
+  const [transporterFilter, setTransporterFilter] = useState('ALL'); // 'ALL', 'PENDING', 'VERIFIED'
   const [loadingData, setLoadingData] = useState(false);
   const [actionNotice, setActionNotice] = useState('');
 
@@ -50,9 +52,10 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
   const loadDashboardData = async () => {
     setLoadingData(true);
     try {
-      const [statsRes, buyersRes, farmersRes, lotsRes, dealsRes, supaRes] = await Promise.all([
+      const [statsRes, buyersRes, transportersRes, farmersRes, lotsRes, dealsRes, supaRes] = await Promise.all([
         api.getAdminStats().catch(() => ({ stats: null })),
         api.getAdminBuyers().catch(() => ({ buyers: [] })),
+        api.getAdminTransporters().catch(() => ({ transporters: [] })),
         api.getAdminFarmers().catch(() => ({ farmers: [] })),
         api.getAdminLots().catch(() => ({ lots: [] })),
         api.getAdminDeals().catch(() => ({ deals: [] })),
@@ -61,6 +64,7 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
 
       if (statsRes?.stats) setStats(statsRes.stats);
       if (buyersRes?.buyers) setBuyers(buyersRes.buyers);
+      if (transportersRes?.transporters) setTransporters(transportersRes.transporters);
       if (farmersRes?.farmers) setFarmers(farmersRes.farmers);
       if (lotsRes?.lots) setLots(lotsRes.lots);
       if (dealsRes?.deals) setDeals(dealsRes.deals);
@@ -174,6 +178,33 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
     }
   };
 
+  // 1-Click Transporter Fleet Approval
+  const handleApproveTransporter = async (transporterId, vehicleNumber) => {
+    try {
+      await api.verifyTransporter(transporterId, {
+        admin_notes: 'Approved by SuperAdmin ASIACore. RTO fitness & commercial permit verified.'
+      });
+      setActionNotice(`✓ Vehicle "${vehicleNumber}" verified & activated for logistics bookings!`);
+      loadDashboardData();
+    } catch (err) {
+      alert('Error approving vehicle: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
+  // Reject Transporter Application
+  const handleRejectTransporter = async (transporterId, vehicleNumber) => {
+    const reason = window.prompt(`Enter rejection reason for "${vehicleNumber}":`, 'RTO fitness or driver license details mismatch.');
+    if (!reason) return;
+
+    try {
+      await api.rejectTransporter(transporterId, { reason });
+      setActionNotice(`Vehicle "${vehicleNumber}" registration rejected.`);
+      loadDashboardData();
+    } catch (err) {
+      alert('Error rejecting vehicle: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   // Filter buyers
   const filteredBuyers = buyers.filter(b => {
     if (buyerFilter === 'PENDING') return b.status === 'PENDING_VERIFICATION';
@@ -182,6 +213,15 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
   });
 
   const pendingCount = buyers.filter(b => b.status === 'PENDING_VERIFICATION').length;
+
+  // Filter transporters
+  const pendingTransportersCount = transporters.filter(t => t.status === 'PROFILE_SUBMITTED' || (!t.is_verified && t.status !== 'REJECTED')).length;
+
+  const filteredTransporters = transporters.filter(t => {
+    if (transporterFilter === 'PENDING') return t.status === 'PROFILE_SUBMITTED' || (!t.is_verified && t.status !== 'REJECTED');
+    if (transporterFilter === 'VERIFIED') return t.status === 'ACTIVE_FOR_BOOKINGS' || t.is_verified;
+    return true;
+  });
 
   // 1. RENDER LOGIN SCREEN IF NOT AUTHENTICATED
   if (!adminToken) {
@@ -426,6 +466,23 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
             {pendingCount > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-amber-400 text-[#1B4332] text-[10px] font-black">
                 {pendingCount}
+              </span>
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('transporters')}
+            className={`py-3 px-5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === 'transporters'
+                ? 'bg-[#1B4332] text-white shadow-xs'
+                : 'bg-white text-stone-600 hover:bg-[#FAF7F2] border border-[#E5DFD4]'
+            }`}
+          >
+            <Truck className="w-4 h-4" />
+            <span>Transporter Fleet Desk</span>
+            {pendingTransportersCount > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-400 text-[#1B4332] text-[10px] font-black">
+                {pendingTransportersCount}
               </span>
             )}
           </button>
@@ -785,6 +842,166 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* TAB 4: TRANSPORTER FLEET DESK */}
+        {activeTab === 'transporters' && (
+          <div className="space-y-4">
+            
+            {/* Filter pills */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setTransporterFilter('ALL')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors ${
+                    transporterFilter === 'ALL'
+                      ? 'bg-[#1B4332] text-white'
+                      : 'bg-white text-stone-600 border border-[#E5DFD4]'
+                  }`}
+                >
+                  All Vehicles ({transporters.length})
+                </button>
+                <button
+                  onClick={() => setTransporterFilter('PENDING')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 ${
+                    transporterFilter === 'PENDING'
+                      ? 'bg-amber-600 text-white'
+                      : 'bg-white text-amber-800 border border-amber-200'
+                  }`}
+                >
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Pending RTO Review ({pendingTransportersCount})</span>
+                </button>
+                <button
+                  onClick={() => setTransporterFilter('VERIFIED')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold cursor-pointer transition-colors flex items-center gap-1.5 ${
+                    transporterFilter === 'VERIFIED'
+                      ? 'bg-emerald-700 text-white'
+                      : 'bg-white text-emerald-800 border border-emerald-200'
+                  }`}
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>Active & Verified ({transporters.filter(t => t.is_verified || t.status === 'ACTIVE_FOR_BOOKINGS').length})</span>
+                </button>
+              </div>
+
+              <span className="text-xs text-stone-500">
+                Priority: Verify Commercial RTO Fitness & Driver Permit
+              </span>
+            </div>
+
+            {/* Transporters Table / Cards */}
+            <div className="bg-white rounded-3xl border border-[#E5DFD4] overflow-hidden shadow-xs">
+              {filteredTransporters.length === 0 ? (
+                <div className="p-12 text-center text-stone-500 text-xs">
+                  No transporter vehicles found in this category.
+                </div>
+              ) : (
+                <div className="divide-y divide-[#E5DFD4]">
+                  {filteredTransporters.map(transporter => {
+                    const isVerified = transporter.is_verified || transporter.status === 'ACTIVE_FOR_BOOKINGS';
+                    const isRejected = transporter.status === 'REJECTED';
+
+                    return (
+                      <div key={transporter.id} className="p-6 hover:bg-[#FAF7F2]/50 transition-colors space-y-4">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-base text-stone-900 font-mono tracking-wide">
+                                {transporter.vehicle_number}
+                              </span>
+                              {isVerified ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 text-[10px] font-bold">
+                                  <ShieldCheck className="w-3 h-3 text-emerald-700" />
+                                  <span>Active For Bookings</span>
+                                </span>
+                              ) : isRejected ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-800 border border-rose-300 text-[10px] font-bold">
+                                  <XCircle className="w-3 h-3 text-rose-700" />
+                                  <span>Rejected</span>
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 border border-amber-300 text-[10px] font-bold">
+                                  <Clock className="w-3 h-3 text-amber-700" />
+                                  <span>RTO Review Pending</span>
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-stone-600">
+                              Driver/Owner: <strong className="text-stone-900">{transporter.driver_name}</strong> • Phone: <strong className="text-stone-900">{transporter.phone}</strong> • Base: <span className="text-stone-700">{transporter.base_district}, {transporter.base_taluka || ''}</span>
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            {!isVerified && !isRejected && (
+                              <>
+                                <button
+                                  onClick={() => handleApproveTransporter(transporter.id, transporter.vehicle_number)}
+                                  className="px-4 py-2 rounded-xl bg-[#1B4332] hover:bg-[#143427] text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                                  <span>Verify & Activate Vehicle</span>
+                                </button>
+                                <button
+                                  onClick={() => handleRejectTransporter(transporter.id, transporter.vehicle_number)}
+                                  className="px-3 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold transition-colors cursor-pointer"
+                                >
+                                  <span>Reject</span>
+                                </button>
+                              </>
+                            )}
+
+                            {isVerified && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-[11px] text-emerald-800 font-semibold px-3 py-1 rounded-lg bg-emerald-50 border border-emerald-200">
+                                  RTO Verified {transporter.verified_at ? new Date(transporter.verified_at).toLocaleDateString() : ''}
+                                </span>
+                                <button
+                                  onClick={() => handleRejectTransporter(transporter.id, transporter.vehicle_number)}
+                                  className="px-2.5 py-1 rounded-lg text-rose-600 hover:bg-rose-50 text-xs font-medium border border-rose-200 cursor-pointer"
+                                >
+                                  Revoke
+                                </button>
+                              </div>
+                            )}
+
+                            {isRejected && (
+                              <button
+                                onClick={() => handleApproveTransporter(transporter.id, transporter.vehicle_number)}
+                                className="px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-bold transition-colors cursor-pointer"
+                              >
+                                Re-verify
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Vehicle Specs Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-[#FAF7F2] p-3 rounded-2xl border border-[#E5DFD4] text-xs">
+                          <div>
+                            <span className="text-stone-400 text-[10px] block font-bold uppercase">Vehicle Type</span>
+                            <span className="font-semibold text-stone-800">{transporter.vehicle_type || 'Commercial Truck'}</span>
+                          </div>
+                          <div>
+                            <span className="text-stone-400 text-[10px] block font-bold uppercase">Payload Capacity</span>
+                            <span className="font-semibold text-stone-800">{transporter.capacity_mt || 0} Metric Ton (MT)</span>
+                          </div>
+                          <div>
+                            <span className="text-stone-400 text-[10px] block font-bold uppercase">Freight Tariff</span>
+                            <span className="font-semibold text-[#1B4332]">₹{transporter.per_km_rate || 0} / KM</span>
+                          </div>
+                          <div>
+                            <span className="text-stone-400 text-[10px] block font-bold uppercase">Coverage Corridor</span>
+                            <span className="font-semibold text-stone-800">{transporter.service_area || 'Maharashtra State'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </div>

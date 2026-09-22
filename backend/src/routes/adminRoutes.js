@@ -116,6 +116,64 @@ router.post('/buyers/:id/reject', async (req, res) => {
   }
 });
 
+// 5.1 Get All Transporters (Fleet Review)
+router.get('/transporters', async (req, res) => {
+  try {
+    const transporters = await db.getAllTransporters();
+    res.json({
+      status: 'success',
+      count: transporters.length,
+      transporters
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// 5.2 Verify / Activate Transporter (1-Click SuperAdmin Verification)
+router.post('/transporters/:id/verify', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { admin_notes } = req.body;
+
+    const transporter = await db.verifyTransporter(id, true, admin_notes || 'Approved by SuperAdmin ASIACore after vehicle RTO & permit inspection.');
+
+    if (!transporter) {
+      return res.status(404).json({ status: 'error', message: 'Transporter not found' });
+    }
+
+    res.json({
+      status: 'success',
+      message: `Transporter vehicle "${transporter.vehicle_number}" has been successfully ACTIVATED for farm-gate bookings!`,
+      transporter
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// 5.3 Reject Transporter Application
+router.post('/transporters/:id/reject', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const transporter = await db.rejectTransporter(id, reason || 'Vehicle documentation or permit mismatch.');
+
+    if (!transporter) {
+      return res.status(404).json({ status: 'error', message: 'Transporter not found' });
+    }
+
+    res.json({
+      status: 'success',
+      message: `Transporter "${transporter.vehicle_number}" application has been REJECTED.`,
+      transporter
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // 6. Get All Farmers with 7/12 Land Records
 router.get('/farmers', async (req, res) => {
   try {

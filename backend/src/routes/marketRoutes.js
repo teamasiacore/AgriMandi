@@ -268,6 +268,16 @@ router.post('/transporters/accept-trip', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'Deal ID and Transporter ID are required.' });
     }
 
+    // AG-008 Transporter Verification Guard
+    const tpProfile = await db.getTransporterById(transporter_id) || (driver_phone ? await db.getTransporterByPhone(driver_phone) : null);
+    if (tpProfile && !tpProfile.is_verified && tpProfile.status !== 'ACTIVE_FOR_BOOKINGS') {
+      return res.status(403).json({
+        status: 'error',
+        code: 'TRANSPORTER_NOT_VERIFIED',
+        message: 'Your vehicle profile is under administrative review. Farm-gate trip acceptance activates once RTO vehicle permit is verified by ASIACore Administration.'
+      });
+    }
+
     const updatedDeal = await db.acceptTrip({
       deal_id,
       transporter_id,

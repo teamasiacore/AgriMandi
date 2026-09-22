@@ -91,6 +91,18 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
   };
 
   const handleAcceptTrip = async (trip, agreedFreight) => {
+    const isVerified = Boolean(transporter?.is_verified && (transporter?.status === 'ACTIVE_FOR_BOOKINGS' || transporter?.status === 'ACTIVE'));
+    if (!isVerified) {
+      alert(
+        currentLang === 'en'
+          ? 'Your vehicle profile is under administrative review by ASIACore. Farm-gate trip acceptance will activate once your RTO vehicle permit is verified.'
+          : currentLang === 'hi'
+          ? 'आपका वाहन प्रोफाइल ASIACore प्रशासन द्वारा समीक्षाधीन है। RTO वाहन परमिट सत्यापन के बाद ही ट्रिप स्वीकार करने की सुविधा उपलब्ध होगी।'
+          : 'आपले वाहन प्रोफाईल ASIACore प्रशासनाच्या पुनरावलोकनाखाली आहे. RTO वाहन परवाना पडताळणी पूर्ण झाल्यावरच थेट ट्रिप स्वीकारता येईल.'
+      );
+      return;
+    }
+
     const confirmMsg = currentLang === 'en' 
       ? `Accept farm-gate pickup for ${trip.crop} (${agreedFreight ? '₹' + agreedFreight : ''})?` 
       : currentLang === 'hi'
@@ -138,6 +150,7 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
   const completedTripsCount = myTrips.filter(t => t.delivery_status === 'DELIVERED' || t.delivery_status === 'COMPLETED').length + (transporter?.trips_completed || 0);
   const activeTrip = myTrips.find(t => ['DISPATCHED', 'AT_FARM_GATE', 'IN_TRANSIT'].includes(t.delivery_status));
   const totalEarnings = myTrips.reduce((acc, t) => acc + (Number(t.freight_amount) || 0), 0);
+  const isVerifiedTransporter = Boolean(transporter?.is_verified && (transporter?.status === 'ACTIVE_FOR_BOOKINGS' || transporter?.status === 'ACTIVE'));
 
   return (
     <div className="min-h-screen bg-[#FAF7F2] pb-16">
@@ -150,6 +163,30 @@ export default function TransporterPortal({ currentLang = 'mr' }) {
           <div className="p-3.5 rounded-2xl bg-emerald-100 border border-emerald-300 text-emerald-900 text-xs font-bold flex items-center gap-2 animate-in fade-in duration-200">
             <CheckCircle2 className="w-4 h-4 text-emerald-700" />
             <span>{actionNotice}</span>
+          </div>
+        )}
+
+        {/* Verification Review Notice Banner */}
+        {!isVerifiedTransporter && (
+          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 flex items-start gap-3 shadow-xs">
+            <Clock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+            <div className="space-y-1 text-xs">
+              <div className="flex items-center gap-2">
+                <p className="font-bold text-sm text-amber-950">
+                  {currentLang === 'en' ? 'Vehicle Profile Under Administrative Review' : currentLang === 'hi' ? 'वाहन प्रोफाइल प्रशासनिक समीक्षाधीन' : 'वाहन प्रोफाईल प्रशासकीय पुनरावलोकनाधीन'}
+                </p>
+                <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full uppercase font-bold tracking-wide">
+                  {transporter?.status || 'PROFILE_SUBMITTED'}
+                </span>
+              </div>
+              <p className="text-amber-800 leading-relaxed">
+                {currentLang === 'en'
+                  ? `Your vehicle registration (${transporter?.vehicle_number || 'Under Review'}) and commercial goods permit are currently being reviewed by ASIACore Administration. Direct farm-gate dispatch bookings will activate upon approval.`
+                  : currentLang === 'hi'
+                  ? `आपका वाहन नंबर (${transporter?.vehicle_number || 'समीक्षाधीन'}) और व्यावसायिक परमिट ASIACore प्रशासन द्वारा सत्यापन प्रक्रिया में है। स्वीकृति के बाद ही बुकिंग सक्रिय होगी।`
+                  : `आपला वाहन क्रमांक (${transporter?.vehicle_number || 'पुनरावलोकनात'}) व वाहतूक परवाना ASIACore प्रशासनाच्या पडताळणीत आहे. मंजुरीनंतरच थेट ट्रिप बुकिंग स्वीकारता येईल.`}
+              </p>
+            </div>
           </div>
         )}
 

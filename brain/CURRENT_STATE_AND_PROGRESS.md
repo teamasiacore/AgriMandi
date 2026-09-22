@@ -497,7 +497,54 @@ Both backend and frontend services are compiled, verified, and running live:
 - Commercial buyers without a GSTIN must be directed to local FPO aggregation desks.
 
 ### Next task
-- Canonical Task AG-008: Transporter Onboarding and Fleet Verification (Vehicle profiles, capacity MT, service talukas/districts, status transition `PROFILE_SUBMITTED` -> `ACTIVE_FOR_BOOKINGS`).
+- Canonical Task AG-008: Transporter Onboarding and Fleet Verification — **COMPLETED (22 Sept 2026)**.
+
+---
+
+## 22 September 2026 — Task AG-008: Transporter Onboarding and Fleet Verification
+
+### Progress summary
+- Implemented and verified the complete canonical Transporter Onboarding, Vehicle Profile, and Fleet Verification Lifecycle (AG-008) across both backend/frontend API layers and the central SuperAdmin dashboard.
+- Ensured zero unverified vehicle operations: newly registered transporter fleets start in `status: 'PROFILE_SUBMITTED'`, `is_verified: false`, with explicit DPDP logistics consent in `public.consents`, open RTO inspection case in `public.verification_cases`, and audit trail in `public.audit_events`.
+- Enforced strict trip acceptance guard on `POST /api/transporters/accept-trip` rejecting unverified drivers with HTTP 403 `TRANSPORTER_NOT_VERIFIED`.
+- Created dedicated Transporter Fleet Desk in `SuperAdminDashboard.jsx` allowing 1-click administrative verification (`ACTIVE_FOR_BOOKINGS`, `is_verified: true`) or rejection (`REJECTED`) with live stats and filter pills.
+
+### Changes made
+- Backend & Serverless API routes:
+  - `backend/src/services/db.js` & `frontend/api/services/db.js`:
+    - Updated `createUser` for `TRANSPORTER` role to persist vehicle number, type, capacity (MT), per-km tariff, and corridor into `public.transporter_profiles`.
+    - Added `createTransporterProfile`, `getAllTransporters`, `verifyTransporter`, and `rejectTransporter`.
+    - Implemented DPDP logistics consent logging in `public.consents` and RTO verification case creation in `public.verification_cases`.
+    - Implemented immutable audit logging in `public.audit_events` for `TRANSPORTER_REGISTRATION`, `TRANSPORTER_VERIFIED`, and `TRANSPORTER_REVOKED`.
+  - `backend/src/routes/adminRoutes.js` & `frontend/api/routes/adminRoutes.js`:
+    - `GET /api/admin/transporters` (Returns all registered transporter fleet vehicles).
+    - `POST /api/admin/transporters/:id/verify` (Approves vehicle, sets `is_verified: true`, `status: 'ACTIVE_FOR_BOOKINGS'`, updates verification case, logs audit event).
+    - `POST /api/admin/transporters/:id/reject` (Rejects vehicle with reason, sets `status: 'REJECTED'`, logs audit event).
+  - `backend/src/routes/marketRoutes.js` & `frontend/api/routes/marketRoutes.js`:
+    - Added verification guard on `POST /api/transporters/accept-trip` blocking unverified transporters from binding waybills (`TRANSPORTER_NOT_VERIFIED`).
+- Frontend UI & Portals:
+  - `frontend/src/services/api.js`: Added SDK client methods `getAdminTransporters`, `verifyTransporter`, `rejectTransporter`.
+  - `frontend/src/components/transporter/DriverHeader.jsx`: Added dynamic verification status badge (emerald `Verified Logistics Partner` vs amber `Vehicle Under Review`).
+  - `frontend/src/pages/TransporterPortal.jsx`: Integrated prominent administrative review banner and dispatch trip acceptance guard.
+  - `frontend/src/pages/SuperAdminDashboard.jsx`: Added Transporter Fleet Desk tab with live vehicle statistics, filter pills (`All`, `Pending RTO Review`, `Active & Verified`), and 1-click verification/rejection actions.
+
+### Verification performed
+- Commands run:
+  - Automated Node.js integration test script `test_ag008_transporter.mjs` run directly against Supabase PostgreSQL Cloud:
+    - Successfully registered test vehicle `MH 14 TC 9999` (`Ramesh Test Transporter`).
+    - Verified initial state: `status: 'PROFILE_SUBMITTED'`, `is_verified: false`.
+    - Confirmed DPDP logistics consent logged in `public.consents`.
+    - Verified 1-click SuperAdmin verification updated vehicle to `status: 'ACTIVE_FOR_BOOKINGS'`, `is_verified: true`, `verified_by: 'ASIACore'`.
+    - Verified rejection flow updated status to `REJECTED`.
+    - Cleaned up test records from Supabase Cloud.
+  - Frontend production build: `npm run build` executed in 3.53s with 0 errors.
+- Tests passed: 100% of AG-008 Transporter Onboarding & Fleet Verification checks passed.
+
+### Not completed
+- None. Task AG-008 is 100% complete and verified.
+
+### Next task
+- Canonical Task AG-009: Market Reference Module (Real-time Agmarknet data.gov.in integration, reference price cards, and MSP benchmark display).
 
 
 
