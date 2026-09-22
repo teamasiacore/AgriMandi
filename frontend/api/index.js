@@ -1,5 +1,7 @@
 import express from 'express';
 import cors from 'cors';
+import { requestIdMiddleware, structuredLogger, errorHandler } from './middleware/reliability.js';
+import { db } from './services/db.js';
 import mandiRoutes from './routes/mandiRoutes.js';
 import realizationRoutes from './routes/realizationRoutes.js';
 import marketRoutes from './routes/marketRoutes.js';
@@ -13,45 +15,74 @@ const app = express();
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'request-id']
 }));
 app.options('*', cors());
 app.use(express.json());
 
-// Health & Readiness checks (AG-005)
-app.get('/api/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    platform: 'AgriMandi B2B Agro Engine (24/7 Vercel Cloud Serverless)',
-    version: '2.0.0',
-    timestamp: new Date().toISOString()
-  });
-});
-app.get('/health', (req, res) => {
-  res.json({
-    status: 'healthy',
-    platform: 'AgriMandi B2B Agro Engine (24/7 Vercel Cloud Serverless)',
-    version: '2.0.0',
-    timestamp: new Date().toISOString()
-  });
-});
+// Foundation: Unique Request IDs & Structured Safe Logging (AG-005)
+app.use(requestIdMiddleware);
+app.use(structuredLogger);
 
-app.get('/api/ready', (req, res) => {
-  res.json({
-    status: 'ready',
-    database: 'connected',
-    service: 'agrimandi-serverless-api',
-    timestamp: new Date().toISOString()
+// Liveness Health Check (AG-005)
+const handleHealth = (req, res) => {
+  res.status(200).json({
+    status: 'healthy',
+    service: 'agrimandi-api',
+    platform: 'AgriMandi B2B Agro Engine (24/7 Vercel Cloud Serverless)',
+    version: '2.1.0',
+    uptime_seconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    requestId: req.id
   });
-});
-app.get('/ready', (req, res) => {
-  res.json({
-    status: 'ready',
-    database: 'connected',
+};
+
+app.get('/api/health', handleHealth);
+app.get('/health', handleHealth);
+
+// Readiness Check with Live Database Dependency Test (AG-005)
+const handleReady = async (req, res) => {
+  const dbStatus = db.getSupabaseStatus();
+  const dbStartTime = Date.now();
+  let dbHealthy = false;
+  let dbLatencyMs = 0;
+  let dbError = null;
+
+  try {
+    const users = await db.getAllUsers();
+    dbLatencyMs = Date.now() - dbStartTime;
+    dbHealthy = Array.isArray(users);
+  } catch (err) {
+    dbLatencyMs = Date.now() - dbStartTime;
+    dbError = err.message;
+  }
+
+  const isReady = dbHealthy;
+  const statusCode = isReady ? 200 : 503;
+
+  res.status(statusCode).json({
+    status: isReady ? 'ready' : 'degraded',
     service: 'agrimandi-serverless-api',
-    timestamp: new Date().toISOString()
+    checks: {
+      database: {
+        status: dbHealthy ? 'UP' : 'DOWN',
+        latency_ms: dbLatencyMs,
+        provider: 'Supabase PostgreSQL 15 Cloud',
+        error: dbError || undefined
+      },
+      storage_type: dbStatus.storageType,
+      environment: {
+        status: 'UP',
+        env: process.env.NODE_ENV || 'production'
+      }
+    },
+    timestamp: new Date().toISOString(),
+    requestId: req.id
   });
-});
+};
+
+app.get('/api/ready', handleReady);
+app.get('/ready', handleReady);
 
 // Mount Routes under both /api/* and root /* for seamless Vercel Serverless rewrite compatibility
 app.use('/api/mandi', mandiRoutes);
@@ -72,10 +103,7 @@ app.use('/fpo', fpoRoutes);
 app.use('/api', marketRoutes);
 app.use('/', marketRoutes);
 
-// Global Error Handler
-app.use((err, req, res, next) => {
-  console.error('API Error:', err);
-  res.status(500).json({ status: 'error', message: err.message || 'Internal Server Error' });
-});
+// Canonical Global Error Handler (Section 9 & 11)
+app.use(errorHandler);
 
 export default app;

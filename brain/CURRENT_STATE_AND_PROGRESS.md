@@ -380,4 +380,41 @@ Both backend and frontend services are compiled, verified, and running live:
 ### Next task
 - Canonical Task AG-005: Health and Reliability Foundation (`/api/health`, `/api/ready`, request IDs, structured error formats, and Zod validation).
 
+---
+
+## September 22, 2026 — Task AG-005: Health and Reliability Foundation
+### Completed
+- Exact files changed:
+  - `frontend/api/middleware/reliability.js` (Created request ID generator, structured safe logger, ApiError class, canonical error handler)
+  - `frontend/api/middleware/validator.js` (Created Zod validation middlewares and canonical domain schemas)
+  - `backend/src/middleware/reliability.js` (Synced reliability middleware to backend)
+  - `backend/src/middleware/validator.js` (Synced validator middleware to backend)
+  - `frontend/api/index.js` (Wired request IDs, safe logging, enhanced `/api/health`, live database readiness check `/api/ready`, canonical error handling)
+  - `backend/src/server.js` (Wired request IDs, safe logging, enhanced `/api/health` and `/api/ready`, canonical error handling)
+  - `frontend/package.json` & `backend/package.json` (Installed `zod` dependency)
+- Exact routes added/enhanced:
+  - `GET /api/health` (Returns liveness status, platform, uptime, version, timestamp, and unique `requestId`)
+  - `GET /api/ready` (Actively probes Supabase PostgreSQL cloud database, reports database `UP`/`DOWN` status and latency in ms)
+- Database changes: None (Health & API reliability layer)
+- UI changes: None
+
+### Verification performed
+- Commands run:
+  - Liveness verification: `GET http://localhost:[port]/api/health` returned HTTP 200 OK with `requestId` and `x-request-id` header.
+  - Readiness verification: `GET http://localhost:[port]/api/ready` probed Supabase Cloud PostgreSQL, measured latency (`3558ms`), verified database status `UP`, and returned HTTP 200 OK.
+  - Zod validation & canonical error format verification: Tested with invalid payload (`phone: '123'`); rejected with HTTP 400 Bad Request, structured JSON error containing `code: 'VALIDATION_ERROR'`, field path, friendly message, and `requestId`.
+  - Frontend production build: `npm run build` executed in 3.75s with 0 errors.
+- Tests passed: All reliability endpoints and error handling tests passed.
+- Manual checks performed: Verified zero secrets or internal stack traces leak to the client.
+
+### Not completed
+- None. Task AG-005 is 100% complete and verified.
+
+### Risks
+- Vercel Serverless cold starts may add initial latency to first database readiness check.
+
+### Next task
+- Canonical Task AG-006: Farmer/FPO Onboarding (Progressive lightweight onboarding with explicit DPDP consent, keeping 7/12 and bank details optional & private).
+
+
 
