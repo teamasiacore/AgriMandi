@@ -277,7 +277,7 @@ export const db = {
   createLot: async (lotData) => {
     const newLot = {
       id: lotData.id || `lot-${Date.now()}`,
-      status: 'LISTED',
+      status: lotData.status || 'LISTED',
       offers_count: 0,
       created_at: new Date().toISOString(),
       ...lotData
@@ -318,6 +318,14 @@ export const db = {
         const { data, error } = await supabase.from('produce_lots').insert([newLot]).select().single();
         if (!error && data) {
           memoryCache.lots.unshift(data);
+          await db.logAuditEvent({
+            actor_id: data.farmer_id || 'farmer',
+            actor_role: 'FARMER',
+            action: data.status === 'DRAFT' ? 'LOT_DRAFT_CREATED' : 'LOT_CREATED',
+            entity: 'PRODUCE_LOT',
+            entity_id: data.id,
+            details: { crop: data.crop, quantity_qtl: data.quantity_qtl, status: data.status }
+          });
           return data;
         }
         if (error) console.warn('Supabase createLot error:', error.message);
@@ -328,6 +336,119 @@ export const db = {
 
     memoryCache.lots.unshift(newLot);
     return newLot;
+  },
+
+  updateLot: async (id, updateData) => {
+    const payload = {
+      ...updateData,
+      updated_at: new Date().toISOString()
+    };
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('produce_lots').update(payload).eq('id', id).select().single();
+        if (!error && data) {
+          const idx = memoryCache.lots.findIndex(l => l.id === id);
+          if (idx !== -1) memoryCache.lots[idx] = data;
+          await db.logAuditEvent({
+            actor_id: data.farmer_id || 'farmer',
+            actor_role: 'FARMER',
+            action: 'LOT_UPDATED',
+            entity: 'PRODUCE_LOT',
+            entity_id: id,
+            details: payload
+          });
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase updateLot error:', err.message);
+      }
+    }
+    const lot = memoryCache.lots.find(l => l.id === id);
+    if (lot) Object.assign(lot, payload);
+    return lot;
+  },
+
+  publishLot: async (id) => {
+    const payload = {
+      status: 'LISTED',
+      published_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('produce_lots').update(payload).eq('id', id).select().single();
+        if (!error && data) {
+          const idx = memoryCache.lots.findIndex(l => l.id === id);
+          if (idx !== -1) memoryCache.lots[idx] = data;
+          await db.logAuditEvent({
+            actor_id: data.farmer_id || 'farmer',
+            actor_role: 'FARMER',
+            action: 'LOT_PUBLISHED',
+            entity: 'PRODUCE_LOT',
+            entity_id: id,
+            details: { status: 'LISTED' }
+          });
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase publishLot error:', err.message);
+      }
+    }
+    const lot = memoryCache.lots.find(l => l.id === id);
+    if (lot) Object.assign(lot, payload);
+    return lot;
+  },
+
+  cancelLot: async (id, reason = 'Cancelled by farmer') => {
+    const payload = {
+      status: 'CANCELLED',
+      cancellation_reason: reason,
+      updated_at: new Date().toISOString()
+    };
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('produce_lots').update(payload).eq('id', id).select().single();
+        if (!error && data) {
+          const idx = memoryCache.lots.findIndex(l => l.id === id);
+          if (idx !== -1) memoryCache.lots[idx] = data;
+          await db.logAuditEvent({
+            actor_id: data.farmer_id || 'farmer',
+            actor_role: 'FARMER',
+            action: 'LOT_CANCELLED',
+            entity: 'PRODUCE_LOT',
+            entity_id: id,
+            details: { reason }
+          });
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase cancelLot error:', err.message);
+      }
+    }
+    const lot = memoryCache.lots.find(l => l.id === id);
+    if (lot) Object.assign(lot, payload);
+    return lot;
+  },
+
+  deleteLot: async (id) => {
+    if (supabaseConnected) {
+      try {
+        await supabase.from('produce_lots').delete().eq('id', id);
+        await db.logAuditEvent({
+          actor_id: 'farmer',
+          actor_role: 'FARMER',
+          action: 'LOT_DELETED',
+          entity: 'PRODUCE_LOT',
+          entity_id: id,
+          details: { id }
+        });
+      } catch (err) {
+        console.warn('Supabase deleteLot error:', err.message);
+      }
+    }
+    const idx = memoryCache.lots.findIndex(l => l.id === id);
+    if (idx !== -1) memoryCache.lots.splice(idx, 1);
+    return { id, deleted: true };
   },
 
   updateLotStatus: async (id, status) => {
@@ -2743,3 +2864,4 @@ export const db = {
   }
 };
 
+export default db;

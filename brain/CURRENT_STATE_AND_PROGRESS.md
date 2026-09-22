@@ -587,8 +587,53 @@ Both backend and frontend services are compiled, verified, and running live:
 ### Not completed
 - None. Task AG-009 is 100% complete and verified.
 
+## 22 September 2026 — Task AG-010: Farmer Lot Creation and Management
+
+### Progress summary
+- Implemented and verified the complete canonical Farmer Lot Creation and Lifecycle Management module (AG-010).
+- Delivered full lot lifecycle support across 4 distinct states: `DRAFT` (Offline/Saved), `LISTED` (Marketplace Active), `DEAL_LOCKED` (Contract Locked), and `CANCELLED`.
+- Added complete lot management operations: Save as Draft, Edit lot attributes (price, qty, moisture assay, variety, address), 1-Click Publish to marketplace, Cancel lot with farmer reason tracking, and Permanent Delete for drafts.
+- Embedded immutable audit logging (`LOT_DRAFT_CREATED`, `LOT_CREATED`, `LOT_UPDATED`, `LOT_PUBLISHED`, `LOT_CANCELLED`, `LOT_DELETED`) written to `public.audit_events`.
+- Replaced monolithic lot list in `FarmerPortal.jsx` with an interactive desk featuring dynamic status filter pills with item counts (`ALL`, `LISTED`, `DRAFT`, `DEAL_LOCKED`, `CANCELLED`), status badges, and contextual action buttons.
+- Enhanced Lot Creation/Edit modal with dual-action workflow: "Save as Draft (Offline)" vs "Publish to Marketplace", edit mode pre-population, and live APMC benchmark reference callout.
+
+### Changes made
+- Backend & Serverless Services:
+  - `backend/src/services/db.js` & `frontend/api/services/db.js`:
+    - Updated `createLot` to handle `status: 'DRAFT'` or `'LISTED'` with `LOT_DRAFT_CREATED` / `LOT_CREATED` audit logs and safe foreign-key user fallback.
+    - Added `updateLot(id, updateData)` with `DEAL_LOCKED` edit lock protection and `LOT_UPDATED` audit log.
+    - Added `publishLot(id)` transitioning lot from `DRAFT` to `LISTED` with `LOT_PUBLISHED` audit log.
+    - Added `cancelLot(id, { reason })` recording `cancellation_reason` and logging `LOT_CANCELLED` audit log.
+    - Added `deleteLot(id)` for drafts cleanup with `LOT_DELETED` audit log.
+  - `backend/src/routes/marketRoutes.js` & `frontend/api/routes/marketRoutes.js`:
+    - `PUT /api/market/lots/:id`: Updates lot details (price, moisture, variety, address).
+    - `POST /api/market/lots/:id/publish`: 1-Click publish from draft to marketplace.
+    - `POST /api/market/lots/:id/cancel`: Cancels active listing with cancellation reason.
+    - `DELETE /api/market/lots/:id`: Permanently removes draft lot.
+- Frontend SDK & UI:
+  - `frontend/src/services/api.js`: Added SDK client methods `updateLot`, `publishLot`, `cancelLot`, `deleteLot`.
+  - `frontend/src/pages/FarmerPortal.jsx`:
+    - Added status filter pills (`ALL`, `LISTED`, `DRAFT`, `DEAL_LOCKED`, `CANCELLED`) with dynamic counters.
+    - Added contextual action buttons on lot cards: "Publish Now", "Edit", "Delete" for drafts; "Edit Lot", "Cancel Listing" for active listings; "Contract Slip" & "Weighment Slip" for locked deals.
+    - Enhanced lot creation modal to support editing existing lots and dual actions ("Save as Draft" vs "Publish to Market").
+  - `supabase/migrations/20260922_ag010_produce_lots_status_check.sql`: Added canonical migration to expand `produce_lots_status_check` constraint for `DRAFT` and `CANCELLED` and ensure `cancellation_reason` column exists.
+
+### Verification performed
+- Commands run:
+  - Automated Node.js integration test (`test_ag010_lot.mjs`):
+    - Verified draft creation with `status: 'DRAFT'`.
+    - Verified attribute updating (price: ₹4,950/Qtl, moisture: 9.2%).
+    - Verified 1-click publishing transitioning lot to `LISTED`.
+    - Verified lot cancellation with custom reason string transitioning lot to `CANCELLED`.
+    - Verified audit trail logging and test lot deletion.
+  - Frontend production build: `npm run build` executed in 3.53s with 0 errors.
+- Tests passed: 100% of AG-010 lot management and lifecycle checks passed.
+
+### Not completed
+- None. Task AG-010 is 100% complete and verified.
+
 ### Next task
-- Canonical Task AG-010: Farmer Lot Creation and Management (Draft, publish, cancel lot, moisture assays, quality grade FAQ, and origin geolocation).
+- Canonical Task AG-011: Buyer Demand Discovery & Structured Offer Negotiation Workflow.
 
 
 

@@ -67,10 +67,81 @@ router.post('/lots', async (req, res) => {
       farm_address,
       district,
       farm_lat: Number(farm_lat),
-      farm_lng: Number(farm_lng)
+      farm_lng: Number(farm_lng),
+      status: req.body.status || 'LISTED'
     });
 
-    res.status(201).json({ status: 'success', message: 'Produce Lot listed successfully', lot: newLot });
+    res.status(201).json({ status: 'success', message: 'Produce Lot created successfully', lot: newLot });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Update / Edit Lot (Farmer)
+router.put('/lots/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lot = await db.getLotById(id);
+    if (!lot) {
+      return res.status(404).json({ status: 'error', message: 'Lot not found' });
+    }
+    if (lot.status === 'DEAL_LOCKED') {
+      return res.status(400).json({ status: 'error', message: 'Cannot edit lot after deal is locked in contract.' });
+    }
+    const updated = await db.updateLot(id, req.body);
+    res.json({ status: 'success', message: 'Lot updated successfully', lot: updated });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Publish Draft Lot to Marketplace (Farmer)
+router.post('/lots/:id/publish', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lot = await db.getLotById(id);
+    if (!lot) {
+      return res.status(404).json({ status: 'error', message: 'Lot not found' });
+    }
+    const published = await db.publishLot(id);
+    res.json({ status: 'success', message: 'Lot published to marketplace successfully', lot: published });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Cancel Active Lot (Farmer)
+router.post('/lots/:id/cancel', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason = 'Cancelled by farmer' } = req.body;
+    const lot = await db.getLotById(id);
+    if (!lot) {
+      return res.status(404).json({ status: 'error', message: 'Lot not found' });
+    }
+    if (lot.status === 'DEAL_LOCKED') {
+      return res.status(400).json({ status: 'error', message: 'Cannot cancel lot with locked escrow contract.' });
+    }
+    const cancelled = await db.cancelLot(id, reason);
+    res.json({ status: 'success', message: 'Lot cancelled successfully', lot: cancelled });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Delete Draft Lot (Farmer)
+router.delete('/lots/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lot = await db.getLotById(id);
+    if (!lot) {
+      return res.status(404).json({ status: 'error', message: 'Lot not found' });
+    }
+    if (lot.status === 'DEAL_LOCKED') {
+      return res.status(400).json({ status: 'error', message: 'Cannot delete lot with active contract.' });
+    }
+    await db.deleteLot(id);
+    res.json({ status: 'success', message: 'Lot deleted successfully', id });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }

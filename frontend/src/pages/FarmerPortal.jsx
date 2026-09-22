@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { 
   TrendingUp, PlusCircle, ShieldCheck, CheckCircle2, 
   MapPin, RefreshCw, BarChart3, Truck, UserCheck, X, AlertCircle,
-  Calculator, Sparkles, ArrowRight, ArrowUpRight, Check, Info, ShieldAlert, Award, User, FileText, Printer, Scale
+  Calculator, Sparkles, ArrowRight, ArrowUpRight, Check, Info, ShieldAlert, Award, User, FileText, Printer, Scale,
+  Edit, Trash2, Send, Filter, Clock
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
@@ -117,6 +118,9 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
   const [deals, setDeals] = useState([]);
   const [selectedDealForDispatch, setSelectedDealForDispatch] = useState(null);
   const [isListingModalOpen, setIsListingModalOpen] = useState(false);
+  const [editingLot, setEditingLot] = useState(null);
+  const [lotFilter, setLotFilter] = useState('ALL');
+  const [actionLoading, setActionLoading] = useState(false);
   const [dealNotification, setDealNotification] = useState(null);
   const [selectedDealForContract, setSelectedDealForContract] = useState(null);
   const [selectedDealForWeighmentSlip, setSelectedDealForWeighmentSlip] = useState(null);
@@ -295,21 +299,74 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
     setIsListingModalOpen(true);
   };
 
-  const handleCreateLot = async (e) => {
-    e.preventDefault();
+  const handleOpenCreateModal = () => {
+    setEditingLot(null);
+    setLotForm({
+      crop: 'Soybean',
+      variety: '',
+      quantity_qtl: '',
+      expected_price_per_qtl: '',
+      moisture_percentage: '',
+      quality_grade: 'FAQ (Grade A)',
+      district: user.district || 'Latur',
+      taluka: user.taluka || '',
+      farm_address: user.village ? `${user.village}, ${user.district || 'Latur'}` : ''
+    });
+    setIsListingModalOpen(true);
+  };
+
+  const handleOpenEditModal = (lot) => {
+    setEditingLot(lot);
+    setLotForm({
+      crop: lot.crop || 'Soybean',
+      variety: lot.variety || '',
+      quantity_qtl: lot.quantity_qtl || '',
+      expected_price_per_qtl: lot.expected_price_per_qtl || '',
+      moisture_percentage: lot.moisture_percentage || '',
+      quality_grade: lot.quality_grade || 'FAQ (Grade A)',
+      district: lot.district || user.district || 'Latur',
+      taluka: lot.taluka || '',
+      farm_address: lot.farm_address || ''
+    });
+    setIsListingModalOpen(true);
+  };
+
+  const handleSaveLot = async (targetStatus = 'LISTED') => {
+    if (!lotForm.crop || !lotForm.quantity_qtl || !lotForm.expected_price_per_qtl || !lotForm.moisture_percentage || !lotForm.farm_address) {
+      alert(currentLang === 'en' ? 'Please fill in all mandatory fields (Crop, Qty, Price, Moisture, Address)' : 'कृपया सर्व आवश्यक रकाने भरा (पीक, प्रमाण, भाव, आर्द्रता, पत्ता)');
+      return;
+    }
+
+    setActionLoading(true);
     try {
-      const fullAddress = lotForm.taluka 
+      const fullAddress = lotForm.taluka && !lotForm.farm_address.includes(lotForm.taluka)
         ? `${lotForm.farm_address}, ${currentLang === 'en' ? 'Taluka' : currentLang === 'hi' ? 'तहसील' : 'ता.'} ${lotForm.taluka}`
         : lotForm.farm_address;
 
-      await api.createLot({
-        ...lotForm,
-        farm_address: fullAddress,
-        farmer_id: user.id || `usr-${user.phone || Date.now()}`,
-        farmer_name: user.name || user.full_name || 'Farmer',
-        farmer_phone: user.phone
-      });
+      if (editingLot) {
+        await api.updateLot(editingLot.id, {
+          ...lotForm,
+          farm_address: fullAddress,
+          status: targetStatus
+        });
+        alert(currentLang === 'en' ? '✓ Lot details updated successfully!' : currentLang === 'hi' ? '✓ लॉट विवरण सफलतापूर्वक अपडेट हो गया!' : '✓ लॉट तपशील यशस्वीरित्या अपडेट झाला!');
+      } else {
+        await api.createLot({
+          ...lotForm,
+          status: targetStatus,
+          farm_address: fullAddress,
+          farmer_id: user.id || `usr-${user.phone || Date.now()}`,
+          farmer_name: user.name || user.full_name || 'Farmer',
+          farmer_phone: user.phone
+        });
+        alert(targetStatus === 'DRAFT'
+          ? (currentLang === 'en' ? '✓ Lot saved as Draft (Offline). You can publish it to marketplace anytime.' : currentLang === 'hi' ? '✓ लॉट मसुदा (Draft) के रूप में सुरक्षित हुआ। आप कभी भी प्रकाशित कर सकते हैं।' : '✓ लॉट मसुदा (Draft) म्हणून सुरक्षित झाला आहे. आपण कधीही प्रकाशित करू शकता.')
+          : (currentLang === 'en' ? '✓ Harvest lot published to marketplace successfully! Buyers can now place bids.' : currentLang === 'hi' ? '✓ फसल लॉट सफलतापूर्वक प्रकाशित हो गया है! अब खरीदार बोली लगा सकेंगे।' : '✓ शेतीमाल लॉट बाजारात प्रकाशित झाला आहे! खरेदीदार आता बोली लावू शकतील.')
+        );
+      }
+
       setIsListingModalOpen(false);
+      setEditingLot(null);
       // Reset form
       setLotForm({
         crop: 'Soybean',
@@ -324,12 +381,60 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
       });
       loadLotsAndOffers(user);
       setActiveTab('lots');
-      alert(currentLang === 'en' ? '✓ Harvest lot published to marketplace successfully! Buyers can now place bids.' : 
-            currentLang === 'hi' ? '✓ फसल लॉट सफलतापूर्वक प्रकाशित हो गया है! अब खरीदार बोली लगा सकेंगे।' :
-            '✓ आपला शेतीमाल लॉट यशस्वीरित्या बाजारात लिस्ट झाला आहे! खरेदीदार आता बोली लावू शकतील.');
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || err.message;
       alert('Error: ' + msg);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handlePublishDraft = async (lotId) => {
+    setActionLoading(true);
+    try {
+      await api.publishLot(lotId);
+      alert(currentLang === 'en' ? '✓ Draft lot published to live marketplace!' : currentLang === 'hi' ? '✓ ड्राफ्ट लॉट अब मंडी बाज़ार में प्रकाशित हो गया है!' : '✓ मसुदा लॉट बाजारात थेट प्रकाशित झाला आहे!');
+      loadLotsAndOffers(user);
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCancelLot = async (lot) => {
+    const defaultReason = currentLang === 'en' ? 'Sold locally at mandi' : 'स्थानिक बाजारात विक्री झाली';
+    const reason = window.prompt(
+      currentLang === 'en' ? 'Reason for cancelling this listing (e.g., Sold locally, Price changed):' : currentLang === 'hi' ? 'लॉट रद्द करने का कारण दर्ज करें:' : 'हा लॉट रद्द करण्याचे कारण प्रविष्ट करा:',
+      defaultReason
+    );
+    if (reason === null) return; // user cancelled prompt
+
+    setActionLoading(true);
+    try {
+      await api.cancelLot(lot.id, { reason });
+      alert(currentLang === 'en' ? '✓ Listing cancelled.' : currentLang === 'hi' ? '✓ लॉट रद्द कर दिया गया।' : '✓ लॉट रद्द केला गेला आहे.');
+      loadLotsAndOffers(user);
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteDraft = async (lot) => {
+    const confirmMsg = currentLang === 'en' ? 'Permanently delete this draft lot?' : currentLang === 'hi' ? 'क्या आप इस ड्राफ्ट को हटाना चाहते हैं?' : 'हा ड्राफ्ट कायमचा नष्ट करायचा आहे का?';
+    if (!window.confirm(confirmMsg)) return;
+
+    setActionLoading(true);
+    try {
+      await api.deleteLot(lot.id);
+      alert(currentLang === 'en' ? '✓ Draft deleted.' : currentLang === 'hi' ? '✓ ड्राफ्ट हटा दिया गया।' : '✓ ड्राफ्ट डिलीट केला.');
+      loadLotsAndOffers(user);
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -1136,104 +1241,226 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
         )}
 
         {/* TAB 3: MY LISTED LOTS & RECEIVED OFFERS */}
-        {activeTab === 'lots' && (
-          <div className="mt-6 space-y-6">
-            
-            {/* Header */}
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-xl font-bold font-heading text-[#1B4332]">
-                  {t.statMyLots}
-                </h3>
-                <p className="text-xs text-stone-500">
-                  {t.tabMyLotsAndOffers}
-                </p>
-              </div>
+        {activeTab === 'lots' && (() => {
+          const filterCounts = {
+            ALL: myLots.length,
+            LISTED: myLots.filter(l => l.status === 'LISTED').length,
+            DRAFT: myLots.filter(l => l.status === 'DRAFT').length,
+            DEAL_LOCKED: myLots.filter(l => l.status === 'DEAL_LOCKED').length,
+            CANCELLED: myLots.filter(l => l.status === 'CANCELLED').length
+          };
+          const filteredLots = myLots.filter(l => lotFilter === 'ALL' ? true : l.status === lotFilter);
 
-              <button
-                onClick={() => setIsListingModalOpen(true)}
-                className="px-4 py-2 bg-[#1B4332] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs"
-              >
-                <PlusCircle className="w-4 h-4" /> {t.listProduceBtn}
-              </button>
-            </div>
-
-            {/* Empty State vs Lots Grid */}
-            {myLots.length === 0 ? (
-              <div className="bg-white rounded-2xl p-12 border border-[#E5DFD4] text-center max-w-lg mx-auto shadow-xs">
-                <div className="w-14 h-14 rounded-full bg-[#FAF7F2] border border-[#E5DFD4] flex items-center justify-center mx-auto text-[#1B4332] mb-4">
-                  <PlusCircle className="w-7 h-7 text-[#C86432]" />
+          return (
+            <div className="mt-6 space-y-6">
+              
+              {/* Header */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <h3 className="text-xl font-bold font-heading text-[#1B4332]">
+                    {t.statMyLots}
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    {t.tabMyLotsAndOffers}
+                  </p>
                 </div>
-                <h4 className="text-lg font-bold font-heading text-[#1B4332]">
-                  {currentLang === 'en' ? 'No Harvest Lots Listed' : currentLang === 'hi' ? 'कोई लॉट लिस्ट नहीं है' : 'कोणताही लॉट लिस्ट केलेला नाही'}
-                </h4>
-                <p className="text-xs text-stone-500 mt-2 leading-relaxed">
-                  {t.noLotsYet}
-                </p>
+
                 <button
-                  onClick={() => setIsListingModalOpen(true)}
-                  className="mt-5 px-5 py-2.5 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#2D6A4F] transition-all shadow-sm inline-flex items-center gap-2"
+                  onClick={handleOpenCreateModal}
+                  className="px-4 py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer self-start sm:self-auto"
                 >
-                  <PlusCircle className="w-4 h-4" /> {t.listProduceBtn}
+                  <PlusCircle className="w-4 h-4 text-emerald-300" /> {t.listProduceBtn}
                 </button>
               </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4">
-                {myLots.map((lot) => {
-                  const lotOffers = offers.filter(o => o.lot_id === lot.id);
+
+              {/* Status Filter Pills (AG-010) */}
+              <div className="flex flex-wrap items-center gap-2 pb-1 border-b border-[#E5DFD4]">
+                {[
+                  { key: 'ALL', label: currentLang === 'en' ? 'All Lots' : currentLang === 'hi' ? 'सभी लॉट' : 'सर्व लॉट्स', count: filterCounts.ALL },
+                  { key: 'LISTED', label: currentLang === 'en' ? 'Active in Market' : currentLang === 'hi' ? 'सक्रिय बाज़ार' : 'बाजारात सक्रिय', count: filterCounts.LISTED, color: 'emerald' },
+                  { key: 'DRAFT', label: currentLang === 'en' ? 'Drafts (Offline)' : currentLang === 'hi' ? 'मसुदा (ड्राफ्ट)' : 'मसुदा (ड्राफ्ट)', count: filterCounts.DRAFT, color: 'amber' },
+                  { key: 'DEAL_LOCKED', label: currentLang === 'en' ? 'Deal Locked' : currentLang === 'hi' ? 'सौदा पक्का' : 'सौदा पक्का', count: filterCounts.DEAL_LOCKED, color: 'blue' },
+                  { key: 'CANCELLED', label: currentLang === 'en' ? 'Cancelled' : currentLang === 'hi' ? 'रद्द' : 'रद्द केलेले', count: filterCounts.CANCELLED, color: 'rose' }
+                ].map(tab => {
+                  const isActive = lotFilter === tab.key;
                   return (
-                    <div key={lot.id} className="bg-white rounded-2xl p-5 border border-[#E5DFD4] shadow-xs">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-[#E5DFD4]">
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg font-bold font-heading text-[#1B4332]">
-                              {lot.crop} ({lot.variety})
-                            </span>
-                            <span className={`px-2.5 py-0.5 rounded text-[11px] font-bold uppercase ${
-                              lot.status === 'DEAL_LOCKED'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-amber-100 text-amber-800'
-                            }`}>
-                              {lot.status === 'DEAL_LOCKED' ? t.statusLocked : t.statusListed}
-                            </span>
-                            {lot.status === 'DEAL_LOCKED' && (
-                              <div className="flex items-center gap-1.5">
-                                <button
-                                  onClick={() => openDealContract(lot)}
-                                  className="px-3 py-1 bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
-                                >
-                                  <FileText className="w-3 h-3 text-[#DE7C4A]" />
-                                  <span>{currentLang === 'en' ? 'Contract Slip' : currentLang === 'hi' ? 'करार पावती' : 'करार पावती पहा'}</span>
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    const lotDeal = (Array.isArray(deals) ? deals.find(d => d.lot_id === lot.id) : null) || {
-                                      id: `deal-${lot.id}`,
-                                      lot_id: lot.id,
-                                      crop: lot.crop,
-                                      quantity_qtl: lot.quantity_qtl,
-                                      price_per_qtl: lot.expected_price_per_qtl,
-                                      total_deal_value: Number(lot.expected_price_per_qtl) * Number(lot.quantity_qtl),
-                                      farmer_name: lot.farmer_name || user.name,
-                                      farmer_phone: lot.farmer_phone || user.phone,
-                                      farmer_district: lot.district,
-                                      buyer_name: 'Verified Agro Processing Mill',
-                                      delivery_destination: 'Buyer Processing Facility Gate'
-                                    };
-                                    setSelectedDealForWeighmentSlip(lotDeal);
-                                  }}
-                                  className="px-2.5 py-1 bg-white border border-[#E5DFD4] hover:bg-[#FAF7F2] text-stone-700 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
-                                >
-                                  <Scale className="w-3 h-3 text-[#C86432]" />
-                                  <span>{currentLang === 'en' ? 'Weighment Slip' : currentLang === 'hi' ? 'वेब्रिज पावती' : 'वेब्रिज पावती'}</span>
-                                </button>
+                    <button
+                      key={tab.key}
+                      onClick={() => setLotFilter(tab.key)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                        isActive
+                          ? 'bg-[#1B4332] text-white shadow-2xs'
+                          : 'bg-[#FAF7F2] text-stone-600 hover:bg-[#E5DFD4] border border-[#E5DFD4]'
+                      }`}
+                    >
+                      <span>{tab.label}</span>
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                        isActive ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-700'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Empty State vs Lots Grid */}
+              {filteredLots.length === 0 ? (
+                <div className="bg-white rounded-2xl p-12 border border-[#E5DFD4] text-center max-w-lg mx-auto shadow-xs">
+                  <div className="w-14 h-14 rounded-full bg-[#FAF7F2] border border-[#E5DFD4] flex items-center justify-center mx-auto text-[#1B4332] mb-4">
+                    <PlusCircle className="w-7 h-7 text-[#C86432]" />
+                  </div>
+                  <h4 className="text-lg font-bold font-heading text-[#1B4332]">
+                    {lotFilter === 'ALL' 
+                      ? (currentLang === 'en' ? 'No Harvest Lots Listed' : currentLang === 'hi' ? 'कोई लॉट लिस्ट नहीं है' : 'कोणताही लॉट लिस्ट केलेला नाही')
+                      : (currentLang === 'en' ? `No ${lotFilter} lots found` : `या श्रेणीत कोणतेही लॉट आढळले नाहीत`)}
+                  </h4>
+                  <p className="text-xs text-stone-500 mt-2 leading-relaxed">
+                    {t.noLotsYet}
+                  </p>
+                  <button
+                    onClick={handleOpenCreateModal}
+                    className="mt-5 px-5 py-2.5 bg-[#1B4332] text-white rounded-xl text-xs font-bold hover:bg-[#2D6A4F] transition-all shadow-sm inline-flex items-center gap-2 cursor-pointer"
+                  >
+                    <PlusCircle className="w-4 h-4" /> {t.listProduceBtn}
+                  </button>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4">
+                  {filteredLots.map((lot) => {
+                    const lotOffers = offers.filter(o => o.lot_id === lot.id);
+                    return (
+                      <div key={lot.id} className="bg-white rounded-2xl p-5 border border-[#E5DFD4] shadow-xs">
+                        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-[#E5DFD4]">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className="text-lg font-bold font-heading text-[#1B4332]">
+                                {lot.crop} ({lot.variety})
+                              </span>
+
+                              {/* Status Badges */}
+                              {lot.status === 'LISTED' && (
+                                <span className="px-2.5 py-0.5 rounded text-[11px] font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                                  {currentLang === 'en' ? 'Market Active' : currentLang === 'hi' ? 'बाज़ार सक्रिय' : 'बाजारात सक्रिय'}
+                                </span>
+                              )}
+                              {lot.status === 'DRAFT' && (
+                                <span className="px-2.5 py-0.5 rounded text-[11px] font-bold uppercase bg-amber-100 text-amber-800 border border-amber-300 flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-amber-700" />
+                                  {currentLang === 'en' ? 'Draft (Offline)' : currentLang === 'hi' ? 'मसुदा (ऑफलाइन)' : 'मसुदा (ऑफलाइन)'}
+                                </span>
+                              )}
+                              {lot.status === 'DEAL_LOCKED' && (
+                                <span className="px-2.5 py-0.5 rounded text-[11px] font-bold uppercase bg-blue-100 text-blue-800 border border-blue-300 flex items-center gap-1">
+                                  <ShieldCheck className="w-3 h-3 text-blue-700" />
+                                  {t.statusLocked}
+                                </span>
+                              )}
+                              {lot.status === 'CANCELLED' && (
+                                <span className="px-2.5 py-0.5 rounded text-[11px] font-bold uppercase bg-rose-100 text-rose-800 border border-rose-300 flex items-center gap-1">
+                                  <X className="w-3 h-3 text-rose-700" />
+                                  {currentLang === 'en' ? 'Cancelled' : currentLang === 'hi' ? 'रद्द' : 'रद्द केलेला'}
+                                </span>
+                              )}
+
+                              {/* Action Buttons on Lot Card */}
+                              <div className="flex items-center gap-1.5 ml-auto md:ml-2">
+                                {lot.status === 'DRAFT' && (
+                                  <>
+                                    <button
+                                      disabled={actionLoading}
+                                      onClick={() => handlePublishDraft(lot.id)}
+                                      className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <Send className="w-3 h-3 text-emerald-200" />
+                                      <span>{currentLang === 'en' ? 'Publish Now' : currentLang === 'hi' ? 'प्रकाशित करें' : 'बाजारात पाठवा'}</span>
+                                    </button>
+                                    <button
+                                      disabled={actionLoading}
+                                      onClick={() => handleOpenEditModal(lot)}
+                                      className="px-2 py-1 bg-white border border-[#E5DFD4] hover:bg-[#FAF7F2] text-stone-700 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <Edit className="w-3 h-3 text-[#1B4332]" />
+                                      <span>{currentLang === 'en' ? 'Edit' : 'संपादित'}</span>
+                                    </button>
+                                    <button
+                                      disabled={actionLoading}
+                                      onClick={() => handleDeleteDraft(lot)}
+                                      className="px-2 py-1 bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <Trash2 className="w-3 h-3 text-rose-600" />
+                                      <span>{currentLang === 'en' ? 'Delete' : 'हटवा'}</span>
+                                    </button>
+                                  </>
+                                )}
+
+                                {lot.status === 'LISTED' && (
+                                  <>
+                                    <button
+                                      disabled={actionLoading}
+                                      onClick={() => handleOpenEditModal(lot)}
+                                      className="px-2 py-1 bg-white border border-[#E5DFD4] hover:bg-[#FAF7F2] text-stone-700 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <Edit className="w-3 h-3 text-[#1B4332]" />
+                                      <span>{currentLang === 'en' ? 'Edit Lot' : 'संपादित'}</span>
+                                    </button>
+                                    <button
+                                      disabled={actionLoading}
+                                      onClick={() => handleCancelLot(lot)}
+                                      className="px-2 py-1 bg-white border border-stone-300 hover:bg-rose-50 hover:border-rose-300 text-stone-600 hover:text-rose-700 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <X className="w-3 h-3 text-rose-500" />
+                                      <span>{currentLang === 'en' ? 'Cancel Listing' : 'रद्द करा'}</span>
+                                    </button>
+                                  </>
+                                )}
+
+                                {lot.status === 'DEAL_LOCKED' && (
+                                  <>
+                                    <button
+                                      onClick={() => openDealContract(lot)}
+                                      className="px-3 py-1 bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <FileText className="w-3 h-3 text-[#DE7C4A]" />
+                                      <span>{currentLang === 'en' ? 'Contract Slip' : currentLang === 'hi' ? 'करार पावती' : 'करार पावती पहा'}</span>
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        const lotDeal = (Array.isArray(deals) ? deals.find(d => d.lot_id === lot.id) : null) || {
+                                          id: `deal-${lot.id}`,
+                                          lot_id: lot.id,
+                                          crop: lot.crop,
+                                          quantity_qtl: lot.quantity_qtl,
+                                          price_per_qtl: lot.expected_price_per_qtl,
+                                          total_deal_value: Number(lot.expected_price_per_qtl) * Number(lot.quantity_qtl),
+                                          farmer_name: lot.farmer_name || user.name,
+                                          farmer_phone: lot.farmer_phone || user.phone,
+                                          farmer_district: lot.district,
+                                          buyer_name: 'Verified Agro Processing Mill',
+                                          delivery_destination: 'Buyer Processing Facility Gate'
+                                        };
+                                        setSelectedDealForWeighmentSlip(lotDeal);
+                                      }}
+                                      className="px-2.5 py-1 bg-white border border-[#E5DFD4] hover:bg-[#FAF7F2] text-stone-700 text-[11px] font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                                    >
+                                      <Scale className="w-3 h-3 text-[#C86432]" />
+                                      <span>{currentLang === 'en' ? 'Weighment Slip' : currentLang === 'hi' ? 'वेब्रिज पावती' : 'वेब्रिज पावती'}</span>
+                                    </button>
+                                  </>
+                                )}
                               </div>
+                            </div>
+                            <p className="text-xs text-stone-500 mt-1">
+                              ID: {lot.id} | {lot.farm_address}, {lot.district}
+                              {lot.quality_grade && <span className="ml-2 font-medium text-stone-600">({lot.quality_grade})</span>}
+                            </p>
+                            {lot.status === 'CANCELLED' && lot.cancellation_reason && (
+                              <p className="text-[11px] text-rose-600 font-medium mt-0.5">
+                                {currentLang === 'en' ? 'Cancellation Note:' : 'रद्द करण्याचे कारण:'} {lot.cancellation_reason}
+                              </p>
                             )}
                           </div>
-                          <p className="text-xs text-stone-500 mt-0.5">
-                            ID: {lot.id} | {lot.farm_address}, {lot.district}
-                          </p>
-                        </div>
 
                         <div className="flex items-center gap-4 text-xs">
                           <div>
@@ -1513,8 +1740,9 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
               </div>
             )}
 
-          </div>
-        )}
+            </div>
+          );
+        })()}
 
         {/* TAB 4: FARMER PROFILE & 7/12 DESK */}
         {activeTab === 'profile' && (
@@ -1536,17 +1764,22 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 border border-[#E5DFD4] shadow-2xl relative">
             <div className="flex items-center justify-between pb-3 border-b border-[#E5DFD4]">
               <h3 className="text-lg font-bold font-heading text-[#1B4332]">
-                🌾 {t.modalAddLotTitle}
+                {editingLot 
+                  ? (currentLang === 'en' ? '✏️ Edit Harvest Lot' : currentLang === 'hi' ? '✏️ लॉट विवरण संपादित करें' : '✏️ शेतीमाल लॉट संपादित करा')
+                  : `🌾 ${t.modalAddLotTitle}`}
               </h3>
               <button
-                onClick={() => setIsListingModalOpen(false)}
-                className="text-stone-400 hover:text-stone-600"
+                onClick={() => {
+                  setIsListingModalOpen(false);
+                  setEditingLot(null);
+                }}
+                className="text-stone-400 hover:text-stone-600 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <form onSubmit={handleCreateLot} className="mt-4 space-y-3">
+            <form onSubmit={(e) => { e.preventDefault(); handleSaveLot(editingLot?.status === 'DRAFT' ? 'DRAFT' : 'LISTED'); }} className="mt-4 space-y-3">
               <div>
                 <label className="block text-xs font-bold text-stone-700 mb-1">{t.fieldCrop}</label>
                 <select
@@ -1705,20 +1938,43 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                 />
               </div>
 
-              <div className="pt-3 flex gap-3">
+              <div className="pt-3 flex flex-col sm:flex-row items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => setIsListingModalOpen(false)}
-                  className="w-1/2 py-2.5 rounded-xl border border-[#E5DFD4] text-xs font-bold text-stone-600 hover:bg-[#FAF7F2]"
+                  onClick={() => {
+                    setIsListingModalOpen(false);
+                    setEditingLot(null);
+                  }}
+                  className="w-full sm:w-auto px-4 py-2.5 rounded-xl border border-[#E5DFD4] text-xs font-bold text-stone-600 hover:bg-[#FAF7F2] cursor-pointer"
                 >
                   {t.btnCancel}
                 </button>
-                <button
-                  type="submit"
-                  className="w-1/2 py-2.5 rounded-xl bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-xs font-bold shadow-sm"
-                >
-                  {t.btnPublishLot}
-                </button>
+
+                <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => handleSaveLot('DRAFT')}
+                    className="flex-1 sm:flex-initial px-3.5 py-2.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-xs font-bold text-amber-900 transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Clock className="w-3.5 h-3.5 text-amber-700" />
+                    <span>{currentLang === 'en' ? 'Save as Draft' : currentLang === 'hi' ? 'ड्राफ्ट सहेजें' : 'मसुदा म्हणून ठेवा'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={actionLoading}
+                    onClick={() => handleSaveLot('LISTED')}
+                    className="flex-1 sm:flex-initial px-4 py-2.5 rounded-xl bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-xs font-bold shadow-xs transition-colors flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  >
+                    <Send className="w-3.5 h-3.5 text-emerald-300" />
+                    <span>
+                      {editingLot 
+                        ? (currentLang === 'en' ? 'Update & Publish' : currentLang === 'hi' ? 'अपडेट व प्रकाशित' : 'अपडेट व प्रकाशित करा')
+                        : (currentLang === 'en' ? 'Publish to Market' : currentLang === 'hi' ? 'बाज़ार में प्रकाशित करें' : 'बाजारात प्रकाशित करा')}
+                    </span>
+                  </button>
+                </div>
               </div>
             </form>
           </div>

@@ -27,9 +27,14 @@ export const api = {
   calculateRealization: (payload) => client.post('/realization/discover', payload).then(res => res.data),
 
   // Lots Marketplace
+  // Lots Marketplace & Lifecycle (AG-010)
   getLots: (params) => client.get('/lots', { params }).then(res => res.data),
   getLotById: (id) => client.get(`/lots/${id}`).then(res => res.data),
   createLot: (data) => client.post('/lots', data).then(res => res.data),
+  updateLot: (id, data) => client.put(`/lots/${id}`, data).then(res => res.data),
+  publishLot: (id) => client.post(`/lots/${id}/publish`).then(res => res.data),
+  cancelLot: (id, data = {}) => client.post(`/lots/${id}/cancel`, data).then(res => res.data),
+  deleteLot: (id) => client.delete(`/lots/${id}`).then(res => res.data),
 
   // Bids & Offers
   getOffers: (params) => client.get('/offers', { params }).then(res => res.data),
