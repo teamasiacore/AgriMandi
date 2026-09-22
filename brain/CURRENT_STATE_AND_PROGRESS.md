@@ -342,4 +342,40 @@ Both backend and frontend services are compiled, verified, and running live:
 ### Next task
 - Canonical Task AG-004: Database Schema & Migrations Reconciliation (Audit constraints, indexes, and audit events in Supabase PostgreSQL).
 
+---
+
+## September 22, 2026 — Task AG-004: Database Schema & Migrations Reconciliation
+### Completed
+- Exact files changed:
+  - `backend/supabase_schema.sql` (Reconciled master schema with 26 canonical entities, check constraints, foreign keys, and indexes)
+  - `supabase/migrations/20260922_canonical_schema_reconciliation.sql` (Standalone idempotent migration file)
+  - `prisma/schema.prisma` (Reconciled Prisma schema to map 1:1 with Supabase PostgreSQL tables and enums)
+  - `backend/src/services/db.js` (Added `logAuditEvent` and `getAuditEvents` directly integrating with Supabase `audit_events`)
+  - `frontend/api/services/db.js` (Added `logAuditEvent` and `getAuditEvents` for serverless API runtime)
+  - `brain/BACKEND_SCHEMA_AND_ARCHITECTURE.md` (Updated to Version 3.0 Canonical Schema & ER specification)
+- Exact routes added: None (Schema & DB infrastructure layer)
+- Database changes:
+  - Validated live Supabase Cloud PostgreSQL (`lqoychozoysmxibhcmuf.supabase.co`)
+  - Verified active live persistence of `audit_events`
+  - Authored full DDL for all 26 canonical entities: `users`, `organisations`, `memberships`, `farmer_profiles`, `buyer_profiles`, `transporter_profiles`, `verification_cases`, `verification_documents`, `consents`, `markets`, `commodities`, `market_prices`, `produce_lots` (`lots`), `lot_media`, `buyer_demand_posts`, `offers`, `deals` (`orders`), `order_term_versions`, `transport_requests`, `transport_assignments`, `pickup_records`, `delivery_records`, `quality_inspections`, `payment_events`, `grievances`, `notifications`, `audit_events`.
+  - Added B-Tree indexes across all foreign keys, status fields, and phone numbers.
+- UI changes: None (Database & Schema layer)
+
+### Verification performed
+- Commands run:
+  - Supabase Cloud OpenAPI definitions audit: Verified 9 pre-existing core tables (`users`, `farmer_profiles`, `buyer_profiles`, `transporter_profiles`, `produce_lots`, `offers`, `deals`, `mandi_prices`, `audit_events`).
+  - Audit Event Insert Test: Verified direct writing of structured audit event record to live Supabase `audit_events` with auto-generated UUID (`a778d92f-a537-4d57-91d6-9d81b9480783`).
+  - Database Service Integration Test: Verified `db.logAuditEvent` and `db.getAuditEvents` execution with 100% success against live Supabase PostgreSQL.
+- Tests passed: Direct Supabase insert and retrieval of audit logs passed.
+- Manual checks performed: Verified schema syntax and constraint rules.
+
+### Not completed
+- User execution of `supabase/migrations/20260922_canonical_schema_reconciliation.sql` in Supabase SQL editor to create the remaining 17 tables in the live cloud project.
+
+### Risks
+- Free-tier 500 MB database limit on Supabase: Designed with lightweight relational types, no binary blobs in Postgres (images stored in Supabase Storage buckets `lot-photos` and `verification-documents`).
+
+### Next task
+- Canonical Task AG-005: Health and Reliability Foundation (`/api/health`, `/api/ready`, request IDs, structured error formats, and Zod validation).
+
 

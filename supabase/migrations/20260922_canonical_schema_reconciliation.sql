@@ -1,16 +1,14 @@
 -- ==============================================================================
 -- AgriMandi (कृषीसेतू) — Canonical Database Schema & Migrations Reconciliation
+-- Migration: 20260922_canonical_schema_reconciliation.sql
 -- Task: AG-004
 -- Target Engine: Supabase Cloud PostgreSQL 15 (Project: lqoychozoysmxibhcmuf)
--- Compliant with: Canonical Implementation Instruction (22 September 2026, Page 4 & 18)
 -- ==============================================================================
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- ==============================================================================
 -- 1. Users Table (Core Identity)
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.users (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     phone VARCHAR(20) UNIQUE NOT NULL,
@@ -27,15 +25,12 @@ CREATE TABLE IF NOT EXISTS public.users (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Ensure any existing columns in users match requirements
 ALTER TABLE public.users 
 ADD COLUMN IF NOT EXISTS email VARCHAR(150) UNIQUE,
 ADD COLUMN IF NOT EXISTS taluka VARCHAR(50),
 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
 
--- ==============================================================================
 -- 2. Organisations Table (FPOs, Mills, Traders, Logistics Companies)
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.organisations (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     legal_name VARCHAR(200) NOT NULL,
@@ -54,9 +49,7 @@ CREATE TABLE IF NOT EXISTS public.organisations (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- ==============================================================================
 -- 3. Memberships Table (Multi-User Organisation Roles)
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.memberships (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     user_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -67,9 +60,7 @@ CREATE TABLE IF NOT EXISTS public.memberships (
     UNIQUE (user_id, organisation_id)
 );
 
--- ==============================================================================
 -- 4. Farmer Profiles Table
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.farmer_profiles (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     user_id TEXT UNIQUE REFERENCES public.users(id) ON DELETE CASCADE,
@@ -97,9 +88,7 @@ ADD COLUMN IF NOT EXISTS bank_account VARCHAR(50),
 ADD COLUMN IF NOT EXISTS verification_status VARCHAR(50) DEFAULT 'NOT_SUBMITTED',
 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
 
--- ==============================================================================
 -- 5. Buyer Profiles Table
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.buyer_profiles (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     user_id TEXT REFERENCES public.users(id) ON DELETE SET NULL,
@@ -138,9 +127,7 @@ ADD COLUMN IF NOT EXISTS email VARCHAR(150),
 ADD COLUMN IF NOT EXISTS operating_districts TEXT[] DEFAULT ARRAY['Latur'],
 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
 
--- ==============================================================================
 -- 6. Transporter Profiles Table
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.transporter_profiles (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     user_id TEXT REFERENCES public.users(id) ON DELETE CASCADE,
@@ -171,9 +158,7 @@ ADD COLUMN IF NOT EXISTS verified_by VARCHAR(50),
 ADD COLUMN IF NOT EXISTS verified_at TIMESTAMP WITH TIME ZONE,
 ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
 
--- ==============================================================================
--- 7. Verification Cases & Documents (Review-Based Trust Architecture)
--- ==============================================================================
+-- 7. Verification Cases & Documents
 CREATE TABLE IF NOT EXISTS public.verification_cases (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     entity_type VARCHAR(50) NOT NULL CHECK (entity_type IN ('FARMER_LAND', 'BUYER_ORG', 'TRANSPORTER_VEHICLE', 'FPO_CIN')),
@@ -201,9 +186,7 @@ CREATE TABLE IF NOT EXISTS public.verification_documents (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- ==============================================================================
--- 8. Consents Table (Explicit DPDP Compliance)
--- ==============================================================================
+-- 8. Consents Table (DPDP Act)
 CREATE TABLE IF NOT EXISTS public.consents (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     user_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -216,9 +199,7 @@ CREATE TABLE IF NOT EXISTS public.consents (
     revoked_at TIMESTAMP WITH TIME ZONE
 );
 
--- ==============================================================================
 -- 9. Reference Masters: Markets & Commodities
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.markets (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     name VARCHAR(100) NOT NULL,
@@ -242,50 +223,7 @@ CREATE TABLE IF NOT EXISTS public.commodities (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- Seed core commodities if not present
-INSERT INTO public.commodities (name, local_name, category)
-VALUES 
-    ('Soyabean', 'सोयाबीन', 'Oilseeds'),
-    ('Cotton', 'कापूस', 'Fibre'),
-    ('Onion', 'कांदा', 'Vegetables'),
-    ('Gram (Chana)', 'हरभरा (चना)', 'Pulses'),
-    ('Arhar (Tur)', 'तूर', 'Pulses'),
-    ('Wheat', 'गहू', 'Cereals'),
-    ('Maize', 'मका', 'Cereals')
-ON CONFLICT (name) DO NOTHING;
-
--- Seed core markets if not present
-INSERT INTO public.markets (name, district, latitude, longitude)
-VALUES 
-    ('Latur', 'Latur', 18.4088, 76.5604),
-    ('Lasalgaon', 'Nashik', 20.1478, 74.2259),
-    ('Nashik', 'Nashik', 19.9975, 73.7898),
-    ('Solapur', 'Solapur', 17.6599, 75.9064),
-    ('Jalna', 'Jalna', 19.8410, 75.8864),
-    ('Akola', 'Akola', 20.7002, 77.0082),
-    ('Pune', 'Pune', 18.5204, 73.8567)
-ON CONFLICT (name, district, state) DO NOTHING;
-
--- Alias view for market_prices referencing mandi_prices
-CREATE OR REPLACE VIEW public.market_prices AS
-SELECT 
-    id,
-    state,
-    district,
-    market,
-    commodity,
-    variety,
-    grade,
-    arrival_date,
-    min_price,
-    max_price,
-    modal_price,
-    created_at
-FROM public.mandi_prices;
-
--- ==============================================================================
 -- 10. Produce Lots Table & Lot Media (Farm-Gate Listings)
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.produce_lots (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     farmer_id TEXT REFERENCES public.users(id) ON DELETE SET NULL,
@@ -314,16 +252,8 @@ CREATE TABLE IF NOT EXISTS public.produce_lots (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-ALTER TABLE public.produce_lots 
-ADD COLUMN IF NOT EXISTS taluka VARCHAR(50),
-ADD COLUMN IF NOT EXISTS village VARCHAR(100),
-ADD COLUMN IF NOT EXISTS published_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
-
--- Compatibility view 'lots' referencing 'produce_lots'
 CREATE OR REPLACE VIEW public.lots AS SELECT * FROM public.produce_lots;
 
--- Lot Media Table (Images and Lab Grade Slips stored in Supabase Storage)
 CREATE TABLE IF NOT EXISTS public.lot_media (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     lot_id TEXT NOT NULL REFERENCES public.produce_lots(id) ON DELETE CASCADE,
@@ -336,9 +266,7 @@ CREATE TABLE IF NOT EXISTS public.lot_media (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- ==============================================================================
 -- 11. Buyer Demand Posts
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.buyer_demand_posts (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     buyer_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -354,9 +282,7 @@ CREATE TABLE IF NOT EXISTS public.buyer_demand_posts (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- ==============================================================================
 -- 12. Offers / Bids Table
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.offers (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     lot_id TEXT REFERENCES public.produce_lots(id) ON DELETE CASCADE,
@@ -373,13 +299,7 @@ CREATE TABLE IF NOT EXISTS public.offers (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-ALTER TABLE public.offers 
-ADD COLUMN IF NOT EXISTS rejection_reason TEXT,
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
-
--- ==============================================================================
 -- 13. Executed Deals & Canonical Orders Table
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.deals (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     lot_id TEXT REFERENCES public.produce_lots(id) ON DELETE SET NULL,
@@ -415,18 +335,9 @@ CREATE TABLE IF NOT EXISTS public.deals (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
-ALTER TABLE public.deals 
-ADD COLUMN IF NOT EXISTS buyer_id TEXT,
-ADD COLUMN IF NOT EXISTS farmer_id TEXT,
-ADD COLUMN IF NOT EXISTS order_status VARCHAR(50) DEFAULT 'ORDER_CONFIRMED',
-ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now());
-
--- Compatibility view 'orders' referencing 'deals'
 CREATE OR REPLACE VIEW public.orders AS SELECT * FROM public.deals;
 
--- ==============================================================================
--- 14. Versioned Immutable Order Terms (Canonical Section 7.1)
--- ==============================================================================
+-- 14. Versioned Immutable Order Terms (Section 7.1)
 CREATE TABLE IF NOT EXISTS public.order_term_versions (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     order_id TEXT NOT NULL REFERENCES public.deals(id) ON DELETE CASCADE,
@@ -445,9 +356,7 @@ CREATE TABLE IF NOT EXISTS public.order_term_versions (
     UNIQUE (order_id, version_number)
 );
 
--- ==============================================================================
 -- 15. Transport Requests & Assignments
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.transport_requests (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     order_id TEXT NOT NULL REFERENCES public.deals(id) ON DELETE CASCADE,
@@ -479,9 +388,7 @@ CREATE TABLE IF NOT EXISTS public.transport_assignments (
     assigned_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- ==============================================================================
 -- 16. Pickup & Delivery Evidence Records
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.pickup_records (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     order_id TEXT NOT NULL REFERENCES public.deals(id) ON DELETE CASCADE,
@@ -514,9 +421,7 @@ CREATE TABLE IF NOT EXISTS public.delivery_records (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- ==============================================================================
 -- 17. Quality Assaying & Inspection
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.quality_inspections (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     order_id TEXT NOT NULL REFERENCES public.deals(id) ON DELETE CASCADE,
@@ -535,9 +440,7 @@ CREATE TABLE IF NOT EXISTS public.quality_inspections (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- ==============================================================================
 -- 18. Payment Events & Financial Ledger
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.payment_events (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     order_id TEXT NOT NULL REFERENCES public.deals(id) ON DELETE CASCADE,
@@ -552,9 +455,7 @@ CREATE TABLE IF NOT EXISTS public.payment_events (
     event_time TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- ==============================================================================
 -- 19. Grievance Redressal
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.grievances (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     order_id TEXT REFERENCES public.deals(id) ON DELETE SET NULL,
@@ -571,9 +472,7 @@ CREATE TABLE IF NOT EXISTS public.grievances (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- ==============================================================================
 -- 20. Notifications
--- ==============================================================================
 CREATE TABLE IF NOT EXISTS public.notifications (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     user_id TEXT NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
@@ -591,9 +490,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
--- ==============================================================================
--- 21. Audit Events (System-wide Immutable Security Log)
--- ==============================================================================
+-- 21. Audit Events (Security Log)
 CREATE TABLE IF NOT EXISTS public.audit_events (
     id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
     actor_id TEXT,
@@ -616,9 +513,7 @@ ADD COLUMN IF NOT EXISTS metadata JSONB,
 ADD COLUMN IF NOT EXISTS ip_address VARCHAR(50),
 ADD COLUMN IF NOT EXISTS user_agent TEXT;
 
--- ==============================================================================
--- 22. Indexes for High-Speed Query Optimization (Pilot & Scale)
--- ==============================================================================
+-- 22. Performance Indexes
 CREATE INDEX IF NOT EXISTS idx_users_phone ON public.users(phone);
 CREATE INDEX IF NOT EXISTS idx_users_role ON public.users(role);
 
@@ -655,9 +550,7 @@ CREATE INDEX IF NOT EXISTS idx_grievances_order_id ON public.grievances(order_id
 CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON public.notifications(user_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_audit_entity ON public.audit_events(entity, entity_id);
 
--- ==============================================================================
 -- 23. Row Level Security (RLS) Grants
--- ==============================================================================
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.organisations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.memberships ENABLE ROW LEVEL SECURITY;
@@ -685,7 +578,6 @@ ALTER TABLE public.grievances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_events ENABLE ROW LEVEL SECURITY;
 
--- Allow public / anon read/write via secure service role / backend API
 DO $$
 DECLARE
     tbl text;

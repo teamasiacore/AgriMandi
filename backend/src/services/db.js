@@ -1966,5 +1966,49 @@ export const db = {
       member_payouts: memberPayouts,
       statutory_citation: 'Maharashtra APMC Direct Farm-Gate Procurement Rules (Section 59): 0% APMC Mandi Cess levied on FPO Farmer Bulk Aggregations.'
     };
+  },
+
+  // Log Immutable Audit Event (Canonical Architecture AG-004 & Page 19)
+  logAuditEvent: async ({ actor_id, actor_role, action, entity, entity_id, previous_state, new_state, metadata, request_id, ip_address, user_agent }) => {
+    try {
+      const event = {
+        actor_id: actor_id || null,
+        action,
+        entity,
+        entity_id,
+        previous_state: previous_state ? (typeof previous_state === 'object' ? JSON.stringify(previous_state) : String(previous_state)) : null,
+        new_state: new_state ? (typeof new_state === 'object' ? JSON.stringify(new_state) : String(new_state)) : null,
+        request_id: request_id || `req-${Date.now()}`
+      };
+
+      if (supabaseConnected) {
+        const { error } = await supabase.from('audit_events').insert([event]);
+        if (error) {
+          console.warn('⚠️ Supabase audit_events write warning:', error.message);
+        }
+      }
+      return event;
+    } catch (err) {
+      console.warn('⚠️ Audit event logging failure:', err.message);
+      return null;
+    }
+  },
+
+  // Retrieve Audit Trail for an Entity (Canonical Section 7 & AG-004)
+  getAuditEvents: async ({ entity, entity_id, limit = 50 }) => {
+    try {
+      if (supabaseConnected) {
+        let query = supabase.from('audit_events').select('*').order('created_at', { ascending: false }).limit(limit);
+        if (entity) query = query.eq('entity', entity);
+        if (entity_id) query = query.eq('entity_id', entity_id);
+        const { data, error } = await query;
+        if (!error && data) return data;
+      }
+      return [];
+    } catch (err) {
+      console.warn('⚠️ getAuditEvents error:', err.message);
+      return [];
+    }
   }
 };
+

@@ -1,5 +1,7 @@
-// AgriMandi Maharashtra Prisma Schema
-// Target database: Supabase PostgreSQL
+// ==============================================================================
+// AgriMandi (कृषीसेतू) — Reconciled Prisma Schema
+// Aligned 1:1 with Supabase Cloud PostgreSQL Schema (Task AG-004)
+// ==============================================================================
 
 generator client {
   provider = "prisma-client-js"
@@ -11,292 +13,545 @@ datasource db {
   directUrl = env("DIRECT_DATABASE_URL")
 }
 
+// ------------------------------------------------------------------------------
+// Enums
+// ------------------------------------------------------------------------------
+
 enum UserRole {
   FARMER
-  FPO_MANAGER
   BUYER
-  GRADER
-  LOGISTICS_PROVIDER
-  WAREHOUSE_OPERATOR
-  GOVT_ADMIN
-  PLATFORM_ADMIN
-}
-
-enum LotStatus {
-  DRAFT
-  READY_FOR_REVIEW
-  PUBLISHED
-  RESERVED
-  SOLD
-  CANCELLED
-}
-
-enum OfferStatus {
-  DRAFT
-  SUBMITTED
-  VIEWED
-  COUNTERED
-  ACCEPTED
-  EXPIRED
-  REJECTED
+  TRANSPORTER
+  FPO
+  ADMIN
+  SUPERADMIN
 }
 
 enum OrderStatus {
-  CREATED
-  LOGISTICS_BOOKED
+  DRAFT
+  PUBLISHED
+  OFFER_RECEIVED
+  OFFER_ACCEPTED
+  ORDER_CONFIRMED
+  TRANSPORT_PENDING
+  TRANSPORT_REQUESTED
+  TRANSPORT_ACCEPTED
+  TRANSPORT_DECLINED
+  TRANSPORT_ASSIGNED
+  READY_FOR_PICKUP
   PICKED_UP
   IN_TRANSIT
   DELIVERED
-  QUALITY_ACCEPTED
+  RECEIVED_PENDING_INSPECTION
+  PARTIALLY_ACCEPTED
+  ACCEPTED
+  REJECTED
   PAYMENT_PENDING
-  PARTIALLY_PAID
-  SETTLED
+  PAYMENT_SUBMITTED
+  PAYMENT_CONFIRMED
+  COMPLETED
   DISPUTED
-  RESOLVED
   CANCELLED
 }
 
-enum GrievanceStatus {
-  OPEN
-  ACKNOWLEDGED
-  ASSIGNED
-  INVESTIGATING
-  RESOLUTION_PROPOSED
-  RESOLVED
-  APPEALED
-  REVIEWED
-  CLOSED
-}
+// ------------------------------------------------------------------------------
+// Core Models
+// ------------------------------------------------------------------------------
 
 model User {
-  id            String         @id @default(uuid())
-  phone         String         @unique
-  role          UserRole       @default(FARMER)
-  language      String         @default("mr")
-  isActive      Boolean        @default(true)
-  farmerProfile FarmerProfile?
-  memberships   Membership[]
-  consents      Consent[]
-  notifications Notification[]
-  auditEvents   AuditEvent[]
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
+  id             String                @id @default(uuid())
+  phone          String                @unique
+  email          String?               @unique
+  role           UserRole              @default(FARMER)
+  name           String
+  district       String?               @default("Latur")
+  taluka         String?
+  village        String?
+  status         String                @default("ACTIVE")
+  isVerified     Boolean               @default(false) @map("is_verified")
+  preferredLang  String                @default("mr") @map("preferred_lang")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @default(now()) @updatedAt @map("updated_at")
+
+  farmerProfile  FarmerProfile?
+  buyerProfile   BuyerProfile?
+  transporter    TransporterProfile?
+  memberships    Membership[]
+  consents       Consent[]
+  notifications  Notification[]
+  auditEvents    AuditEvent[]          @relation("UserAudits")
 
   @@map("users")
 }
 
-model FarmerProfile {
-  id               String   @id @default(uuid())
-  userId           String   @unique
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  fullName         String
-  district         String
-  taluka           String?
-  village          String?
-  pincode          String?
-  preferredChannel String   @default("SMS")
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-
-  @@map("farmer_profiles")
-}
-
 model Organisation {
-  id           String             @id @default(uuid())
-  name         String
-  type         String // FPO, BUYER, LOGISTICS, WAREHOUSE, etc.
-  district     String
-  memberships  Membership[]
-  verification VerificationCase[]
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
+  id                 String       @id @default(uuid())
+  legalName          String       @map("legal_name")
+  tradeName          String?      @map("trade_name")
+  orgType            String       @map("org_type") // FPO, COOPERATIVE, PROCESSOR_MILL, TRADER, etc.
+  registrationNo     String?      @unique @map("registration_no")
+  gstin              String?      @unique
+  pan                String?
+  district           String
+  taluka             String?
+  address            String?
+  verificationStatus String       @default("DOCUMENTS_PENDING") @map("verification_status")
+  verifiedBy         String?      @map("verified_by")
+  verifiedAt         DateTime?    @map("verified_at")
+  createdAt          DateTime     @default(now()) @map("created_at")
+  updatedAt          DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  memberships        Membership[]
+  buyerProfiles      BuyerProfile[]
+
+  @@map("organisations")
 }
 
 model Membership {
   id             String       @id @default(uuid())
-  userId         String
+  userId         String       @map("user_id")
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organisationId String
+  organisationId String       @map("organisation_id")
   organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  roleInOrg      String       @default("MEMBER")
-  createdAt      DateTime     @default(now())
+  roleInOrg      String       @default("MEMBER") @map("role_in_org")
+  status         String       @default("ACTIVE")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  @@unique([userId, organisationId])
+  @@map("memberships")
 }
 
-model Commodity {
-  id           String              @id @default(uuid())
-  code         String              @unique
-  nameEn       String
-  nameMr       String
-  nameHi       String
-  defaultUnit  String              @default("quintal")
-  isActive     Boolean             @default(true)
-  lots         Lot[]
-  observations MarketObservation[]
+model FarmerProfile {
+  id                 String    @id @default(uuid())
+  userId             String    @unique @map("user_id")
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName           String    @map("full_name")
+  phone              String
+  state              String    @default("Maharashtra")
+  district           String
+  taluka             String?
+  village            String?
+  landSizeAcres      Float?    @map("land_size_acres")
+  saatBaraNumber     String?   @map("saat_bara_number")
+  primaryCrops       String[]  @default(["Soybean"]) @map("primary_crops")
+  bankIfsc           String?   @map("bank_ifsc")
+  bankAccount        String?   @map("bank_account")
+  verificationStatus String    @default("NOT_SUBMITTED") @map("verification_status")
+  isVerified         Boolean   @default(false) @map("is_verified")
+  verifiedBy         String?   @map("verified_by")
+  verifiedAt         DateTime? @map("verified_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("farmer_profiles")
 }
 
-model Market {
-  id           String              @id @default(uuid())
-  name         String
-  state        String              @default("Maharashtra")
-  district     String
-  taluka       String?
-  latitude     Float?
-  longitude    Float?
-  observations MarketObservation[]
+model BuyerProfile {
+  id                 String        @id @default(uuid())
+  userId             String?       @unique @map("user_id")
+  user               User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organisationId     String?       @map("organisation_id")
+  organisation       Organisation? @relation(fields: [organisationId], references: [id], onDelete: SetNull)
+  companyName        String        @map("company_name")
+  legalName          String?       @map("legal_name")
+  representativeName String?       @map("representative_name")
+  buyerCategory      String        @default("Processor or mill") @map("buyer_category")
+  phone              String
+  email              String?
+  gstin              String?       @unique
+  pan                String?
+  licenseType        String?       @map("license_type")
+  licenseNumber      String?       @map("license_number")
+  dailyCapacityMt    Float?        @default(0) @map("daily_capacity_mt")
+  district           String
+  city               String?
+  address            String?
+  targetCrops        String[]      @default(["Soybean"]) @map("target_crops")
+  operatingDistricts String[]      @default(["Latur"]) @map("operating_districts")
+  status             String        @default("UNDER_REVIEW")
+  isVerified         Boolean       @default(false) @map("is_verified")
+  rating             Float         @default(5.0)
+  reviewsCount       Int           @default(0) @map("reviews_count")
+  verifiedBy         String?       @map("verified_by")
+  verifiedAt         DateTime?     @map("verified_at")
+  adminNotes         String?       @map("admin_notes")
+  createdAt          DateTime      @default(now()) @map("created_at")
+  updatedAt          DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  @@map("buyer_profiles")
 }
 
-model MarketObservation {
-  id             String    @id @default(uuid())
-  source         String // AGMARKNET, MSAMB, SEED
-  sourceRecordId String?
-  state          String
-  district       String
-  marketId       String?
-  market         Market?   @relation(fields: [marketId], references: [id])
-  commodityId    String?
-  commodity      Commodity? @relation(fields: [commodityId], references: [id])
-  commodityRaw   String
-  variety        String?
-  grade          String?
-  minPrice       Float
-  modalPrice     Float
-  maxPrice       Float
-  arrivals       Float?
-  unit           String    @default("quintal")
-  observedAt     DateTime
-  fetchedAt      DateTime  @default(now())
-  dataStatus     String    @default("CURRENT") // CURRENT, STALE, FALLBACK
-  rawHash        String?
+model TransporterProfile {
+  id                 String             @id @default(uuid())
+  userId             String             @unique @map("user_id")
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  driverName         String             @map("driver_name")
+  phone              String
+  vehicleNumber      String             @unique @map("vehicle_number")
+  vehicleType        String             @map("vehicle_type")
+  capacityMt         Float              @map("capacity_mt")
+  baseDistrict       String             @map("base_district")
+  baseTaluka         String?            @map("base_taluka")
+  serviceArea        String?            @map("service_area")
+  perKmRate          Float              @default(4.20) @map("per_km_rate")
+  status             String             @default("PROFILE_SUBMITTED")
+  isAvailable        Boolean            @default(true) @map("is_available")
+  rating             Float              @default(5.0)
+  tripsCompleted     Int                @default(0) @map("trips_completed")
+  isVerified         Boolean            @default(false) @map("is_verified")
+  verifiedBy         String?            @map("verified_by")
+  verifiedAt         DateTime?          @map("verified_at")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @default(now()) @updatedAt @map("updated_at")
 
-  @@unique([source, marketId, commodityRaw, observedAt])
+  transportRequests  TransportRequest[]
+
+  @@map("transporter_profiles")
 }
 
-model Lot {
-  id             String          @id @default(uuid())
-  ownerId        String
-  commodityId    String
-  commodity      Commodity       @relation(fields: [commodityId], references: [id])
-  variety        String?
-  quantity       Float
-  unit           String          @default("quintal")
-  district       String
-  status         LotStatus       @default(DRAFT)
-  expectedPrice  Float?
-  qualityRecords QualityRecord[]
-  offers         Offer[]
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+model VerificationCase {
+  id            String                 @id @default(uuid())
+  entityType    String                 @map("entity_type")
+  entityId      String                 @map("entity_id")
+  caseType      String                 @map("case_type")
+  status        String                 @default("SUBMITTED")
+  submittedAt   DateTime               @default(now()) @map("submitted_at")
+  reviewedBy    String?                @map("reviewed_by")
+  reviewedAt    DateTime?              @map("reviewed_at")
+  decisionNotes String?                @map("decision_notes")
+  expiresAt     DateTime?              @map("expires_at")
+  documents     VerificationDocument[]
+
+  @@map("verification_cases")
+}
+
+model VerificationDocument {
+  id           String           @id @default(uuid())
+  caseId       String           @map("case_id")
+  case         VerificationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  documentType String           @map("document_type")
+  bucketName   String           @default("verification-documents") @map("bucket_name")
+  objectPath   String           @map("object_path")
+  mimeType     String           @default("application/pdf") @map("mime_type")
+  sizeBytes    BigInt           @map("size_bytes")
+  checksum     String?
+  uploadedBy   String           @map("uploaded_by")
+  visibility   String           @default("PRIVATE")
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  @@map("verification_documents")
+}
+
+model Consent {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  consentType String    @map("consent_type")
+  purpose     String
+  isGranted   Boolean   @default(true) @map("is_granted")
+  ipAddress   String?   @map("ip_address")
+  userAgent   String?   @map("user_agent")
+  grantedAt   DateTime  @default(now()) @map("granted_at")
+  revokedAt   DateTime? @map("revoked_at")
+
+  @@map("consents")
+}
+
+model ProduceLot {
+  id                   String     @id @default(uuid())
+  farmerId             String?    @map("farmer_id")
+  farmerName           String     @map("farmer_name")
+  farmerPhone          String     @map("farmer_phone")
+  crop                 String
+  variety              String     @default("FAQ Standard")
+  quantityQtl          Float      @map("quantity_qtl")
+  expectedPricePerQtl  Float      @map("expected_price_per_qtl")
+  moisturePercentage   Float      @default(10.0) @map("moisture_percentage")
+  qualityGrade         String     @default("FAQ (Grade A)") @map("quality_grade")
+  district             String
+  taluka               String?
+  village              String?
+  farmAddress          String     @map("farm_address")
+  farmLat              Float      @default(18.4088) @map("farm_lat")
+  farmLng              Float      @default(76.5604) @map("farm_lng")
+  status               String     @default("LISTED")
+  offersCount          Int        @default(0) @map("offers_count")
+  isFpoBulk            Boolean    @default(false) @map("is_fpo_bulk")
+  fpoId                String?    @map("fpo_id")
+  fpoName              String?    @map("fpo_name")
+  pooledMembers        Json?      @map("pooled_members")
+  publishedAt          DateTime   @default(now()) @map("published_at")
+  createdAt            DateTime   @default(now()) @map("created_at")
+  updatedAt            DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  media                LotMedia[]
+  offers               Offer[]
+  deals                Deal[]
 
   @@map("produce_lots")
 }
 
-model QualityRecord {
-  id          String   @id @default(uuid())
-  lotId       String
-  lot         Lot      @relation(fields: [lotId], references: [id], onDelete: Cascade)
-  graderId    String?
-  grade       String
-  moisture    Float?
-  foreignMatter Float?
-  notes       String?
-  evidenceUrls String[]
-  createdAt   DateTime @default(now())
+model LotMedia {
+  id         String     @id @default(uuid())
+  lotId      String     @map("lot_id")
+  lot        ProduceLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  bucketName String     @default("lot-photos") @map("bucket_name")
+  objectPath String     @map("object_path")
+  mimeType   String     @default("image/webp") @map("mime_type")
+  sizeBytes  BigInt     @map("size_bytes")
+  isPrimary  Boolean    @default(false) @map("is_primary")
+  uploadedBy String?    @map("uploaded_by")
+  createdAt  DateTime   @default(now()) @map("created_at")
+
+  @@map("lot_media")
 }
 
 model Offer {
-  id             String      @id @default(uuid())
-  lotId          String
-  lot            Lot         @relation(fields: [lotId], references: [id])
-  buyerId        String
-  grossPrice     Float
-  unit           String      @default("quintal")
-  quantity       Float
-  deductionsEst  Float       @default(0)
-  netRealisation Float
-  status         OfferStatus @default(SUBMITTED)
-  orders         Order[]
-  createdAt      DateTime    @default(now())
-  updatedAt      DateTime    @updatedAt
+  id                  String     @id @default(uuid())
+  lotId               String     @map("lot_id")
+  lot                 ProduceLot @relation(fields: [lotId], references: [id], onDelete: Cascade)
+  buyerId             String?    @map("buyer_id")
+  buyerName           String     @map("buyer_name")
+  buyerPhone          String     @map("buyer_phone")
+  offeredPricePerQtl  Float      @map("offered_price_per_qtl")
+  quantityRequestedQtl Float     @map("quantity_requested_qtl")
+  deliveryDestination String     @map("delivery_destination")
+  validHours          Int        @default(24) @map("valid_hours")
+  status              String     @default("PENDING")
+  rejectionReason     String?    @map("rejection_reason")
+  createdAt           DateTime   @default(now()) @map("created_at")
+  updatedAt           DateTime   @default(now()) @updatedAt @map("updated_at")
+
+  deals               Deal[]
 
   @@map("offers")
 }
 
-model Order {
-  id          String       @id @default(uuid())
-  offerId     String       @unique
-  offer       Offer        @relation(fields: [offerId], references: [id])
-  status      OrderStatus  @default(CREATED)
-  events      OrderEvent[]
-  grievances  Grievance[]
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+model Deal {
+  id                  String             @id @default(uuid())
+  lotId               String?            @map("lot_id")
+  lot                 ProduceLot?        @relation(fields: [lotId], references: [id], onDelete: SetNull)
+  offerId             String?            @map("offer_id")
+  offer               Offer?             @relation(fields: [offerId], references: [id], onDelete: SetNull)
+  crop                String
+  quantityQtl         Float              @map("quantity_qtl")
+  pricePerQtl         Float              @map("price_per_qtl")
+  totalDealValue      Float              @map("total_deal_value")
+  buyerName           String             @map("buyer_name")
+  buyerId             String?            @map("buyer_id")
+  farmerName          String             @map("farmer_name")
+  farmerId            String?            @map("farmer_id")
+  deliveryDestination String             @map("delivery_destination")
+  orderStatus         String             @default("ORDER_CONFIRMED") @map("order_status")
+  deliveryStatus      String             @default("PENDING_PICKUP") @map("delivery_status")
+  escrowStatus        String             @default("SECURED_IN_ESCROW") @map("escrow_status")
+  transporterId       String?            @map("transporter_id")
+  transporterName     String?            @map("transporter_name")
+  transporterPhone    String?            @map("transporter_phone")
+  vehicleNumber       String?            @map("vehicle_number")
+  freightAmount       Float?             @default(0) @map("freight_amount")
+  isFpoDeal           Boolean            @default(false) @map("is_fpo_deal")
+  fpoId               String?            @map("fpo_id")
+  fpoName             String?            @map("fpo_name")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @default(now()) @updatedAt @map("updated_at")
+
+  termVersions        OrderTermVersion[]
+  transportRequests   TransportRequest[]
+  pickupRecords       PickupRecord[]
+  deliveryRecords     DeliveryRecord[]
+  qualityInspections  QualityInspection[]
+  paymentEvents       PaymentEvent[]
+  grievances          Grievance[]
+
+  @@map("deals")
 }
 
-model OrderEvent {
-  id        String   @id @default(uuid())
-  orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  actorId   String
-  fromState String
-  toState   String
-  notes     String?
-  createdAt DateTime @default(now())
+model OrderTermVersion {
+  id               String   @id @default(uuid())
+  orderId          String   @map("order_id")
+  deal             Deal     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  versionNumber    Int      @default(1) @map("version_number")
+  quantityQtl      Float    @map("quantity_qtl")
+  unitPrice        Float    @map("unit_price")
+  totalValue       Float    @map("total_value")
+  freightAmount    Float    @default(0) @map("freight_amount")
+  pickupDate       DateTime? @map("pickup_date")
+  deliveryDate     DateTime? @map("delivery_date")
+  amendmentReason  String?  @map("amendment_reason")
+  approvedByFarmer Boolean  @default(true) @map("approved_by_farmer")
+  approvedByBuyer  Boolean  @default(true) @map("approved_by_buyer")
+  status           String   @default("ACTIVE")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@unique([orderId, versionNumber])
+  @@map("order_term_versions")
+}
+
+model TransportRequest {
+  id                   String              @id @default(uuid())
+  orderId              String              @map("order_id")
+  deal                 Deal                @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  transporterId        String?             @map("transporter_id")
+  transporter          TransporterProfile? @relation(fields: [transporterId], references: [id])
+  commodity            String
+  approximateQuantityQtl Float             @map("approximate_quantity_qtl")
+  pickupLocation       String              @map("pickup_location")
+  deliveryLocation     String              @map("delivery_location")
+  pickupWindowStart    DateTime?           @map("pickup_window_start")
+  pickupWindowEnd      DateTime?           @map("pickup_window_end")
+  expectedDeliveryDate DateTime?           @map("expected_delivery_date")
+  vehicleType          String              @map("vehicle_type")
+  requiredPayloadMt    Float?              @map("required_payload_mt")
+  freightAmount        Float               @map("freight_amount")
+  whoPaysFreight       String              @default("BUYER") @map("who_pays_freight")
+  status               String              @default("REQUESTED")
+  declineReason        String?             @map("decline_reason")
+  createdAt            DateTime            @default(now()) @map("created_at")
+  updatedAt            DateTime            @default(now()) @updatedAt @map("updated_at")
+
+  assignments          TransportAssignment[]
+
+  @@map("transport_requests")
+}
+
+model TransportAssignment {
+  id            String           @id @default(uuid())
+  requestId     String           @map("request_id")
+  request       TransportRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  transporterId String           @map("transporter_id")
+  driverName    String           @map("driver_name")
+  driverPhone   String           @map("driver_phone")
+  vehicleNumber String           @map("vehicle_number")
+  assignedAt    DateTime         @default(now()) @map("assigned_at")
+
+  @@map("transport_assignments")
+}
+
+model PickupRecord {
+  id                   String    @id @default(uuid())
+  orderId              String    @map("order_id")
+  deal                 Deal      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  grossWeight          Float     @map("gross_weight")
+  tareWeight           Float     @map("tare_weight")
+  netWeight            Float     @map("net_weight")
+  unit                 String    @default("Quintal")
+  pickupDatetime       DateTime  @default(now()) @map("pickup_datetime")
+  vehicleNumber        String    @map("vehicle_number")
+  weighbridgeSlipPath  String?   @map("weighbridge_slip_path")
+  pickupPhotos         String[]  @map("pickup_photos")
+  farmerConfirmed      Boolean   @default(false) @map("farmer_confirmed")
+  farmerConfirmedAt    DateTime? @map("farmer_confirmed_at")
+  transporterConfirmed Boolean   @default(false) @map("transporter_confirmed")
+  transporterConfirmedAt DateTime? @map("transporter_confirmed_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+
+  @@map("pickup_records")
+}
+
+model DeliveryRecord {
+  id                 String    @id @default(uuid())
+  orderId            String    @map("order_id")
+  deal               Deal      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  grossReceivedWeight Float    @map("gross_received_weight")
+  tareWeight         Float     @map("tare_weight")
+  netReceivedWeight  Float     @map("net_received_weight")
+  deliveryDatetime   DateTime  @default(now()) @map("delivery_datetime")
+  weighbridgeSlipPath String?  @map("weighbridge_slip_path")
+  unloadingPhotos    String[]  @map("unloading_photos")
+  buyerConfirmed     Boolean   @default(false) @map("buyer_confirmed")
+  buyerConfirmedAt   DateTime? @map("buyer_confirmed_at")
+  createdAt          DateTime  @default(now()) @map("created_at")
+
+  @@map("delivery_records")
+}
+
+model QualityInspection {
+  id                   String   @id @default(uuid())
+  orderId              String   @map("order_id")
+  deal                 Deal     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  moisturePercentage   Float    @map("moisture_percentage")
+  foreignMatterPct     Float    @default(0) @map("foreign_matter_pct")
+  damagedGrainsPct     Float    @default(0) @map("damaged_grains_pct")
+  impuritiesPct        Float    @default(0) @map("impurities_pct")
+  gradeAssigned        String   @default("FAQ (Grade A)") @map("grade_assigned")
+  acceptedQuantityQtl  Float    @map("accepted_quantity_qtl")
+  rejectedQuantityQtl  Float    @default(0) @map("rejected_quantity_qtl")
+  rejectionReason      String?  @map("rejection_reason")
+  qualityDeductionInr  Float    @default(0) @map("quality_deduction_inr")
+  inspectionDecision   String   @map("inspection_decision")
+  buyerRemarks         String?  @map("buyer_remarks")
+  inspectorName        String?  @map("inspector_name")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  @@map("quality_inspections")
+}
+
+model PaymentEvent {
+  id                String   @id @default(uuid())
+  orderId           String   @map("order_id")
+  deal              Deal     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  eventType         String   @map("event_type")
+  amount            Float
+  paymentMethod     String   @default("NEFT_RTGS") @map("payment_method")
+  paymentReference  String?  @map("payment_reference")
+  proofDocumentPath String?  @map("proof_document_path")
+  initiatedBy       String?  @map("initiated_by")
+  confirmedBy       String?  @map("confirmed_by")
+  notes             String?
+  eventTime         DateTime @default(now()) @map("event_time")
+
+  @@map("payment_events")
 }
 
 model Grievance {
-  id          String          @id @default(uuid())
-  orderId     String?
-  order       Order?          @relation(fields: [orderId], references: [id])
-  complainantId String
-  category    String
-  severity    String          @default("MEDIUM")
-  status      GrievanceStatus @default(OPEN)
-  description String
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-}
+  id               String    @id @default(uuid())
+  orderId          String?   @map("order_id")
+  deal             Deal?     @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  raisedByUserId   String    @map("raised_by_user_id")
+  respondentUserId String?   @map("respondent_user_id")
+  grievanceType    String    @map("grievance_type")
+  description      String
+  evidenceDocuments String[] @map("evidence_documents")
+  status           String    @default("OPEN")
+  resolutionNotes  String?   @map("resolution_notes")
+  resolvedBy       String?   @map("resolved_by")
+  resolvedAt       DateTime? @map("resolved_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at")
 
-model Consent {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  purpose   String
-  version   String
-  grantedAt DateTime @default(now())
-}
-
-model VerificationCase {
-  id             String       @id @default(uuid())
-  organisationId String
-  organisation   Organisation @relation(fields: [organisationId], references: [id], onDelete: Cascade)
-  status         String       @default("PENDING")
-  notes          String?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  @@map("grievances")
 }
 
 model Notification {
-  id        String   @id @default(uuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  channel   String   @default("IN_APP")
-  title     String
-  body      String
-  isRead    Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title            String
+  message          String
+  notificationType String   @default("SYSTEM") @map("notification_type")
+  entityType       String?  @map("entity_type")
+  entityId         String?  @map("entity_id")
+  isRead           Boolean  @default(false) @map("is_read")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("notifications")
 }
 
 model AuditEvent {
-  id             String   @id @default(uuid())
-  actorId        String?
-  user           User?    @relation(fields: [actorId], references: [id])
-  action         String
-  entity         String
-  entityId       String
-  previousState  String?
-  newState       String?
-  requestId      String?
-  createdAt      DateTime @default(now())
+  id            String   @id @default(uuid())
+  actorId       String?  @map("actor_id")
+  user          User?    @relation("UserAudits", fields: [actorId], references: [id])
+  actorRole     String?  @map("actor_role")
+  action        String
+  entity        String
+  entityId      String   @map("entity_id")
+  previousState Json?    @map("previous_state")
+  newState      Json?    @map("new_state")
+  metadata      Json?
+  requestId     String?  @map("request_id")
+  ipAddress     String?  @map("ip_address")
+  userAgent     String?  @map("user_agent")
+  createdAt     DateTime @default(now()) @map("created_at")
 
   @@map("audit_events")
 }
