@@ -1,0 +1,32 @@
+name: Scheduled Mandi Price Sync
+
+on:
+  schedule:
+    # Daily at 06:00 UTC (11:30 AM IST) and 12:00 UTC (5:30 PM IST)
+    - cron: '0 6,12 * * *'
+  workflow_dispatch:
+
+jobs:
+  sync-apmc-rates:
+    name: Sync Agmarknet Feeds to Supabase
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Ingestion Dependencies
+        run: npm install @supabase/supabase-js axios dotenv
+
+      - name: Execute Mandi Ingestion Worker
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DATA_GOV_IN_API_KEY: ${{ secrets.DATA_GOV_IN_API_KEY }}
+        run: node scripts/sync_mandi_prices.js
