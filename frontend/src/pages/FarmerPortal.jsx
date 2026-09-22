@@ -15,6 +15,7 @@ import DealContractModal from '../components/DealContractModal';
 import SelectTransporterModal from '../components/farmer/SelectTransporterModal';
 import WeighmentAssaySlipModal from '../components/WeighmentAssaySlipModal';
 import TaxInvoiceModal from '../components/TaxInvoiceModal';
+import MarketReferenceDesk from '../components/market/MarketReferenceDesk';
 
 const LOGISTICS_LABELS = {
   en: {
@@ -654,91 +655,8 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
               )}
             </div>
 
-            {/* Live Agmarknet Rates Grid */}
-            <div className="bg-white rounded-2xl border border-[#E5DFD4] shadow-xs overflow-hidden">
-              <div className="p-4 bg-[#FCFAF6] border-b border-[#E5DFD4] flex flex-wrap items-center justify-between gap-3">
-                <h4 className="font-bold font-heading text-base text-[#1B4332]">
-                  {t.mandiTitle}
-                </h4>
-                
-                <div className="flex gap-2">
-                  <select
-                    value={selectedCrop}
-                    onChange={(e) => setSelectedCrop(e.target.value)}
-                    className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-white text-xs font-bold text-stone-700"
-                  >
-                    <option value="all">{t.allCrops}</option>
-                    <option value="Soyabean">{t.soybean}</option>
-                    <option value="Cotton">{t.cotton}</option>
-                    <option value="Onion">{t.onion}</option>
-                    <option value="Arhar (Tur/Red Gram)">{t.tur}</option>
-                    <option value="Gram (Chana)">{t.chana}</option>
-                  </select>
-
-                  <select
-                    value={selectedDistrict}
-                    onChange={(e) => setSelectedDistrict(e.target.value)}
-                    className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-white text-xs font-bold text-stone-700"
-                  >
-                    <option value="all">{t.allDistricts}</option>
-                    {DISTRICT_OPTIONS.map(d => (
-                      <option key={d.id} value={d.id}>
-                        {d[currentLang] || d.en}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-[#FAF7F2] text-xs font-bold text-[#1B4332] uppercase tracking-wider border-b border-[#E5DFD4]">
-                    <tr>
-                      <th className="py-3 px-4">{t.colApmc}</th>
-                      <th className="py-3 px-4">{t.colDistrict}</th>
-                      <th className="py-3 px-4">{t.colCommodity}</th>
-                      <th className="py-3 px-4 text-right">{t.colMin}</th>
-                      <th className="py-3 px-4 text-right">{t.colMax}</th>
-                      <th className="py-3 px-4 text-right">{t.colModal}</th>
-                      <th className="py-3 px-4 text-center">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[#E5DFD4]">
-                    {liveRates.map((r, idx) => (
-                      <tr key={idx} className="hover:bg-[#FCFAF6]">
-                        <td className="py-3 px-4 font-bold text-[#1B4332]">{r.market}</td>
-                        <td className="py-3 px-4 text-stone-600">{r.district}</td>
-                        <td className="py-3 px-4 font-semibold text-stone-900">{r.commodity}</td>
-                        <td className="py-3 px-4 text-right font-mono text-stone-600">₹{r.min_price}</td>
-                        <td className="py-3 px-4 text-right font-mono text-stone-600">₹{r.max_price}</td>
-                        <td className="py-3 px-4 text-right font-mono font-bold text-[#1B4332] text-base">
-                          ₹{r.modal_price}
-                        </td>
-                        <td className="py-3 px-4 text-center">
-                          {isLiveToday(r.arrival_date) ? (
-                            <div className="inline-flex flex-col items-center">
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
-                                <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
-                                {currentLang === 'mr' ? 'थेट आजचे' : currentLang === 'hi' ? 'आज का भाव' : 'Live Today'}
-                              </span>
-                              <span className="text-[9px] text-stone-500 font-mono mt-0.5">{r.arrival_date}</span>
-                            </div>
-                          ) : (
-                            <div className="inline-flex flex-col items-center" title={currentLang === 'en' ? 'Reference price from previous trading day or mandi holiday' : currentLang === 'hi' ? '२४ घंटे से पुराना संदर्भ भाव (मंडी अवकाश)' : '२४ तासांपेक्षा जुना संदर्भ भाव (बाजार सुट्टी)'}>
-                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">
-                                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                                {currentLang === 'mr' ? 'संदर्भ भाव' : currentLang === 'hi' ? 'संदर्भ भाव' : 'Past Ref'}
-                              </span>
-                              <span className="text-[9px] text-amber-700 font-mono font-medium mt-0.5">{r.arrival_date || 'Previous'}</span>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            {/* AG-009 Canonical Market Reference & MSP Intelligence Desk */}
+            <MarketReferenceDesk currentLang={currentLang} />
 
           </div>
         )}

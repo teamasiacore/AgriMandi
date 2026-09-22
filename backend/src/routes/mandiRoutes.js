@@ -3,6 +3,7 @@ import { mandiService } from '../services/mandiService.js';
 
 const router = express.Router();
 
+// 1. Live Mandi Rates with MSP Benchmarks
 router.get('/live', async (req, res) => {
   try {
     const { commodity, district, limit } = req.query;
@@ -11,6 +12,41 @@ router.get('/live', async (req, res) => {
       district: district || 'all',
       limit: limit ? Number(limit) : 50
     });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// 2. Canonical Market Reference Prices (AG-009)
+router.get('/reference-prices', async (req, res) => {
+  try {
+    const { commodity, district, limit } = req.query;
+    const data = await mandiService.getLiveRates({
+      commodity: commodity || 'all',
+      district: district || 'all',
+      limit: limit ? Number(limit) : 50
+    });
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// 3. Official Commodity Master with Govt MSP Benchmarks (AG-009)
+router.get('/commodities', (req, res) => {
+  try {
+    const data = mandiService.getCommodities();
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// 4. Official APMC Mandi Master for Maharashtra Core Agricultural Hubs (AG-009)
+router.get('/markets', (req, res) => {
+  try {
+    const data = mandiService.getMarkets();
     res.json(data);
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });

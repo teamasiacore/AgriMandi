@@ -544,7 +544,51 @@ Both backend and frontend services are compiled, verified, and running live:
 - None. Task AG-008 is 100% complete and verified.
 
 ### Next task
-- Canonical Task AG-009: Market Reference Module (Real-time Agmarknet data.gov.in integration, reference price cards, and MSP benchmark display).
+- Canonical Task AG-009: Market Reference Module — **COMPLETED (22 Sept 2026)**.
+
+---
+
+## 22 September 2026 — Task AG-009: Market Reference Module
+
+### Progress summary
+- Implemented and verified the complete canonical Market Reference Module (AG-009) with real-time Agmarknet `data.gov.in` feed ingestion, official Govt of India MSP benchmark indicators, stale data warning telemetry, and high-fidelity reference price cards.
+- Embedded canonical `COMMODITY_MASTER` and `MARKET_MASTER` datasets for Maharashtra's 6 core agricultural hub districts (`Latur`, `Nashik`, `Solapur`, `Jalna`, `Akola`, `Pune`).
+- Created modular UI components `MarketReferenceCard.jsx` and `MarketReferenceDesk.jsx` adhering strictly to platform brand DNA (`#FAF7F2` warm earth background, `#1B4332` deep forest green, `#C86432` terracotta, Outfit typography).
+- Replaced basic HTML table in `FarmerPortal.jsx` with the interactive `MarketReferenceDesk`, providing farmers with real-time modal rates, price spread bars, and MSP comparison badges before lot creation.
+
+### Changes made
+- Backend & Serverless Services:
+  - `backend/src/services/mandiService.js` & `frontend/api/services/mandiService.js`:
+    - Added `MSP_BENCHMARKS` (Soyabean: ₹4,892, Cotton: ₹7,121, Chana: ₹5,440, Tur: ₹7,550, Wheat: ₹2,275, Maize: ₹2,225, etc.).
+    - Added `COMMODITY_MASTER` with standard moisture and variety specs.
+    - Added `MARKET_MASTER` covering core Maharashtra APMCs.
+    - Implemented `enrichMandiObservation()` calculating `msp`, `msp_delta`, `msp_percentage`, `msp_status` (`ABOVE_MSP`, `BELOW_MSP`, `AT_MSP`), `price_spread`, and `is_stale` warning rollover.
+    - Added `getCommodities()` and `getMarkets()` methods.
+  - `backend/src/routes/mandiRoutes.js` & `frontend/api/routes/mandiRoutes.js`:
+    - `GET /api/mandi/commodities`: Returns master commodity list with MSP benchmarks.
+    - `GET /api/mandi/markets`: Returns master APMC hubs.
+    - `GET /api/mandi/reference-prices`: Enriched alias for live rates.
+- Frontend UI & Components:
+  - `frontend/src/services/api.js`: Added SDK client methods `getCommodities()`, `getMarkets()`, `getReferencePrices()`.
+  - `frontend/src/components/market/MarketReferenceCard.jsx`: Reusable card component displaying APMC location, modal rate, visual price range gauge, and MSP delta badge.
+  - `frontend/src/components/market/MarketReferenceDesk.jsx`: Interactive reference desk with quick commodity pill filters, district selection, live today toggle, search bar, KPI summary strip, and Cards/Table view toggle.
+  - `frontend/src/pages/FarmerPortal.jsx`: Integrated `MarketReferenceDesk` into Market Rates Tab 1.
+
+### Verification performed
+- Commands run:
+  - Automated Node.js test `test_ag009_market.mjs`:
+    - Verified `COMMODITY_MASTER` contains accurate 2024-25/2026 MSP benchmarks.
+    - Verified `MARKET_MASTER` maps core Maharashtra APMC hubs.
+    - Verified `enrichMandiObservation` computes accurate MSP delta, status, spread, and staleness.
+    - Verified live query against Supabase Cloud (`lqoychozoysmxibhcmuf.supabase.co`) successfully fetched real Agmarknet records.
+  - Frontend production build: `npm run build` executed in 3.72s with 0 errors.
+- Tests passed: 100% of AG-009 Market Reference checks passed.
+
+### Not completed
+- None. Task AG-009 is 100% complete and verified.
+
+### Next task
+- Canonical Task AG-010: Farmer Lot Creation and Management (Draft, publish, cancel lot, moisture assays, quality grade FAQ, and origin geolocation).
 
 
 

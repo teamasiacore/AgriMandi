@@ -29,7 +29,7 @@ if (SUPABASE_URL && SUPABASE_KEY) {
 /**
  * Normalizes commodity names to avoid spelling mismatch across APMCs
  */
-function normalizeCommodity(commodity = '') {
+export function normalizeCommodity(commodity = '') {
   const c = commodity.trim().toLowerCase();
   if (c.includes('soya')) return 'Soyabean';
   if (c.includes('cotton') || c.includes('kapas')) return 'Cotton';
@@ -40,6 +40,183 @@ function normalizeCommodity(commodity = '') {
   if (c.includes('tomato')) return 'Tomato';
   if (c.includes('maize') || c.includes('makka')) return 'Maize';
   return commodity.trim();
+}
+
+// Canonical Govt of India MSP Benchmarks (2024-25/2026 Mandate)
+export const MSP_BENCHMARKS = {
+  'soyabean': { msp: 4892, season: 'Kharif 2024-25', unit: '₹/Quintal', nameMr: 'सोयाबीन', nameHi: 'सोयाबीन' },
+  'cotton': { msp: 7121, season: 'Kharif 2024-25', unit: '₹/Quintal', nameMr: 'कापूस', nameHi: 'कपास' },
+  'gram (chana)': { msp: 5440, season: 'Rabi 2024-25', unit: '₹/Quintal', nameMr: 'हरभरा (चना)', nameHi: 'चना' },
+  'arhar (tur/red gram)': { msp: 7550, season: 'Kharif 2024-25', unit: '₹/Quintal', nameMr: 'तूर', nameHi: 'अरहर (तूर)' },
+  'wheat': { msp: 2275, season: 'Rabi 2024-25', unit: '₹/Quintal', nameMr: 'गहू', nameHi: 'गेहूं' },
+  'maize': { msp: 2225, season: 'Kharif 2024-25', unit: '₹/Quintal', nameMr: 'मका', nameHi: 'मक्का' },
+  'moong (green gram)': { msp: 8682, season: 'Kharif 2024-25', unit: '₹/Quintal', nameMr: 'मूग', nameHi: 'मूंग' },
+  'urad (black gram)': { msp: 7400, season: 'Kharif 2024-25', unit: '₹/Quintal', nameMr: 'उडीद', nameHi: 'उड़द' },
+  'onion': { msp: null, season: 'NAFED Price Stabilization Fund', unit: '₹/Quintal', nameMr: 'कांदा', nameHi: 'प्याज' }
+};
+
+export const COMMODITY_MASTER = [
+  {
+    id: 'cmd-soyabean',
+    commodity: 'Soyabean',
+    nameMr: 'सोयाबीन',
+    nameHi: 'सोयाबीन',
+    msp: 4892,
+    season: 'Kharif 2024-25',
+    unit: '₹/Quintal',
+    standard_moisture_max: 10.0,
+    primary_districts: ['Latur', 'Jalna', 'Akola', 'Solapur'],
+    standard_variety: 'Yellow / FAQ Standard'
+  },
+  {
+    id: 'cmd-cotton',
+    commodity: 'Cotton',
+    nameMr: 'कापूस',
+    nameHi: 'कपास',
+    msp: 7121,
+    season: 'Kharif 2024-25',
+    unit: '₹/Quintal',
+    standard_moisture_max: 8.5,
+    primary_districts: ['Jalna', 'Akola'],
+    standard_variety: 'Medium Staple'
+  },
+  {
+    id: 'cmd-chana',
+    commodity: 'Gram (Chana)',
+    nameMr: 'हरभरा (चना)',
+    nameHi: 'चना',
+    msp: 5440,
+    season: 'Rabi 2024-25',
+    unit: '₹/Quintal',
+    standard_moisture_max: 10.0,
+    primary_districts: ['Latur', 'Solapur', 'Akola'],
+    standard_variety: 'Desi / Annagiri'
+  },
+  {
+    id: 'cmd-tur',
+    commodity: 'Arhar (Tur/Red Gram)',
+    nameMr: 'तूर',
+    nameHi: 'अरहर (तूर)',
+    msp: 7550,
+    season: 'Kharif 2024-25',
+    unit: '₹/Quintal',
+    standard_moisture_max: 10.0,
+    primary_districts: ['Latur', 'Akola', 'Solapur'],
+    standard_variety: 'White / Maruti'
+  },
+  {
+    id: 'cmd-onion',
+    commodity: 'Onion',
+    nameMr: 'कांदा',
+    nameHi: 'प्याज',
+    msp: null,
+    season: 'Perishable / NAFED PSF',
+    unit: '₹/Quintal',
+    standard_moisture_max: 12.0,
+    primary_districts: ['Nashik', 'Pune', 'Solapur'],
+    standard_variety: 'Red / Gavran'
+  },
+  {
+    id: 'cmd-wheat',
+    commodity: 'Wheat',
+    nameMr: 'गहू',
+    nameHi: 'गेहूं',
+    msp: 2275,
+    season: 'Rabi 2024-25',
+    unit: '₹/Quintal',
+    standard_moisture_max: 11.0,
+    primary_districts: ['Pune', 'Nashik', 'Solapur'],
+    standard_variety: 'Lokwan / Sharbati'
+  },
+  {
+    id: 'cmd-maize',
+    commodity: 'Maize',
+    nameMr: 'मका',
+    nameHi: 'मक्का',
+    msp: 2225,
+    season: 'Kharif 2024-25',
+    unit: '₹/Quintal',
+    standard_moisture_max: 12.0,
+    primary_districts: ['Nashik', 'Jalna'],
+    standard_variety: 'Yellow Feed'
+  }
+];
+
+export const MARKET_MASTER = [
+  { id: 'mkt-latur', market: 'Latur', district: 'Latur', division: 'Marathwada', apmc_type: 'Major APMC Hub', lat: 18.4088, lng: 76.5604, major_commodities: ['Soyabean', 'Gram (Chana)', 'Arhar (Tur/Red Gram)'] },
+  { id: 'mkt-lasalgaon', market: 'Lasalgaon', district: 'Nashik', division: 'North Maharashtra', apmc_type: 'Asia Largest Onion Hub', lat: 20.1472, lng: 74.2259, major_commodities: ['Onion', 'Tomato', 'Maize'] },
+  { id: 'mkt-nashik', market: 'Nashik', district: 'Nashik', division: 'North Maharashtra', apmc_type: 'District APMC', lat: 19.9975, lng: 73.7898, major_commodities: ['Onion', 'Tomato', 'Wheat'] },
+  { id: 'mkt-solapur', market: 'Solapur', district: 'Solapur', division: 'Western Maharashtra', apmc_type: 'Pulse & Oilseed Hub', lat: 17.6599, lng: 75.9064, major_commodities: ['Gram (Chana)', 'Onion', 'Tur', 'Pomegranate'] },
+  { id: 'mkt-jalna', market: 'Jalna', district: 'Jalna', division: 'Marathwada', apmc_type: 'Cotton & Seed Hub', lat: 19.8410, lng: 75.8864, major_commodities: ['Cotton', 'Soyabean', 'Maize'] },
+  { id: 'mkt-akola', market: 'Akola', district: 'Akola', division: 'Vidarbha', apmc_type: 'Cotton & Pulse Exchange', lat: 20.7002, lng: 77.0082, major_commodities: ['Cotton', 'Soyabean', 'Arhar (Tur/Red Gram)'] },
+  { id: 'mkt-pune', market: 'Pune', district: 'Pune', division: 'Western Maharashtra', apmc_type: 'Terminal APMC (Gultekdi)', lat: 18.5204, lng: 73.8567, major_commodities: ['Wheat', 'Onion', 'Vegetables'] }
+];
+
+export function isDateToday(dateStr) {
+  if (!dateStr) return false;
+  const parts = dateStr.split('/');
+  if (parts.length === 3) {
+    const today = new Date();
+    const d = String(today.getDate()).padStart(2, '0');
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const y = String(today.getFullYear());
+    return parts[0] === d && parts[1] === m && parts[2] === y;
+  }
+  return false;
+}
+
+export function getMspForCommodity(commodity = '') {
+  const norm = normalizeCommodity(commodity).toLowerCase();
+  for (const [key, val] of Object.entries(MSP_BENCHMARKS)) {
+    if (norm.includes(key) || key.includes(norm)) {
+      return val;
+    }
+  }
+  return null;
+}
+
+export function enrichMandiObservation(r) {
+  const mspInfo = getMspForCommodity(r.commodity);
+  const msp = mspInfo?.msp || null;
+  const modalPrice = Number(r.modal_price || 0);
+  const minPrice = Number(r.min_price || modalPrice);
+  const maxPrice = Number(r.max_price || modalPrice);
+  
+  let mspDelta = null;
+  let mspPercentage = null;
+  let mspStatus = 'NO_MSP';
+
+  if (msp && modalPrice > 0) {
+    mspDelta = modalPrice - msp;
+    mspPercentage = Number(((mspDelta / msp) * 100).toFixed(1));
+    if (mspDelta > 0) mspStatus = 'ABOVE_MSP';
+    else if (mspDelta < 0) mspStatus = 'BELOW_MSP';
+    else mspStatus = 'AT_MSP';
+  }
+
+  const isToday = isDateToday(r.arrival_date);
+  const isStale = !isToday;
+  const staleWarning = isStale ? `Reported on ${r.arrival_date} (Previous session / mandi holiday rollover)` : null;
+
+  return {
+    ...r,
+    min_price: minPrice,
+    max_price: maxPrice,
+    modal_price: modalPrice,
+    price_spread: maxPrice - minPrice,
+    msp,
+    msp_season: mspInfo?.season || null,
+    msp_delta: mspDelta,
+    msp_percentage: mspPercentage,
+    msp_status: mspStatus,
+    commodity_mr: mspInfo?.nameMr || r.commodity,
+    commodity_hi: mspInfo?.nameHi || r.commodity,
+    unit: '₹ / Quintal',
+    source_label: 'data.gov.in (Agmarknet) Official Daily APMC Feed',
+    is_live_today: isToday,
+    is_stale: isStale,
+    stale_warning: staleWarning
+  };
 }
 
 /**
@@ -150,11 +327,12 @@ export const mandiService = {
         const { data, error } = await query.limit(limit);
 
         if (!error && data && data.length > 0) {
+          const enrichedRecords = data.map(enrichMandiObservation);
           const result = {
             status: 'success',
             source: 'Supabase Cloud (24x7 Live APMC Feed)',
-            totalRecords: data.length,
-            records: data
+            totalRecords: enrichedRecords.length,
+            records: enrichedRecords
           };
           cache.set(cacheKey, result);
           return result;
@@ -167,11 +345,12 @@ export const mandiService = {
         // Re-read from Supabase after sync
         const retryRes = await query.limit(limit);
         if (retryRes.data && retryRes.data.length > 0) {
+          const enrichedRetry = retryRes.data.map(enrichMandiObservation);
           const result = {
             status: 'success',
             source: 'Supabase Cloud (24x7 Live APMC Feed)',
-            totalRecords: retryRes.data.length,
-            records: retryRes.data
+            totalRecords: enrichedRetry.length,
+            records: enrichedRetry
           };
           cache.set(cacheKey, result);
           return result;
@@ -186,6 +365,28 @@ export const mandiService = {
       source: 'Supabase (Empty)',
       totalRecords: 0,
       records: []
+    };
+  },
+
+  /**
+   * Official Commodity Master with Govt MSP Benchmarks
+   */
+  getCommodities: () => {
+    return {
+      status: 'success',
+      count: COMMODITY_MASTER.length,
+      commodities: COMMODITY_MASTER
+    };
+  },
+
+  /**
+   * Official APMC Mandi Master for Maharashtra Core Agricultural Hubs
+   */
+  getMarkets: () => {
+    return {
+      status: 'success',
+      count: MARKET_MASTER.length,
+      markets: MARKET_MASTER
     };
   },
 
