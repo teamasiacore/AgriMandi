@@ -278,4 +278,31 @@ Both backend and frontend services are compiled, verified, and running live:
 - Vercel Serverless Function cold start (~500ms on first invoke after inactivity). Mitigated by lightweight memory footprint (<30MB).
 
 ### Next task
-- Commit and push to GitHub repository `teamasiacore/AgriMandi`, wait for Vercel auto-deploy, and verify `https://agrimandi.asiacore.in/api/health` returns JSON live on the custom domain.
+- Previous Pending #2: Mandi Auto-Sync via GitHub Actions Scheduled Cron (Completed).
+
+---
+
+## 22 September 2026 — Previous Pending #2 / AG-009: Scheduled Mandi Price Sync via GitHub Actions
+### Completed
+- Exact files changed:
+  - `scripts/sync_mandi_prices.js` — Standalone Node.js script querying live Agmarknet API for 6 core Maharashtra APMC hubs (`Latur`, `Nashik`, `Solapur`, `Jalna`, `Akola`, `Pune`), validating price ranges, deduplicating records, and upserting into Supabase `public.mandi_prices`.
+  - `.github/workflows/mandi-sync.yml` — Automated GitHub Actions workflow running twice daily on schedule (`0 6,12 * * *` UTC / 11:30 AM & 5:30 PM IST) and on manual `workflow_dispatch`.
+- Exact routes added: None (cron worker runs on GitHub Actions infrastructure).
+- Database changes: Upserted 67 fresh APMC price records into `public.mandi_prices` in Supabase Cloud PostgreSQL.
+- UI changes: None (Landing Page and Market Explorer automatically consume newly synced prices).
+
+### Verification performed
+- Commands run:
+  - `node scripts/sync_mandi_prices.js`
+  - Output: 6 districts checked, 73 raw records fetched from `data.gov.in`, 67 clean deduplicated records successfully upserted into Supabase Cloud PostgreSQL (`lqoychozoysmxibhcmuf`). Exit code 0.
+- Manual checks performed: Verified GitHub Actions YAML syntax and cron schedule.
+
+### Not completed
+- Pushing to GitHub repository `teamasiacore/AgriMandi` so GitHub Actions registers the scheduled workflow.
+
+### Risks
+- `data.gov.in` rate limits or downtime on government holidays. Handled via resilient try/catch per district and existing record preservation in Supabase.
+
+### Next task
+- Previous Pending #3 (AG-003): Canonical Supabase Authentication & Demo OTP `123456` removal in production.
+
