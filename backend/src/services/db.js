@@ -2860,6 +2860,56 @@ export const db = {
     };
   },
 
+  getFpoCommissionLedger: async (fpoId) => {
+    const deals = await db.getFpoDeals(fpoId);
+    const fpoLots = await db.getFpoLots(fpoId);
+    const totalPooledQtl = fpoLots.reduce((acc, l) => acc + (Number(l.quantity_qtl) || 0), 0);
+    
+    let totalDealValue = 0;
+    let totalCommissionEarned = 0;
+    let totalDisbursedToMembers = 0;
+    let settledDealsCount = 0;
+
+    const dealLedgerItems = deals.map(d => {
+      const dealVal = Number(d.total_deal_value) || (Number(d.quantity_qtl) * Number(d.price_per_qtl));
+      const fpoFeePct = 1.5;
+      const fpoFee = Math.round(dealVal * (fpoFeePct / 100));
+      const netDisbursed = dealVal - fpoFee;
+
+      totalDealValue += dealVal;
+      totalCommissionEarned += fpoFee;
+      totalDisbursedToMembers += netDisbursed;
+      if (d.escrow_status === 'SETTLED') settledDealsCount++;
+
+      return {
+        deal_id: d.id,
+        lot_id: d.lot_id,
+        crop: d.crop,
+        quantity_qtl: Number(d.quantity_qtl),
+        price_per_qtl: Number(d.price_per_qtl),
+        buyer_name: d.buyer_name || 'Institutional Mill',
+        total_deal_value: dealVal,
+        commission_rate_pct: fpoFeePct,
+        fpo_commission_earned: fpoFee,
+        net_members_disbursed: netDisbursed,
+        escrow_status: d.escrow_status || 'SECURED_IN_ESCROW',
+        created_at: d.created_at
+      };
+    });
+
+    return {
+      fpo_id: fpoId,
+      total_bulk_lots: fpoLots.length,
+      total_pooled_qtl: totalPooledQtl,
+      total_deals: deals.length,
+      settled_deals_count: settledDealsCount,
+      gross_turnover: totalDealValue,
+      total_commission_earned: totalCommissionEarned,
+      total_disbursed_to_members: totalDisbursedToMembers,
+      deals: dealLedgerItems
+    };
+  },
+
   // ===================== BUYER PROFILES & VERIFICATION (AG-007) =====================
   createBuyerProfile: async (buyerData) => {
     const buyerId = buyerData.id || `byr-${Date.now()}`;

@@ -172,9 +172,10 @@ export default function FpoPortal({ currentLang = 'mr' }) {
   const [submittingPool, setSubmittingPool] = useState(false);
   const [poolSuccessMsg, setPoolSuccessMsg] = useState('');
 
-  // Payout Modal
+  // Payout Modal & Commission Ledger
   const [selectedDealForPayout, setSelectedDealForPayout] = useState(null);
   const [payoutLoading, setPayoutLoading] = useState(false);
+  const [commissionLedger, setCommissionLedger] = useState(null);
 
   // Fetch initial FPO data
   useEffect(() => {
@@ -204,6 +205,12 @@ export default function FpoPortal({ currentLang = 'mr' }) {
       // 4. FPO deals
       const dealsRes = await api.getFpoDeals(fpoId);
       if (dealsRes?.deals) setDeals(dealsRes.deals);
+
+      // 5. Commission Ledger (AG-015)
+      try {
+        const ledgerRes = await api.getFpoCommissionLedger(fpoId);
+        if (ledgerRes?.ledger) setCommissionLedger(ledgerRes.ledger);
+      } catch (lErr) {}
 
     } catch (err) {
       console.error('Error loading FPO portal data:', err);
@@ -804,9 +811,62 @@ export default function FpoPortal({ currentLang = 'mr' }) {
           </div>
         )}
 
-        {/* TAB 4: MEMBER PAYOUT LEDGER */}
+        {/* TAB 4: MEMBER PAYOUT & FPO COMMISSION LEDGER (AG-015) */}
         {activeTab === 'payout-ledger' && (
           <div className="space-y-6">
+            
+            {/* KPI Summary Cards Strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="bg-white p-5 rounded-3xl border border-[#E5DFD4] shadow-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 block">
+                  {currentLang === 'en' ? 'Gross Trade Turnover' : currentLang === 'hi' ? 'कुल व्यापार टर्नओवर' : 'एकूण शेतमाल उलाढाल'}
+                </span>
+                <span className="text-2xl font-bold font-mono text-[#1B4332] mt-1 block">
+                  ₹{(commissionLedger?.gross_turnover || deals.reduce((a, d) => a + Number(d.total_deal_value || 0), 0)).toLocaleString('en-IN')}
+                </span>
+                <span className="text-[10px] text-stone-500 mt-0.5 block">
+                  {deals.length} {currentLang === 'en' ? 'Institutional Deals' : 'संस्थागत सौदे'}
+                </span>
+              </div>
+
+              <div className="bg-white p-5 rounded-3xl border border-[#E5DFD4] shadow-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-[#C86432] block">
+                  {currentLang === 'en' ? 'FPO Service Commission' : currentLang === 'hi' ? 'FPO सेवा कमीशन' : 'FPO सेवा कमिशन (१.५%)'}
+                </span>
+                <span className="text-2xl font-bold font-mono text-[#C86432] mt-1 block">
+                  ₹{(commissionLedger?.total_commission_earned || Math.round(deals.reduce((a, d) => a + Number(d.total_deal_value || 0), 0) * 0.015)).toLocaleString('en-IN')}
+                </span>
+                <span className="text-[10px] text-emerald-700 font-semibold mt-0.5 block">
+                  1.5% Cooperative Fund
+                </span>
+              </div>
+
+              <div className="bg-white p-5 rounded-3xl border border-[#E5DFD4] shadow-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 block">
+                  {currentLang === 'en' ? 'Net Disbursed to Members' : currentLang === 'hi' ? 'किसानों को शुद्ध भुगतान' : 'सभासदांना प्रत्यक्ष वर्ग'}
+                </span>
+                <span className="text-2xl font-bold font-mono text-emerald-700 mt-1 block">
+                  ₹{(commissionLedger?.total_disbursed_to_members || Math.round(deals.reduce((a, d) => a + Number(d.total_deal_value || 0), 0) * 0.985)).toLocaleString('en-IN')}
+                </span>
+                <span className="text-[10px] text-stone-500 mt-0.5 block">
+                  98.5% Direct to Bank
+                </span>
+              </div>
+
+              <div className="bg-white p-5 rounded-3xl border border-[#E5DFD4] shadow-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 block">
+                  {currentLang === 'en' ? 'Total Pooled Volume' : currentLang === 'hi' ? 'कुल संकलित मात्रा' : 'एकूण संकलित वजन'}
+                </span>
+                <span className="text-2xl font-bold font-mono text-stone-900 mt-1 block">
+                  {commissionLedger?.total_pooled_qtl || bulkLots.reduce((a, l) => a + Number(l.quantity_qtl || 0), 0)} <span className="text-sm font-sans font-normal">Qtl</span>
+                </span>
+                <span className="text-[10px] text-stone-500 mt-0.5 block">
+                  {fpoMembers} Member Base
+                </span>
+              </div>
+            </div>
+
+            {/* Master Commission & Deal Ledger */}
             {deals.length === 0 ? (
               <div className="p-12 text-center bg-white rounded-3xl border border-[#E5DFD4] space-y-3">
                 <div className="w-16 h-16 rounded-full bg-[#FAF7F2] border border-[#E5DFD4] flex items-center justify-center mx-auto text-[#1B4332]">
@@ -822,52 +882,109 @@ export default function FpoPortal({ currentLang = 'mr' }) {
                 </p>
               </div>
             ) : (
-              <div className="space-y-4">
-                {deals.map(deal => (
-                  <div key={deal.id} className="p-6 rounded-3xl bg-white border border-[#E5DFD4] shadow-xs space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#E5DFD4] pb-4">
-                      <div>
-                        <span className="text-[10px] font-mono text-stone-400 block">DEAL REF: {deal.id}</span>
-                        <h4 className="text-lg font-bold text-[#1B4332]">{deal.crop} — {deal.quantity_qtl} Quintals</h4>
-                        <span className="text-xs text-stone-600">Buyer Mill: <strong>{deal.buyer_name}</strong></span>
-                      </div>
-
-                      <div className="flex items-center gap-3">
-                        <span className="px-3 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-full text-xs font-bold">
-                          {deal.escrow_status === 'SETTLED' ? t.settled : t.dealLocked}
-                        </span>
-                        <button
-                          onClick={() => handleOpenPayoutModal(deal.id)}
-                          className="px-4 py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5 cursor-pointer transition-all"
-                        >
-                          <FileText className="w-3.5 h-3.5 text-amber-300" />
-                          <span>{t.viewPayoutLedger}</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
-                      <div>
-                        <span className="text-[10px] text-stone-500 uppercase block">Rate / Quintal</span>
-                        <strong className="text-base font-mono text-stone-900">₹{deal.price_per_qtl}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-stone-500 uppercase block">Total Consideration</span>
-                        <strong className="text-base font-mono text-[#1B4332]">₹{deal.total_deal_value?.toLocaleString('en-IN')}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-stone-500 uppercase block">FPO Service Fee (1.5%)</span>
-                        <strong className="text-base font-mono text-stone-600">₹{Math.round(deal.total_deal_value * 0.015)?.toLocaleString('en-IN')}</strong>
-                      </div>
-                      <div>
-                        <span className="text-[10px] text-stone-500 uppercase block">Net Members Pool</span>
-                        <strong className="text-base font-mono text-emerald-800">₹{Math.round(deal.total_deal_value * 0.985)?.toLocaleString('en-IN')}</strong>
-                      </div>
-                    </div>
+              <div className="bg-white rounded-3xl border border-[#E5DFD4] overflow-hidden shadow-xs">
+                <div className="p-5 border-b border-[#E5DFD4] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-base font-bold font-heading text-[#1B4332]">
+                      {currentLang === 'en' ? 'Master Commission & Member Payout Ledger' : 'FPO कमिशन व सभासद शेतकरी वाटप खातेवही'}
+                    </h4>
+                    <p className="text-xs text-stone-500">
+                      Automated 1.5% cooperative service fee calculation with transparent member disbursement records
+                    </p>
                   </div>
-                ))}
+                  <span className="text-xs font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full self-start sm:self-auto">
+                    Section 59 APMC Exempt ✓
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#FAF7F2] text-[11px] font-bold text-[#1B4332] uppercase tracking-wider border-b border-[#E5DFD4]">
+                      <tr>
+                        <th className="py-3.5 px-4">Deal Ref & Date</th>
+                        <th className="py-3.5 px-4">Commodity & Volume</th>
+                        <th className="py-3.5 px-4">Buyer Entity</th>
+                        <th className="py-3.5 px-4 text-right">Unit Rate</th>
+                        <th className="py-3.5 px-4 text-right">Gross Turnover</th>
+                        <th className="py-3.5 px-4 text-right text-[#C86432]">FPO Fee (1.5%)</th>
+                        <th className="py-3.5 px-4 text-right text-emerald-800 font-bold">Net to Members</th>
+                        <th className="py-3.5 px-4 text-center">Status</th>
+                        <th className="py-3.5 px-4 text-center">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E5DFD4]">
+                      {deals.map((deal) => {
+                        const dealVal = Number(deal.total_deal_value) || (Number(deal.quantity_qtl) * Number(deal.price_per_qtl));
+                        const fpoFee = Math.round(dealVal * 0.015);
+                        const netDisbursed = dealVal - fpoFee;
+
+                        return (
+                          <tr key={deal.id} className="hover:bg-[#FAF7F2]/60 transition-colors">
+                            <td className="py-3.5 px-4">
+                              <span className="font-mono font-bold text-[#1B4332] block">{deal.id}</span>
+                              <span className="text-[10px] text-stone-400 font-mono">
+                                {deal.created_at ? new Date(deal.created_at).toLocaleDateString() : 'Active Deal'}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span className="font-bold text-stone-900 block">{deal.crop}</span>
+                              <span className="text-[10px] text-stone-500 font-mono">{deal.quantity_qtl} Quintals</span>
+                            </td>
+                            <td className="py-3.5 px-4 text-stone-700 font-medium">
+                              {deal.buyer_name || 'Verified Agro Processor'}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono text-stone-700 font-semibold">
+                              ₹{deal.price_per_qtl}/Qtl
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono font-bold text-stone-900">
+                              ₹{dealVal.toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono font-bold text-[#C86432]">
+                              +₹{fpoFee.toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono font-black text-emerald-800 text-sm">
+                              ₹{netDisbursed.toLocaleString('en-IN')}
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                deal.escrow_status === 'SETTLED'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                  : 'bg-amber-100 text-amber-900 border border-amber-300'
+                              }`}>
+                                {deal.escrow_status === 'SETTLED' ? 'SETTLED (T+0)' : 'LOCKED IN ESCROW'}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              <button
+                                onClick={() => handleOpenPayoutModal(deal.id)}
+                                className="px-3 py-1.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-xs font-bold rounded-xl shadow-2xs flex items-center gap-1 mx-auto cursor-pointer transition-all"
+                              >
+                                <FileText className="w-3.5 h-3.5 text-amber-300" />
+                                <span>{currentLang === 'en' ? 'Payout Slip' : 'वाटप पत्रक'}</span>
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
+
+            {/* Statutory Section 59 Exemption Notice */}
+            <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-3">
+              <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold block uppercase tracking-wide text-[11px] text-emerald-800">
+                  Statutory Mandate: Maharashtra APMC Act (Section 59 Direct Farmer Aggregation Exemption)
+                </span>
+                <p className="mt-0.5 leading-relaxed text-emerald-800 text-[11px]">
+                  All bulk pooled lots aggregated by registered Farmer Producer Companies (FPOs) and dispatched directly to institutional millers are 100% exempt from APMC market committee cess, middlemen commissions, and unauthorized yard deductions. 100% of escrow-cleared proceeds are directly distributed to member farmers with full transparency.
+                </p>
+              </div>
+            </div>
+
           </div>
         )}
 

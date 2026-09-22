@@ -98,7 +98,8 @@ export const api = {
   poolFpoLots: (data) => client.post('/fpo/pool', data).then(res => res.data),
   getFpoBulkLots: (fpoId) => client.get('/fpo/bulk-lots', { params: { fpo_id: fpoId } }).then(res => res.data),
   getFpoDeals: (fpoId) => client.get('/fpo/deals', { params: { fpo_id: fpoId } }).then(res => res.data),
-  getFpoPayoutSplit: (dealId) => client.get(`/fpo/deals/${dealId}/payout-split`).then(res => res.data)
+  getFpoPayoutSplit: (dealId) => client.get(`/fpo/deals/${dealId}/payout-split`).then(res => res.data),
+  getFpoCommissionLedger: (fpoId) => client.get('/fpo/commission-ledger', { params: { fpo_id: fpoId } }).then(res => res.data)
 };
 
 export default api;

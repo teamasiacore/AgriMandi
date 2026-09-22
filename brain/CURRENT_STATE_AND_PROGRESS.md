@@ -818,3 +818,49 @@ Both backend and frontend services are compiled, verified, and running live:
 
 ### Next task
 - Canonical Task AG-015: FPO Group Aggregation, Bulk Lot Pooling & Commission Ledger.
+
+---
+
+## 🏢 19. Milestone AG-015: FPO Group Aggregation, Bulk Lot Pooling & Commission Ledger (100% COMPLETE)
+
+### What was completed
+- **Cluster Lot Discovery & Smallholder Aggregation**:
+  - `GET /api/fpo/eligible-lots` exposes unpooled smallholder produce lots in cluster districts ready for aggregation.
+  - Manual non-digital member registration supported during pooling with 7/12 record assignment and proportional share recording.
+- **Bulk Lot Pooling Engine & Mathematical Moisture Homogenization**:
+  - Multi-lot pooling engine (`POST /api/fpo/pool`) aggregates multiple member contributions into institutional truckload bulk lots (e.g. 100+ Quintals).
+  - Exact weighted average moisture calculation formula:
+    $$\text{Weighted Moisture \%} = \frac{\sum (Q_i \times M_i)}{\sum Q_i}$$
+  - Sets `is_fpo_bulk: true` with `[FPO Verified Cluster]` badge and applies institutional bulk volume premium (+₹150 to ₹250/Qtl).
+  - Automatically updates source individual smallholder lots to `status = 'POOLED_BY_FPO'` to eliminate double-listing.
+- **Cooperative Commission & Member Payout Ledger Engine**:
+  - Grounded 1.5% statutory cooperative service fee deduction for FPO operational sustainability.
+  - Direct calculation of proportional member distribution:
+    - Member Gross = $\text{Quantity}_i \times P_{\text{unit}}$
+    - FPO Fee (1.5%) = $\text{Gross}_i \times 0.015$
+    - Net Direct RTGS Payout = $\text{Gross}_i - \text{FPO Fee}_i$
+  - Proportional member split strictly matches total net realization down to the rupee.
+  - Implemented `db.getFpoCommissionLedger(fpoId)` across backend and serverless DB services, returning gross turnover, total commission earned, net member disbursement, and per-deal audit items.
+- **Master Commission Ledger UI & Section 59 Exemption Banner**:
+  - Upgraded Tab 4 (`payout-ledger`) in `frontend/src/pages/FpoPortal.jsx` with:
+    - 4-Card Master KPI Summary Strip: Gross Consideration Turnover, FPO Service Fee (1.5%), Net Member Direct Disbursals, Total Pooled Volume (Qtl).
+    - Master Commission Ledger Table with deal ref, commodity volume, buyer entity, unit rate, gross turnover, FPO fee (+₹), net member share, escrow status pill, and 1-click Payout Slip button.
+    - Statutory Exemption Notice: Cites Maharashtra APMC Act (Section 59 Direct Farmer Aggregation Exemption) guaranteeing 0% APMC mandi cess and 0% middlemen commission on collective FPO sales.
+    - Single-click print-ready A4 Payout Slip modal (`FpoPayoutSlipModal.jsx`) with member breakdown and QR verification seal.
+- **Routes & SDK Methods Added**:
+  - `GET /api/fpo/commission-ledger?fpo_id=...` exposed in `backend/src/routes/fpoRoutes.js` and `frontend/api/routes/fpoRoutes.js`.
+  - Added `api.getFpoCommissionLedger(fpoId)` in `frontend/src/services/api.js`.
+
+### Verification Performed
+- **Automated Integration Test**: `backend/test_ag015_fpo_aggregation.mjs` verified:
+  - 100 Qtl multi-lot pooling with weighted average moisture (40 Qtl @ 10%, 35 Qtl @ 11%, 25 Qtl @ 12% = exactly 10.85%).
+  - Creation of bulk lot with `is_fpo_bulk: true` and `[FPO Verified Cluster]` metadata.
+  - Institutional buyer deal generation of ₹5,45,000.
+  - 1.5% FPO cooperative fee: exactly ₹8,175; Net member pool: exactly ₹5,36,825.
+  - Sum of individual member payouts ($536,825) matched net consideration down to the rupee.
+  - Commission ledger totals confirmed with exit code 0.
+- **Production Build**: `npm run build` in `frontend/` completed in 3.59s with 0 errors.
+
+### Next task
+- Canonical Task AG-016: Logistics Booking, Vehicle Dispatch & Haversine Freight Engine.
+

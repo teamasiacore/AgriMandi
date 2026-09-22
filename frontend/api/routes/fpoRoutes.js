@@ -225,4 +225,21 @@ router.get('/deals/:dealId/payout-split', async (req, res) => {
   }
 });
 
+/**
+ * GET /api/fpo/commission-ledger
+ * AG-015: Master FPO Collective Commission & Member Disbursement Ledger
+ */
+router.get('/commission-ledger', async (req, res) => {
+  try {
+    const { fpo_id } = req.query;
+    if (!fpo_id) {
+      return res.status(400).json({ status: 'error', message: 'fpo_id query parameter is required.' });
+    }
+    const ledger = await db.getFpoCommissionLedger(fpo_id);
+    res.json({ status: 'success', ledger });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 export default router;
