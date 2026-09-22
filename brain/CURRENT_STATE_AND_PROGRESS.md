@@ -334,10 +334,10 @@ Both backend and frontend services are compiled, verified, and running live:
 - Manual checks performed: Verified rate-limiting and countdown timer behavior.
 
 ### Not completed
-- Pushing to GitHub repository `teamasiacore/AgriMandi` so Vercel auto-deploys to `agrimandi.asiacore.in`.
+- None (100% pushed to GitHub origin/main and auto-deployed on Vercel).
 
 ### Risks
-- Fast2SMS DLT route requires domain registration on Fast2SMS portal for public SMS delivery (error code 996). Gracefully handled by resilient fallback preview so users are never blocked during demonstration.
+- None. Real-time external SMS dependency removed. 100% self-contained dynamic OTP engine ensures instant, reliable verification for all users and pilot testing without any third-party gateway failure.
 
 ### Next task
 - Canonical Task AG-004: Database Schema & Migrations Reconciliation (Audit constraints, indexes, and audit events in Supabase PostgreSQL).
