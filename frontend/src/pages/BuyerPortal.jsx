@@ -147,11 +147,16 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
   const [myDeals, setMyDeals] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Filters & Search
+  // Filters & Search (Demand Discovery AG-011)
   const [filterCrop, setFilterCrop] = useState('all');
   const [filterDistrict, setFilterDistrict] = useState('all');
+  const [filterQuality, setFilterQuality] = useState('all');
+  const [filterMaxDistance, setFilterMaxDistance] = useState(0); // 0 = all
+  const [sortBy, setSortBy] = useState('nearest'); // 'nearest' | 'price_asc' | 'qty_desc'
   const [maxMoisture, setMaxMoisture] = useState(14);
   const [searchQuery, setSearchQuery] = useState('');
+  const [bidFilter, setBidFilter] = useState('ALL'); // 'ALL' | 'PENDING' | 'COUNTERED' | 'ACCEPTED' | 'REJECTED'
+  const [actionLoading, setActionLoading] = useState(false);
 
   // Bid Modal State
   const [selectedLotForBid, setSelectedLotForBid] = useState(null);
@@ -228,21 +233,74 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
     }).catch(() => setLoading(false));
   };
 
-  // Filtered lots calculation
-  const filteredLots = lots.filter(lot => {
-    if (filterCrop !== 'all' && lot.crop.toLowerCase() !== filterCrop.toLowerCase()) return false;
-    if (filterDistrict !== 'all' && lot.district.toLowerCase() !== filterDistrict.toLowerCase()) return false;
-    if (lot.moisture_percentage && Number(lot.moisture_percentage) > maxMoisture) return false;
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchCrop = (lot.crop || '').toLowerCase().includes(q);
-      const matchVariety = (lot.variety || '').toLowerCase().includes(q);
-      const matchFarmer = (lot.farmer_name || '').toLowerCase().includes(q);
-      const matchAddress = (lot.farm_address || '').toLowerCase().includes(q);
-      if (!matchCrop && !matchVariety && !matchFarmer && !matchAddress) return false;
+  // Filtered lots calculation (Demand Discovery with Quality, Distance & Sorting)
+  const filteredLots = lots
+    .filter(lot => {
+      // Only display published / marketplace active lots to buyers (never drafts or cancelled)
+      if (lot.status && lot.status !== 'LISTED' && lot.status !== 'DEAL_LOCKED') return false;
+      if (filterCrop !== 'all' && lot.crop.toLowerCase() !== filterCrop.toLowerCase()) return false;
+      if (filterDistrict !== 'all' && lot.district.toLowerCase() !== filterDistrict.toLowerCase()) return false;
+      if (filterQuality !== 'all' && (lot.quality_grade || 'FAQ (Grade A)') !== filterQuality) return false;
+      if (lot.moisture_percentage && Number(lot.moisture_percentage) > maxMoisture) return false;
+      
+      const distance = calculateHaversineDistance(buyerProfile.district, lot.district, lot.farm_lat, lot.farm_lng);
+      if (filterMaxDistance > 0 && distance > filterMaxDistance) return false;
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        const matchCrop = (lot.crop || '').toLowerCase().includes(q);
+        const matchVariety = (lot.variety || '').toLowerCase().includes(q);
+        const matchFarmer = (lot.farmer_name || '').toLowerCase().includes(q);
+        const matchAddress = (lot.farm_address || '').toLowerCase().includes(q);
+        if (!matchCrop && !matchVariety && !matchFarmer && !matchAddress) return false;
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'price_asc') return Number(a.expected_price_per_qtl) - Number(b.expected_price_per_qtl);
+      if (sortBy === 'qty_desc') return Number(b.quantity_qtl) - Number(a.quantity_qtl);
+      // default: nearest first
+      const distA = calculateHaversineDistance(buyerProfile.district, a.district, a.farm_lat, a.farm_lng);
+      const distB = calculateHaversineDistance(buyerProfile.district, b.district, b.farm_lat, b.farm_lng);
+      return distA - distB;
+    });
+
+  const handleAcceptCounter = async (offer) => {
+    const confirmMsg = currentLang === 'en' 
+      ? `Accept farmer's counter offer of ₹${offer.counter_price_per_qtl}/Qtl and lock this deal?`
+      : currentLang === 'hi'
+      ? `क्या आप किसान के प्रति-प्रस्ताव ₹${offer.counter_price_per_qtl}/क्विंटल को स्वीकार कर सौदा पक्का करना चाहते हैं?`
+      : `शेतकर्‍याचा प्रति-दर ₹${offer.counter_price_per_qtl}/क्विंटल स्वीकारून खरेदी करार पक्का करायचा आहे का?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    setActionLoading(true);
+    try {
+      const res = await api.acceptCounterOffer(offer.id, { actor_id: buyerProfile.id });
+      alert(currentLang === 'en' ? '🎉 Deal executed at counter rate! Escrow contract locked.' : '🎉 प्रति-दरावर खरेदी करार पक्का झाला!');
+      loadMarketData(buyerProfile);
+      if (res.deal) setSelectedDealForContract(res.deal);
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
     }
-    return true;
-  });
+  };
+
+  const handleWithdrawBid = async (offer) => {
+    const confirmMsg = currentLang === 'en' ? 'Withdraw this digital bid?' : 'आपली ही बोली मागे घ्यायची आहे का?';
+    if (!window.confirm(confirmMsg)) return;
+
+    setActionLoading(true);
+    try {
+      await api.withdrawOffer(offer.id, { actor_id: buyerProfile.id });
+      alert(currentLang === 'en' ? '✓ Bid withdrawn successfully.' : '✓ बोली मागे घेण्यात आली.');
+      loadMarketData(buyerProfile);
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   const handleOpenBidModal = (lot) => {
     const isVerified = Boolean(buyerProfile.is_verified || buyerProfile.status === 'VERIFIED');
@@ -474,63 +532,106 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
           <div className="mt-6 space-y-6">
             
             {/* Filter & Search Bar */}
-            <div className="bg-white p-4 rounded-2xl border border-[#E5DFD4] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="text-xs font-bold text-[#1B4332] uppercase flex items-center gap-1.5">
-                  <Filter className="w-3.5 h-3.5" /> {currentLang === 'en' ? 'Filters:' : currentLang === 'hi' ? 'फिल्टर:' : 'फिल्टर्स:'}
-                </span>
+            <div className="bg-white p-4 rounded-2xl border border-[#E5DFD4] shadow-xs space-y-3">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <span className="text-xs font-bold text-[#1B4332] uppercase flex items-center gap-1.5">
+                    <Filter className="w-3.5 h-3.5" /> {currentLang === 'en' ? 'Filters:' : currentLang === 'hi' ? 'फिल्टर:' : 'फिल्टर्स:'}
+                  </span>
 
-                <select
-                  value={filterCrop}
-                  onChange={(e) => setFilterCrop(e.target.value)}
-                  className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold text-stone-800"
-                >
-                  <option value="all">{t.allCrops}</option>
-                  <option value="Soybean">{t.soybean}</option>
-                  <option value="Cotton">{t.cotton}</option>
-                  <option value="Onion">{t.onion}</option>
-                  <option value="Arhar (Tur)">{t.tur}</option>
-                  <option value="Gram (Chana)">{t.chana}</option>
-                  <option value="Wheat">{t.wheat}</option>
-                </select>
+                  {/* Crop Filter */}
+                  <select
+                    value={filterCrop}
+                    onChange={(e) => setFilterCrop(e.target.value)}
+                    className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold text-stone-800"
+                  >
+                    <option value="all">{t.allCrops}</option>
+                    <option value="Soybean">{t.soybean}</option>
+                    <option value="Cotton">{t.cotton}</option>
+                    <option value="Onion">{t.onion}</option>
+                    <option value="Arhar (Tur)">{t.tur}</option>
+                    <option value="Gram (Chana)">{t.chana}</option>
+                    <option value="Wheat">{t.wheat}</option>
+                  </select>
 
-                <select
-                  value={filterDistrict}
-                  onChange={(e) => setFilterDistrict(e.target.value)}
-                  className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold text-stone-800"
-                >
-                  <option value="all">{t.allDistricts}</option>
-                  {DISTRICT_OPTIONS.map(d => (
-                    <option key={d.id} value={d.id}>
-                      {d[currentLang] || d.en}
-                    </option>
-                  ))}
-                </select>
+                  {/* District Filter */}
+                  <select
+                    value={filterDistrict}
+                    onChange={(e) => setFilterDistrict(e.target.value)}
+                    className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold text-stone-800"
+                  >
+                    <option value="all">{t.allDistricts}</option>
+                    {DISTRICT_OPTIONS.map(d => (
+                      <option key={d.id} value={d.id}>
+                        {d[currentLang] || d.en}
+                      </option>
+                    ))}
+                  </select>
 
-                <div className="flex items-center gap-2 text-xs font-medium text-stone-600">
-                  <span>{t.filterMoisture}</span>
+                  {/* Quality Grade Filter (AG-011) */}
+                  <select
+                    value={filterQuality}
+                    onChange={(e) => setFilterQuality(e.target.value)}
+                    className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold text-stone-800"
+                  >
+                    <option value="all">{currentLang === 'en' ? 'All Quality Grades' : 'सर्व गुणवत्ता प्रती'}</option>
+                    <option value="FAQ (Grade A)">FAQ (Grade A)</option>
+                    <option value="Premium Export Grade">Premium Export Grade</option>
+                    <option value="Medium Grade B">Medium Grade B</option>
+                  </select>
+
+                  {/* Distance Radius Filter (AG-011) */}
+                  <select
+                    value={filterMaxDistance}
+                    onChange={(e) => setFilterMaxDistance(Number(e.target.value))}
+                    className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold text-stone-800"
+                  >
+                    <option value={0}>{currentLang === 'en' ? 'Any Distance' : 'सर्व अंतर'}</option>
+                    <option value={50}>{currentLang === 'en' ? 'Within 50 km' : '५० किमी आत'}</option>
+                    <option value={100}>{currentLang === 'en' ? 'Within 100 km' : '१०० किमी आत'}</option>
+                    <option value={200}>{currentLang === 'en' ? 'Within 200 km' : '२०० किमी आत'}</option>
+                  </select>
+
+                  {/* Sort Order (AG-011) */}
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="px-3 py-1.5 rounded-lg border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-bold text-[#1B4332]"
+                  >
+                    <option value="nearest">{currentLang === 'en' ? 'Sort: Nearest First' : 'क्रम: जवळचे पहिले'}</option>
+                    <option value="price_asc">{currentLang === 'en' ? 'Sort: Lowest Price' : 'क्रम: कमी दर'}</option>
+                    <option value="qty_desc">{currentLang === 'en' ? 'Sort: Highest Qty' : 'क्रम: जास्त प्रमाण'}</option>
+                  </select>
+                </div>
+
+                {/* Search Bar */}
+                <div className="relative min-w-[200px]">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-stone-400" />
                   <input
-                    type="range"
-                    min="6"
-                    max="18"
-                    value={maxMoisture}
-                    onChange={(e) => setMaxMoisture(Number(e.target.value))}
-                    className="w-24 accent-[#1B4332]"
+                    type="text"
+                    placeholder={currentLang === 'en' ? 'Search crop, farmer, village...' : currentLang === 'hi' ? 'खोजें...' : 'पीक, शेतकरी, गाव शोधा...'}
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold focus:outline-none focus:border-[#1B4332]"
                   />
-                  <span className="font-bold text-[#1B4332] font-mono">{maxMoisture}%</span>
                 </div>
               </div>
 
-              {/* Search Bar */}
-              <div className="relative min-w-[220px]">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-stone-400" />
+              {/* Moisture Slider bar */}
+              <div className="flex items-center gap-3 pt-2 border-t border-[#E5DFD4]/60 text-xs font-medium text-stone-600">
+                <span className="font-bold text-[#1B4332]">{t.filterMoisture}:</span>
                 <input
-                  type="text"
-                  placeholder={currentLang === 'en' ? 'Search crop, farmer, village...' : currentLang === 'hi' ? 'खोजें...' : 'पीक, शेतकरी, गाव शोधा...'}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-xs font-semibold focus:outline-none focus:border-[#1B4332]"
+                  type="range"
+                  min="6"
+                  max="18"
+                  value={maxMoisture}
+                  onChange={(e) => setMaxMoisture(Number(e.target.value))}
+                  className="w-32 accent-[#1B4332]"
                 />
+                <span className="font-bold text-[#1B4332] font-mono">{maxMoisture}% max</span>
+                <span className="text-stone-400 text-[11px]">
+                  ({filteredLots.length} {currentLang === 'en' ? 'verified lots available' : 'सत्यापित लॉट उपलब्ध'})
+                </span>
               </div>
             </div>
 
@@ -715,12 +816,39 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                     {t.tabMyBids}
                   </h3>
                   <p className="text-xs text-stone-500 mt-0.5">
-                    {currentLang === 'en' ? 'Track digital offers placed on farmer harvest lots' : currentLang === 'hi' ? 'किसान फसल लॉट्स पर लगाई गई बोलियों की स्थिति ट्रैक करें' : 'शेतकरी लॉट्सवर लावलेल्या आपल्या बोलींची स्थिती'}
+                    {currentLang === 'en' ? 'Track and negotiate digital offers placed on farmer harvest lots' : currentLang === 'hi' ? 'किसान फसल लॉट्स पर लगाई गई बोलियों की स्थिति व मोलभाव ट्रैक करें' : 'शेतकरी लॉट्सवर लावलेल्या आपल्या बोलींची स्थिती व वाटाघाटी'}
                   </p>
                 </div>
-                <span className="text-xs font-bold font-mono text-stone-700 bg-[#FAF7F2] px-3 py-1 rounded-lg border border-[#E5DFD4]">
-                  {myOffers.length} {currentLang === 'en' ? 'Offers' : currentLang === 'hi' ? 'बोलियां' : 'बोली'}
-                </span>
+
+                {/* Offer Status Filter Pills (AG-011) */}
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {[
+                    { key: 'ALL', label: currentLang === 'en' ? 'All' : 'सर्व' },
+                    { key: 'PENDING', label: currentLang === 'en' ? 'Pending' : 'प्रलंबित' },
+                    { key: 'COUNTERED', label: currentLang === 'en' ? 'Countered' : 'प्रति-दर' },
+                    { key: 'ACCEPTED', label: currentLang === 'en' ? 'Accepted' : 'स्वीकृत' },
+                    { key: 'REJECTED', label: currentLang === 'en' ? 'Rejected' : 'नाकारले' }
+                  ].map(tab => {
+                    const count = tab.key === 'ALL' ? myOffers.length : myOffers.filter(o => o.status === tab.key).length;
+                    const isActive = bidFilter === tab.key;
+                    return (
+                      <button
+                        key={tab.key}
+                        onClick={() => setBidFilter(tab.key)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                          isActive
+                            ? 'bg-[#1B4332] text-white shadow-2xs'
+                            : 'bg-[#FAF7F2] text-stone-600 hover:bg-[#E5DFD4] border border-[#E5DFD4]'
+                        }`}
+                      >
+                        <span>{tab.label}</span>
+                        <span className={`text-[10px] px-1.5 rounded-full ${isActive ? 'bg-white/20 text-white' : 'bg-stone-200 text-stone-700'}`}>
+                          {count}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               {myOffers.length === 0 ? (
@@ -730,7 +858,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                   <p className="mt-1">{currentLang === 'en' ? 'Explore the marketplace and place your first binding offer.' : currentLang === 'hi' ? 'बाजार में उपलब्ध लॉट्स देखें और किसान को सीधी बोली लगाएं।' : 'बाजारातील लॉट्स पहा आणि शेतकर्‍याला पहिली थेट बोली लावा.'}</p>
                   <button
                     onClick={() => setActiveTab('marketplace')}
-                    className="mt-4 px-4 py-2 bg-[#1B4332] text-white rounded-xl text-xs font-bold"
+                    className="mt-4 px-4 py-2 bg-[#1B4332] text-white rounded-xl text-xs font-bold cursor-pointer"
                   >
                     {t.tabMarketplace}
                   </button>
@@ -751,70 +879,131 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-[#E5DFD4]">
-                      {myOffers.map((off) => {
-                        const isAccepted = off.status === 'ACCEPTED';
-                        const isRejected = off.status === 'REJECTED';
+                      {myOffers
+                        .filter(o => bidFilter === 'ALL' ? true : o.status === bidFilter)
+                        .map((off) => {
+                          const isAccepted = off.status === 'ACCEPTED';
+                          const isCountered = off.status === 'COUNTERED';
+                          const isRejected = off.status === 'REJECTED';
+                          const isWithdrawn = off.status === 'WITHDRAWN';
+                          const isPending = off.status === 'PENDING';
 
-                        return (
-                          <tr key={off.id} className="hover:bg-[#FCFAF6] transition-colors">
-                            <td className="py-3.5 px-4 font-mono font-bold text-xs text-[#1B4332]">{off.id}</td>
-                            <td className="py-3.5 px-4 font-mono text-xs text-stone-600">{off.lot_id}</td>
-                            <td className="py-3.5 px-4 text-right font-mono font-bold">
-                              {off.quantity_requested_qtl} <span className="text-xs text-stone-400 font-normal">Qtl</span>
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono font-bold text-base text-[#C86432]">
-                              ₹{off.offered_price_per_qtl}
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono font-bold text-stone-900">
-                              ₹{(Number(off.offered_price_per_qtl) * Number(off.quantity_requested_qtl)).toLocaleString()}
-                            </td>
-                            <td className="py-3.5 px-4 text-xs text-stone-600 max-w-[180px] truncate">{off.delivery_destination}</td>
-                            <td className="py-3.5 px-4">
-                              <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase inline-flex items-center gap-1 ${
-                                isAccepted
-                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                  : isRejected
-                                  ? 'bg-red-100 text-red-800 border border-red-200'
-                                  : 'bg-amber-100 text-amber-800 border border-amber-200'
-                              }`}>
-                                {isAccepted ? (
-                                  <>
-                                    <CheckCircle2 className="w-3 h-3 text-emerald-700" />
-                                    {currentLang === 'en' ? 'Accepted' : currentLang === 'hi' ? 'स्वीकृत' : 'मंजूर'}
-                                  </>
-                                ) : isRejected ? (
-                                  <>
-                                    <X className="w-3 h-3 text-red-600" />
-                                    {currentLang === 'en' ? 'Rejected' : currentLang === 'hi' ? 'अस्वीकृत' : 'नाकारले'}
-                                  </>
-                                ) : (
-                                  <>
-                                    <Clock className="w-3 h-3 text-amber-700" />
-                                    {currentLang === 'en' ? 'Pending' : currentLang === 'hi' ? 'प्रलंबित' : 'प्रलंबित'}
-                                  </>
-                                )}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-center">
-                              {isAccepted ? (
-                                <button
-                                  onClick={() => handleViewDealContract(off)}
-                                  className="px-3 py-1.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-xs cursor-pointer"
-                                >
-                                  <FileText className="w-3 h-3" />
-                                  <span>{currentLang === 'en' ? 'Deal Contract' : currentLang === 'hi' ? 'करार देखें' : 'करार पहा'}</span>
-                                </button>
-                              ) : (
-                                <span className="text-[11px] text-stone-400 italic">
-                                  {isRejected 
-                                    ? (currentLang === 'en' ? 'Lot Closed' : currentLang === 'hi' ? 'लॉट बंद हुआ' : 'लॉट पूर्ण झाला') 
-                                    : (currentLang === 'en' ? 'Awaiting Farmer' : currentLang === 'hi' ? 'किसान की प्रतिक्रिया प्रतीक्षित' : 'शेतकरी प्रतिसादाची प्रतीक्षा')}
+                          return (
+                            <tr key={off.id} className={`transition-colors ${isCountered ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-[#FCFAF6]'}`}>
+                              <td className="py-3.5 px-4 font-mono font-bold text-xs text-[#1B4332]">{off.id}</td>
+                              <td className="py-3.5 px-4 font-mono text-xs text-stone-600">{off.lot_id}</td>
+                              <td className="py-3.5 px-4 text-right font-mono font-bold">
+                                {off.quantity_requested_qtl} <span className="text-xs text-stone-400 font-normal">Qtl</span>
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-mono font-bold text-base text-[#C86432]">
+                                ₹{off.offered_price_per_qtl}
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-mono font-bold text-stone-900">
+                                ₹{(Number(off.offered_price_per_qtl) * Number(off.quantity_requested_qtl)).toLocaleString()}
+                              </td>
+                              <td className="py-3.5 px-4 text-xs text-stone-600 max-w-[180px] truncate">{off.delivery_destination}</td>
+                              <td className="py-3.5 px-4">
+                                <span className={`px-2.5 py-1 rounded-md text-xs font-bold uppercase inline-flex items-center gap-1 ${
+                                  isAccepted
+                                    ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                    : isCountered
+                                    ? 'bg-amber-100 text-amber-900 border border-amber-300 font-extrabold'
+                                    : isRejected
+                                    ? 'bg-red-100 text-red-800 border border-red-200'
+                                    : isWithdrawn
+                                    ? 'bg-stone-100 text-stone-600 border border-stone-200'
+                                    : 'bg-blue-100 text-blue-800 border border-blue-200'
+                                }`}>
+                                  {isAccepted ? (
+                                    <>
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-700" />
+                                      {currentLang === 'en' ? 'Accepted' : currentLang === 'hi' ? 'स्वीकृत' : 'मंजूर'}
+                                    </>
+                                  ) : isCountered ? (
+                                    <>
+                                      <Scale className="w-3 h-3 text-amber-700" />
+                                      {currentLang === 'en' ? `Counter: ₹${off.counter_price_per_qtl}` : `प्रति-दर: ₹${off.counter_price_per_qtl}`}
+                                    </>
+                                  ) : isRejected ? (
+                                    <>
+                                      <X className="w-3 h-3 text-red-600" />
+                                      {currentLang === 'en' ? 'Rejected' : currentLang === 'hi' ? 'अस्वीकृत' : 'नाकारले'}
+                                    </>
+                                  ) : isWithdrawn ? (
+                                    <span>{currentLang === 'en' ? 'Withdrawn' : 'मागे घेतले'}</span>
+                                  ) : (
+                                    <>
+                                      <Clock className="w-3 h-3 text-blue-700" />
+                                      {currentLang === 'en' ? 'Pending' : currentLang === 'hi' ? 'प्रलंबित' : 'प्रलंबित'}
+                                    </>
+                                  )}
                                 </span>
-                              )}
-                            </td>
-                          </tr>
-                        );
-                      })}
+                              </td>
+                              <td className="py-3.5 px-4 text-center">
+                                {isAccepted && (
+                                  <button
+                                    onClick={() => handleViewDealContract(off)}
+                                    className="px-3 py-1.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-xs cursor-pointer"
+                                  >
+                                    <FileText className="w-3 h-3 text-emerald-200" />
+                                    <span>{currentLang === 'en' ? 'Deal Contract' : currentLang === 'hi' ? 'करार देखें' : 'करार पहा'}</span>
+                                  </button>
+                                )}
+
+                                {isCountered && (
+                                  <div className="flex items-center justify-center gap-1.5">
+                                    <button
+                                      disabled={actionLoading}
+                                      onClick={() => handleAcceptCounter(off)}
+                                      className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold inline-flex items-center gap-1 shadow-2xs cursor-pointer"
+                                      title="Accept farmer counter rate and lock contract"
+                                    >
+                                      <CheckCircle2 className="w-3 h-3 text-emerald-200" />
+                                      <span>{currentLang === 'en' ? `Accept ₹${off.counter_price_per_qtl}` : `स्वीकार करा`}</span>
+                                    </button>
+                                    <button
+                                      disabled={actionLoading}
+                                      onClick={() => handleWithdrawBid(off)}
+                                      className="px-2 py-1.5 bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 rounded-lg text-xs font-bold inline-flex items-center gap-1 cursor-pointer"
+                                      title="Decline counter offer"
+                                    >
+                                      <X className="w-3 h-3" />
+                                      <span>{currentLang === 'en' ? 'Decline' : 'नकार'}</span>
+                                    </button>
+                                  </div>
+                                )}
+
+                                {isPending && (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <span className="text-[11px] text-stone-400 italic">
+                                      {currentLang === 'en' ? 'Awaiting Farmer' : 'शेतकरी निर्णयाची प्रतीक्षा'}
+                                    </span>
+                                    <button
+                                      disabled={actionLoading}
+                                      onClick={() => handleWithdrawBid(off)}
+                                      className="px-2 py-1 bg-white border border-stone-300 hover:bg-rose-50 hover:border-rose-300 text-stone-600 hover:text-rose-700 rounded text-[11px] font-semibold cursor-pointer"
+                                      title="Withdraw this bid before acceptance"
+                                    >
+                                      {currentLang === 'en' ? 'Withdraw' : 'मागे घ्या'}
+                                    </button>
+                                  </div>
+                                )}
+
+                                {isRejected && (
+                                  <span className="text-[11px] text-stone-400 italic block">
+                                    {off.rejection_reason || (currentLang === 'en' ? 'Declined by farmer' : 'शेतकर्‍याने नाकारले')}
+                                  </span>
+                                )}
+
+                                {isWithdrawn && (
+                                  <span className="text-[11px] text-stone-400 italic block">
+                                    {currentLang === 'en' ? 'Bid withdrawn' : 'बोली मागे घेतली'}
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          );
+                        })}
                     </tbody>
                   </table>
                 </div>

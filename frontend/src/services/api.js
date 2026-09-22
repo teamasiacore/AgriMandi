@@ -36,10 +36,14 @@ export const api = {
   cancelLot: (id, data = {}) => client.post(`/lots/${id}/cancel`, data).then(res => res.data),
   deleteLot: (id) => client.delete(`/lots/${id}`).then(res => res.data),
 
-  // Bids & Offers
+  // Bids & Offers (AG-011)
   getOffers: (params) => client.get('/offers', { params }).then(res => res.data),
   createOffer: (data) => client.post('/offers', data).then(res => res.data),
   acceptOffer: (id) => client.post(`/offers/${id}/accept`).then(res => res.data),
+  counterOffer: (id, data) => client.post(`/offers/${id}/counter`, data).then(res => res.data),
+  acceptCounterOffer: (id, data = {}) => client.post(`/offers/${id}/accept-counter`, data).then(res => res.data),
+  rejectOffer: (id, data = {}) => client.post(`/offers/${id}/reject`, data).then(res => res.data),
+  withdrawOffer: (id, data = {}) => client.post(`/offers/${id}/withdraw`, data).then(res => res.data),
 
   // Buyers & Deals
   getBuyers: () => client.get('/buyers').then(res => res.data),

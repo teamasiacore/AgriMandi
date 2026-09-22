@@ -234,6 +234,75 @@ router.post('/offers/:id/accept', async (req, res) => {
   }
 });
 
+// Counter-Offer (Farmer proposes counter price)
+router.post('/offers/:id/counter', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { counter_price_per_qtl, counter_notes, actor_id } = req.body;
+    if (!counter_price_per_qtl || Number(counter_price_per_qtl) <= 0) {
+      return res.status(400).json({ status: 'error', message: 'Valid counter price per quintal is required.' });
+    }
+    const updated = await db.counterOffer(id, { counter_price_per_qtl, counter_notes, actor_id });
+    res.json({
+      status: 'success',
+      message: 'Counter offer proposed to buyer successfully',
+      offer: updated
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Accept Counter-Offer (Buyer agrees to farmer's counter rate)
+router.post('/offers/:id/accept-counter', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { actor_id } = req.body;
+    const result = await db.acceptCounterOffer(id, { actor_id });
+    res.json({
+      status: 'success',
+      message: '🎉 Counter offer accepted! Deal locked and contract generated.',
+      deal: result.deal,
+      lot: result.lot,
+      offer: result.offer
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Reject Offer (Farmer declines offer)
+router.post('/offers/:id/reject', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason, actor_id } = req.body;
+    const updated = await db.rejectOffer(id, { reason, actor_id });
+    res.json({
+      status: 'success',
+      message: 'Offer rejected',
+      offer: updated
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Withdraw Offer (Buyer cancels pending bid)
+router.post('/offers/:id/withdraw', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { actor_id } = req.body;
+    const updated = await db.withdrawOffer(id, { actor_id });
+    res.json({
+      status: 'success',
+      message: 'Offer withdrawn successfully',
+      offer: updated
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // Get Verified Buyers
 router.get('/buyers', async (req, res) => {
   try {

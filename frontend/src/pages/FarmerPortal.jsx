@@ -455,6 +455,67 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
     }
   };
 
+  const handleRejectOffer = async (offerId) => {
+    const reason = window.prompt(
+      currentLang === 'en' ? 'Reason for rejecting offer (e.g., Rate below expectation, Transport unavailable):' :
+      currentLang === 'hi' ? 'बोली अस्वीकार करने का कारण दर्ज करें:' :
+      'बोली नाकारण्याचे कारण प्रविष्ट करा:',
+      currentLang === 'en' ? 'Offered rate is below market expectation' : 'दर अपेक्षेपेक्षा कमी आहे'
+    );
+    if (reason === null) return;
+
+    setActionLoading(true);
+    try {
+      await api.rejectOffer(offerId, { reason, actor_id: user.id });
+      alert(currentLang === 'en' ? '✓ Offer rejected.' : currentLang === 'hi' ? '✓ बोली अस्वीकृत की गई।' : '✓ बोली नाकारण्यात आली.');
+      loadLotsAndOffers(user);
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleCounterOffer = async (offer) => {
+    const counterRateStr = window.prompt(
+      currentLang === 'en' ? `Buyer offered ₹${offer.offered_price_per_qtl}/Qtl.\nEnter your Counter Price (₹/Quintal):` :
+      currentLang === 'hi' ? `खरीदार ने ₹${offer.offered_price_per_qtl}/क्विंटल की पेशकश की है।\nअपना प्रति-प्रस्ताव दर (₹/क्विंटल) दर्ज करें:` :
+      `खरेदीदाराने ₹${offer.offered_price_per_qtl}/क्विंटल दर दिला आहे.\nआपला अपेक्षित प्रति-दर (₹/क्विंटल) प्रविष्ट करा:`,
+      String(Number(offer.offered_price_per_qtl) + 100)
+    );
+    if (!counterRateStr) return;
+
+    const counterRate = Number(counterRateStr);
+    if (!counterRate || counterRate <= 0) {
+      alert(currentLang === 'en' ? 'Please enter a valid price.' : 'कृपया वैध दर प्रविष्ट करा.');
+      return;
+    }
+
+    const counterNotes = window.prompt(
+      currentLang === 'en' ? 'Optional note to buyer (e.g. Clean FAQ, ready for immediate dispatch):' :
+      currentLang === 'hi' ? 'खरीदार हेतु संदेश (वैकल्पिक):' :
+      'खरेदीदारास संदेश (ऐच्छिक):',
+      currentLang === 'en' ? 'Clean quality produce, ready for immediate loading' : 'उत्कृष्ट प्रत, त्वरित लोडिंगसाठी तयार'
+    ) || '';
+
+    setActionLoading(true);
+    try {
+      await api.counterOffer(offer.id, { 
+        counter_price_per_qtl: counterRate,
+        counter_notes: counterNotes,
+        actor_id: user.id
+      });
+      alert(currentLang === 'en' ? `✓ Counter offer of ₹${counterRate}/Qtl sent to ${offer.buyer_name}!` :
+            currentLang === 'hi' ? `✓ प्रति-प्रस्ताव दर ₹${counterRate}/क्विंटल खरीदार को प्रेषित किया गया!` :
+            `✓ प्रति-दर ₹${counterRate}/क्विंटल खरेदीदाराकडे पाठवण्यात आला आहे!`);
+      loadLotsAndOffers(user);
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#FAF7F2] pb-16">
       
@@ -1656,77 +1717,145 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
 
                         {lotOffers.length > 0 ? (
                           <div className="space-y-2">
-                            {lotOffers.map((off) => (
-                              <div 
-                                key={off.id}
-                                className={`p-3 rounded-xl border flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                                  off.status === 'ACCEPTED'
-                                    ? 'bg-emerald-50 border-emerald-300'
-                                    : 'bg-[#FAF7F2] border-[#E5DFD4]'
-                                }`}
-                              >
-                                <div>
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-xs font-bold text-[#1B4332]">{off.buyer_name}</span>
-                                    <span className={`text-[10px] px-2 py-0.5 rounded font-bold uppercase ${
-                                      off.status === 'ACCEPTED' ? 'bg-emerald-200 text-emerald-900' : 'bg-stone-200 text-stone-700'
-                                    }`}>
-                                      {off.status === 'ACCEPTED' 
-                                        ? (currentLang === 'en' ? 'ACCEPTED' : currentLang === 'hi' ? 'स्वीकृत' : 'मंजूर') 
-                                        : (currentLang === 'en' ? 'PENDING' : currentLang === 'hi' ? 'लंबित' : 'प्रलंबित')}
-                                    </span>
+                            {lotOffers.map((off) => {
+                              const isAccepted = off.status === 'ACCEPTED';
+                              const isCountered = off.status === 'COUNTERED';
+                              const isRejected = off.status === 'REJECTED';
+                              const isWithdrawn = off.status === 'WITHDRAWN';
+                              const isPending = off.status === 'PENDING';
+
+                              return (
+                                <div 
+                                  key={off.id}
+                                  className={`p-3.5 rounded-xl border flex flex-col md:flex-row md:items-center justify-between gap-3 transition-colors ${
+                                    isAccepted
+                                      ? 'bg-emerald-50/70 border-emerald-300'
+                                      : isCountered
+                                      ? 'bg-amber-50/70 border-amber-300'
+                                      : isRejected
+                                      ? 'bg-rose-50/50 border-rose-200 opacity-75'
+                                      : 'bg-[#FAF7F2] border-[#E5DFD4]'
+                                  }`}
+                                >
+                                  <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="text-xs font-bold text-[#1B4332]">{off.buyer_name}</span>
+
+                                      {isAccepted && (
+                                        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-emerald-200 text-emerald-900 border border-emerald-300 flex items-center gap-1">
+                                          <CheckCircle2 className="w-3 h-3 text-emerald-800" />
+                                          {currentLang === 'en' ? 'ACCEPTED' : currentLang === 'hi' ? 'स्वीकृत' : 'मंजूर'}
+                                        </span>
+                                      )}
+                                      {isCountered && (
+                                        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-amber-200 text-amber-900 border border-amber-300 flex items-center gap-1">
+                                          <Scale className="w-3 h-3 text-amber-800" />
+                                          {currentLang === 'en' ? `COUNTER PROPOSED: ₹${off.counter_price_per_qtl}/Qtl` : `प्रति-दर प्रस्तावित: ₹${off.counter_price_per_qtl}/क्विंटल`}
+                                        </span>
+                                      )}
+                                      {isRejected && (
+                                        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-rose-200 text-rose-900 border border-rose-300 flex items-center gap-1">
+                                          <X className="w-3 h-3 text-rose-800" />
+                                          {currentLang === 'en' ? 'REJECTED' : currentLang === 'hi' ? 'अस्वीकृत' : 'नाकारले'}
+                                        </span>
+                                      )}
+                                      {isWithdrawn && (
+                                        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-stone-200 text-stone-700">
+                                          {currentLang === 'en' ? 'WITHDRAWN BY BUYER' : 'खरेदीदाराने मागे घेतले'}
+                                        </span>
+                                      )}
+                                      {isPending && (
+                                        <span className="text-[10px] px-2 py-0.5 rounded font-bold uppercase bg-blue-100 text-blue-800 border border-blue-200">
+                                          {currentLang === 'en' ? 'PENDING DECISION' : 'प्रलंबित'}
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <p className="text-xs text-stone-600 mt-1">
+                                      {currentLang === 'en' ? 'Qty:' : currentLang === 'hi' ? 'मात्रा:' : 'प्रमाण:'} <strong>{off.quantity_requested_qtl} {currentLang === 'en' ? 'Qtl' : 'क्विंटल'}</strong> | {currentLang === 'en' ? 'Destination:' : currentLang === 'hi' ? 'गंतव्य:' : 'पोहोच ठिकाण:'} {off.delivery_destination}
+                                    </p>
+
+                                    {isCountered && (
+                                      <p className="text-[11px] text-amber-800 font-medium mt-1 bg-amber-100/60 px-2 py-0.5 rounded inline-block">
+                                        ⏳ {currentLang === 'en' ? `Awaiting buyer acceptance for ₹${off.counter_price_per_qtl}/Qtl` : `₹${off.counter_price_per_qtl}/क्विंटल प्रति-दरावर खरेदीदाराच्या निर्णयाची प्रतीक्षा.`}
+                                        {off.counter_notes ? ` ("${off.counter_notes}")` : ''}
+                                      </p>
+                                    )}
+
+                                    {isRejected && off.rejection_reason && (
+                                      <p className="text-[11px] text-rose-700 font-medium mt-0.5">
+                                        {currentLang === 'en' ? 'Reason:' : 'कारण:'} {off.rejection_reason}
+                                      </p>
+                                    )}
                                   </div>
-                                  <p className="text-xs text-stone-600 mt-1">
-                                    {currentLang === 'en' ? 'Qty:' : currentLang === 'hi' ? 'मात्रा:' : 'प्रमाण:'} <strong>{off.quantity_requested_qtl} {currentLang === 'en' ? 'Qtl' : 'क्विंटल'}</strong> | {currentLang === 'en' ? 'Destination:' : currentLang === 'hi' ? 'गंतव्य:' : 'पोहोच ठिकाण:'} {off.delivery_destination}
-                                  </p>
-                                </div>
 
-                                <div className="flex items-center gap-4">
-                                  <div className="text-right">
-                                    <span className="text-[10px] text-stone-400 uppercase block">{t.labelOfferedPrice}</span>
-                                    <span className="text-base font-bold font-mono text-[#C86432]">
-                                      ₹{off.offered_price_per_qtl} <span className="text-xs text-stone-500 font-normal">{currentLang === 'en' ? '/ Qtl' : '/ क्विंटल'}</span>
-                                    </span>
-                                    <span className="text-[11px] block font-bold text-stone-600">
-                                      {currentLang === 'en' ? 'Total:' : currentLang === 'hi' ? 'कुल:' : 'एकूण:'} ₹{(off.offered_price_per_qtl * off.quantity_requested_qtl).toLocaleString()}
-                                    </span>
-                                  </div>
+                                  <div className="flex items-center gap-3 self-end md:self-auto">
+                                    <div className="text-right">
+                                      <span className="text-[10px] text-stone-400 uppercase block">{t.labelOfferedPrice}</span>
+                                      <span className="text-base font-bold font-mono text-[#C86432]">
+                                        ₹{off.offered_price_per_qtl} <span className="text-xs text-stone-500 font-normal">{currentLang === 'en' ? '/ Qtl' : '/ क्विंटल'}</span>
+                                      </span>
+                                      <span className="text-[11px] block font-bold text-stone-600">
+                                        {currentLang === 'en' ? 'Total:' : currentLang === 'hi' ? 'कुल:' : 'एकूण:'} ₹{(off.offered_price_per_qtl * off.quantity_requested_qtl).toLocaleString()}
+                                      </span>
+                                    </div>
 
-                                  {off.status === 'PENDING' && lot.status !== 'DEAL_LOCKED' && (
-                                    <button
-                                      onClick={() => handleAcceptOffer(off.id)}
-                                      className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
-                                    >
-                                      {t.acceptBidBtn}
-                                    </button>
-                                  )}
-
-                                  {off.status === 'ACCEPTED' && (() => {
-                                    const lotDeal = Array.isArray(deals) ? deals.find(d => d.lot_id === lot.id) : null;
-                                    return (
+                                    {/* Action Buttons */}
+                                    {isPending && lot.status !== 'DEAL_LOCKED' && (
                                       <div className="flex items-center gap-1.5">
                                         <button
-                                          onClick={() => openDealContract(lot)}
-                                          className="px-3 py-1.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                                          disabled={actionLoading}
+                                          onClick={() => handleAcceptOffer(off.id)}
+                                          className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
                                         >
-                                          <FileText className="w-3.5 h-3.5 text-[#DE7C4A]" />
-                                          <span>{currentLang === 'en' ? 'Contract' : currentLang === 'hi' ? 'अनुबंध' : 'करार'}</span>
+                                          {t.acceptBidBtn}
                                         </button>
-                                        {lotDeal?.escrow_status === 'SETTLED' && (
-                                          <button
-                                            onClick={() => setSelectedDealForInvoice(lotDeal)}
-                                            className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
-                                          >
-                                            <FileText className="w-3.5 h-3.5 text-[#A3E635]" />
-                                            <span>{currentLang === 'en' ? 'Invoice' : currentLang === 'hi' ? 'बीजक' : 'इनव्हॉईस'}</span>
-                                          </button>
-                                        )}
+                                        <button
+                                          disabled={actionLoading}
+                                          onClick={() => handleCounterOffer(off)}
+                                          className="px-2.5 py-1.5 bg-white border border-amber-300 hover:bg-amber-50 text-amber-900 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                                        >
+                                          <Scale className="w-3 h-3 text-amber-700" />
+                                          <span>{currentLang === 'en' ? 'Counter' : 'प्रति-दर'}</span>
+                                        </button>
+                                        <button
+                                          disabled={actionLoading}
+                                          onClick={() => handleRejectOffer(off.id)}
+                                          className="px-2.5 py-1.5 bg-white border border-rose-200 hover:bg-rose-50 text-rose-700 rounded-lg text-xs font-bold transition-colors cursor-pointer flex items-center gap-1"
+                                        >
+                                          <X className="w-3 h-3 text-rose-600" />
+                                          <span>{currentLang === 'en' ? 'Reject' : 'नाकारा'}</span>
+                                        </button>
                                       </div>
-                                    );
-                                  })()}
+                                    )}
+
+                                    {isAccepted && (() => {
+                                      const lotDeal = Array.isArray(deals) ? deals.find(d => d.lot_id === lot.id) : null;
+                                      return (
+                                        <div className="flex items-center gap-1.5">
+                                          <button
+                                            onClick={() => openDealContract(lot)}
+                                            className="px-3 py-1.5 bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                                          >
+                                            <FileText className="w-3.5 h-3.5 text-[#DE7C4A]" />
+                                            <span>{currentLang === 'en' ? 'Contract' : currentLang === 'hi' ? 'अनुबंध' : 'करार'}</span>
+                                          </button>
+                                          {lotDeal?.escrow_status === 'SETTLED' && (
+                                            <button
+                                              onClick={() => setSelectedDealForInvoice(lotDeal)}
+                                              className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                                            >
+                                              <FileText className="w-3.5 h-3.5 text-[#A3E635]" />
+                                              <span>{currentLang === 'en' ? 'Invoice' : currentLang === 'hi' ? 'बीजक' : 'इनव्हॉईस'}</span>
+                                            </button>
+                                          )}
+                                        </div>
+                                      );
+                                    })()}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              );
+                            })}
                           </div>
                         ) : (
                           <div className="p-3 bg-[#FAF7F2] rounded-xl text-center text-xs text-stone-500">

@@ -633,7 +633,61 @@ Both backend and frontend services are compiled, verified, and running live:
 - None. Task AG-010 is 100% complete and verified.
 
 ### Next task
-- Canonical Task AG-011: Buyer Demand Discovery & Structured Offer Negotiation Workflow.
+- Canonical Task AG-011: Buyer Demand Discovery & Structured Offer Negotiation Workflow. (COMPLETED)
+
+## 22 September 2026 — Task AG-011: Buyer Demand Discovery & Structured Offer Negotiation Workflow
+
+### Progress summary
+- Implemented and verified the complete canonical Buyer Demand Discovery & Structured Offer Negotiation Workflow (AG-011).
+- Expanded marketplace discovery in `BuyerPortal.jsx` with multi-dimensional filtering (Crop, District, Quality Grade [FAQ Grade A, Premium Export, Medium Grade B], Max Distance Radius [50km, 100km, 200km]) and Sort controls (Nearest First, Lowest Price, Highest Quantity).
+- Designed and built the 5-stage offer negotiation lifecycle: `PENDING`, `ACCEPTED`, `COUNTERED`, `REJECTED`, `WITHDRAWN`.
+- Built Farmer negotiation actions in `FarmerPortal.jsx`:
+  - 1-Click Accept (locks deal at agreed price).
+  - Counter Offer with modal proposing counter rate (₹/qtl) and notes, transitioning status to `COUNTERED`.
+  - Reject Offer with modal capturing structured rejection reason, transitioning status to `REJECTED`.
+- Built Buyer negotiation desk in `BuyerPortal.jsx`:
+  - Offer status filter tabs (`ALL`, `PENDING`, `COUNTERED`, `ACCEPTED`, `REJECTED`).
+  - Prominent Counter Offer Alert badge detailing farmer proposed rate and notes.
+  - 1-Click "Accept Counter Rate" action that synchronizes offer price, closes the deal contract, and transitions parent lot to `DEAL_LOCKED`.
+  - Buyer "Decline" / "Withdraw" action for active bids before acceptance.
+- Embedded immutable audit logging (`OFFER_CREATED`, `OFFER_COUNTERED`, `OFFER_COUNTER_ACCEPTED`, `OFFER_REJECTED`, `OFFER_WITHDRAWN`) in `public.audit_events`.
+
+### Changes made
+- Backend & Serverless Services:
+  - `backend/src/services/db.js` & `frontend/api/services/db.js`:
+    - Added `counterOffer(offerId, { counter_price_per_qtl, counter_notes, actor_id })` with validation and audit logging.
+    - Added `acceptCounterOffer(offerId, { actor_id })` which updates offer price, executes `acceptOffer`, locks produce lot, rejects competing bids, and generates deal.
+    - Added `rejectOffer(offerId, { reason, actor_id })` with reason logging and audit trail.
+    - Added `withdrawOffer(offerId, { actor_id })` for buyer-initiated cancellation.
+  - `backend/src/routes/marketRoutes.js` & `frontend/api/routes/marketRoutes.js`:
+    - `POST /api/market/offers/:id/counter`: Farmer counters offer with rate & notes.
+    - `POST /api/market/offers/:id/accept-counter`: Buyer accepts counter proposal, locking deal.
+    - `POST /api/market/offers/:id/reject`: Farmer rejects bid with reason.
+    - `POST /api/market/offers/:id/withdraw`: Buyer withdraws active bid.
+- Frontend Client SDK & UI:
+  - `frontend/src/services/api.js`: Added SDK methods `counterOffer`, `acceptCounterOffer`, `rejectOffer`, `withdrawOffer`.
+  - `frontend/src/pages/FarmerPortal.jsx`:
+    - Added negotiation action buttons (Accept, Propose Counter, Reject) with status badges (`PENDING`, `COUNTERED`, `ACCEPTED`, `REJECTED`).
+    - Added prompt modals for counter rate proposal and rejection reason.
+  - `frontend/src/pages/BuyerPortal.jsx`:
+    - Enhanced marketplace discovery with Quality Grade filter, Distance Radius selector, and sorting dropdown.
+    - Upgraded "My Bids" desk with filter tabs, counter offer display card, "Accept Counter Rate" button, and "Withdraw Bid" button.
+- Database Schema & Migration:
+  - `supabase/migrations/20260922_ag011_offers_negotiation.sql`: Dropped and re-added `offers_status_check` constraint with `COUNTERED` and `WITHDRAWN`, and ensured columns `counter_price_per_qtl`, `counter_notes`, `countered_at`, and `rejection_reason` exist.
+
+### Verification performed
+- Commands run:
+  - Automated Node.js integration test (`backend/test_ag011_negotiation.mjs`):
+    - Verified lot creation and initial buyer offer (`PENDING`, ₹4,800/qtl).
+    - Verified farmer counter offer proposal (`COUNTERED`, ₹4,950/qtl).
+    - Verified buyer acceptance of counter offer (`ACCEPTED`, generated deal contract, locked parent lot).
+    - Verified buyer withdrawal of active bid (`WITHDRAWN`).
+    - Verified farmer rejection of low bid (`REJECTED` with reason).
+  - Production bundle build: `npm run build` in `frontend/` passed in 3.40s with 0 errors.
+- Tests passed: 100% of AG-011 discovery and negotiation lifecycle tests passed.
+
+### Next task
+- Canonical Task AG-012: Digital Contract Generation & Escrow Locking Engine.
 
 
 

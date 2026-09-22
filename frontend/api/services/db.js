@@ -602,7 +602,8 @@ export const db = {
         const { data: updatedOffer } = await supabase.from('offers').update({ status: 'ACCEPTED' }).eq('id', offerId).select().single();
         if (updatedOffer) offer = updatedOffer;
       } catch (err) {}
-    } else if (offer) {
+    }
+    if (offer) {
       offer.status = 'ACCEPTED';
     }
 
@@ -617,10 +618,11 @@ export const db = {
         // Reject all other competing offers for this lot in Supabase
         await supabase.from('offers').update({ status: 'REJECTED' }).eq('lot_id', offer.lot_id).neq('id', offerId).eq('status', 'PENDING');
       } catch (err) {}
-    } else if (lot) {
+    }
+    if (lot) {
       lot.status = 'DEAL_LOCKED';
       memoryCache.offers.forEach(o => {
-        if (o.lot_id === offer.lot_id && o.id !== offerId && o.status === 'PENDING') {
+        if (o.lot_id === offer.lot_id && o.id !== offerId && (o.status === 'PENDING' || o.status === 'COUNTERED')) {
           o.status = 'REJECTED';
         }
       });
@@ -667,6 +669,187 @@ export const db = {
 
     memoryCache.deals.unshift(enrichedDeal);
     return { offer, lot, deal: enrichedDeal };
+  },
+
+  rejectOffer: async (offerId, { reason = 'Rate below farmer expectation', actor_id } = {}) => {
+    let updatedOffer = null;
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase
+          .from('offers')
+          .update({ 
+            status: 'REJECTED',
+            rejection_reason: reason,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', offerId)
+          .select()
+          .single();
+        if (!error && data) updatedOffer = data;
+      } catch (err) {
+        console.warn('Supabase rejectOffer notice:', err.message);
+      }
+    }
+
+    const memOffer = memoryCache.offers.find(o => o.id === offerId);
+    if (memOffer) {
+      memOffer.status = 'REJECTED';
+      memOffer.rejection_reason = reason;
+      memOffer.updated_at = new Date().toISOString();
+      if (!updatedOffer) updatedOffer = memOffer;
+    }
+
+    await db.logAuditEvent({
+      actor_id: actor_id || 'farmer',
+      actor_role: 'FARMER',
+      action: 'OFFER_REJECTED',
+      entity: 'OFFER',
+      entity_id: offerId,
+      previous_state: { status: 'PENDING' },
+      new_state: { status: 'REJECTED', rejection_reason: reason }
+    });
+
+    return updatedOffer;
+  },
+
+  counterOffer: async (offerId, { counter_price_per_qtl, counter_notes = '', actor_id } = {}) => {
+    const counterPrice = Number(counter_price_per_qtl);
+    if (!counterPrice || counterPrice <= 0) {
+      throw new Error('Valid counter price per quintal is required');
+    }
+
+    let updatedOffer = null;
+    const now = new Date().toISOString();
+
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase
+          .from('offers')
+          .update({ 
+            status: 'COUNTERED',
+            counter_price_per_qtl: counterPrice,
+            counter_notes,
+            countered_at: now,
+            updated_at: now
+          })
+          .eq('id', offerId)
+          .select()
+          .single();
+        if (!error && data) updatedOffer = data;
+      } catch (err) {
+        console.warn('Supabase counterOffer notice:', err.message);
+      }
+    }
+
+    const memOffer = memoryCache.offers.find(o => o.id === offerId);
+    if (memOffer) {
+      memOffer.status = 'COUNTERED';
+      memOffer.counter_price_per_qtl = counterPrice;
+      memOffer.counter_notes = counter_notes;
+      memOffer.countered_at = now;
+      memOffer.updated_at = now;
+      if (!updatedOffer) updatedOffer = memOffer;
+    }
+
+    await db.logAuditEvent({
+      actor_id: actor_id || 'farmer',
+      actor_role: 'FARMER',
+      action: 'OFFER_COUNTERED',
+      entity: 'OFFER',
+      entity_id: offerId,
+      new_state: { status: 'COUNTERED', counter_price_per_qtl: counterPrice, counter_notes }
+    });
+
+    return updatedOffer;
+  },
+
+  acceptCounterOffer: async (offerId, { actor_id } = {}) => {
+    // 1. Fetch current offer to get the agreed counter price
+    let offer = null;
+    if (supabaseConnected) {
+      try {
+        const { data } = await supabase.from('offers').select('*').eq('id', offerId).single();
+        if (data) offer = data;
+      } catch (e) {}
+    }
+    if (!offer) offer = memoryCache.offers.find(o => o.id === offerId);
+    if (!offer) throw new Error('Offer not found');
+
+    const agreedPrice = Number(offer.counter_price_per_qtl || offer.offered_price_per_qtl);
+    const qty = Number(offer.quantity_requested_qtl);
+
+    // 2. Update offer price to counter rate in Supabase & memory
+    if (supabaseConnected) {
+      try {
+        await supabase.from('offers').update({
+          offered_price_per_qtl: agreedPrice,
+          total_amount: agreedPrice * qty,
+          updated_at: new Date().toISOString()
+        }).eq('id', offerId);
+      } catch (e) {}
+    }
+
+    const memOffer = memoryCache.offers.find(o => o.id === offerId);
+    if (memOffer) {
+      memOffer.offered_price_per_qtl = agreedPrice;
+      memOffer.total_amount = agreedPrice * qty;
+    }
+
+    // 3. Trigger acceptOffer which locks lot, rejects competing offers, and generates official Deal
+    const result = await db.acceptOffer(offerId);
+
+    await db.logAuditEvent({
+      actor_id: actor_id || offer.buyer_id || 'buyer',
+      actor_role: 'BUYER',
+      action: 'OFFER_COUNTER_ACCEPTED',
+      entity: 'OFFER',
+      entity_id: offerId,
+      new_state: { status: 'ACCEPTED', final_price: agreedPrice, deal_id: result?.deal?.id }
+    });
+
+    return result;
+  },
+
+  withdrawOffer: async (offerId, { actor_id } = {}) => {
+    let updatedOffer = null;
+    const now = new Date().toISOString();
+
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase
+          .from('offers')
+          .update({ 
+            status: 'WITHDRAWN',
+            rejection_reason: 'Withdrawn by buyer before acceptance',
+            updated_at: now
+          })
+          .eq('id', offerId)
+          .select()
+          .single();
+        if (!error && data) updatedOffer = data;
+      } catch (err) {
+        console.warn('Supabase withdrawOffer notice:', err.message);
+      }
+    }
+
+    const memOffer = memoryCache.offers.find(o => o.id === offerId);
+    if (memOffer) {
+      memOffer.status = 'WITHDRAWN';
+      memOffer.rejection_reason = 'Withdrawn by buyer';
+      memOffer.updated_at = now;
+      if (!updatedOffer) updatedOffer = memOffer;
+    }
+
+    await db.logAuditEvent({
+      actor_id: actor_id || 'buyer',
+      actor_role: 'BUYER',
+      action: 'OFFER_WITHDRAWN',
+      entity: 'OFFER',
+      entity_id: offerId,
+      new_state: { status: 'WITHDRAWN' }
+    });
+
+    return updatedOffer;
   },
 
   // ===================== DEALS =====================
