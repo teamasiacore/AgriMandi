@@ -230,31 +230,47 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
 
   const openDealContract = async (lot) => {
     try {
+      let dealToOpen = null;
       const res = await api.getDeals({ lot_id: lot.id });
       if (res.deals && res.deals.length > 0) {
-        setSelectedDealForContract(res.deals[0]);
+        dealToOpen = res.deals[0];
       } else {
         const match = deals.find(d => d.lot_id === lot.id);
-        if (match) {
-          setSelectedDealForContract(match);
-        } else {
-          // Fallback constructed deal object
-          setSelectedDealForContract({
-            id: `deal-${lot.id}`,
-            lot_id: lot.id,
-            crop: lot.crop,
-            variety: lot.variety || 'FAQ',
-            quantity_qtl: lot.quantity_qtl,
-            price_per_qtl: lot.expected_price_per_qtl,
-            total_deal_value: Number(lot.expected_price_per_qtl) * Number(lot.quantity_qtl),
-            farmer_name: lot.farmer_name || user.name,
-            farmer_phone: lot.farmer_phone || user.phone,
-            buyer_name: 'Verified Agro Processing Mill',
-            farm_address: lot.farm_address || `${lot.taluka || ''}, ${lot.district}`,
-            delivery_destination: 'Buyer Processing Facility Gate',
-            escrow_status: 'SECURED_IN_ESCROW'
-          });
-        }
+        if (match) dealToOpen = match;
+      }
+
+      if (dealToOpen) {
+        try {
+          const contractRes = await api.getDealContract(dealToOpen.id);
+          if (contractRes && contractRes.contract) {
+            setSelectedDealForContract({
+              ...dealToOpen,
+              ...contractRes.contract,
+              contract_number: contractRes.contract.contract_number,
+              escrow_status: contractRes.contract.escrow?.status || dealToOpen.escrow_status
+            });
+            return;
+          }
+        } catch (ctrErr) {}
+        setSelectedDealForContract(dealToOpen);
+      } else {
+        // Fallback constructed deal object
+        setSelectedDealForContract({
+          id: `deal-${lot.id}`,
+          contract_number: `AGRI-CTR-2026-${String(lot.id).slice(-6).toUpperCase()}`,
+          lot_id: lot.id,
+          crop: lot.crop,
+          variety: lot.variety || 'FAQ',
+          quantity_qtl: lot.quantity_qtl,
+          price_per_qtl: lot.expected_price_per_qtl,
+          total_deal_value: Number(lot.expected_price_per_qtl) * Number(lot.quantity_qtl),
+          farmer_name: lot.farmer_name || user.name,
+          farmer_phone: lot.farmer_phone || user.phone,
+          buyer_name: 'Verified Agro Processing Mill',
+          farm_address: lot.farm_address || `${lot.taluka || ''}, ${lot.district}`,
+          delivery_destination: 'Buyer Processing Facility Gate',
+          escrow_status: 'SECURED_IN_ESCROW'
+        });
       }
     } catch (e) {
       console.error('Error fetching deal contract:', e);

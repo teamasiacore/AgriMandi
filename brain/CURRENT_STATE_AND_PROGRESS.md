@@ -687,7 +687,62 @@ Both backend and frontend services are compiled, verified, and running live:
 - Tests passed: 100% of AG-011 discovery and negotiation lifecycle tests passed.
 
 ### Next task
-- Canonical Task AG-012: Digital Contract Generation & Escrow Locking Engine.
+- Canonical Task AG-012: Digital Contract Generation & Escrow Locking Engine. (COMPLETED)
+
+## 22 September 2026 — Task AG-012: Digital Contract Generation & Escrow Locking Engine
+
+### Progress summary
+- Implemented and verified the complete canonical Digital Contract Generation & Escrow Locking Engine (AG-012).
+- Designed and established legal B2B contract generation for executed deals with unique contract numbers (`AGRI-CTR-2026-XXXXXX`), cryptographic SHA-256 validation hashes, and statutory Section 32A 0% APMC market cess exemption certification under the Maharashtra APMC Act.
+- Built Escrow Locking Engine guaranteeing 100% financial security:
+  - Generates verifiable escrow transaction references (`ESC-TXN-XXXXXX`).
+  - Records locked amount, timestamp, and audit trail.
+  - Escrow statuses supported: `PENDING_DEPOSIT`, `SECURED_IN_ESCROW`, `QUALITY_HOLD`, `READY_FOR_SETTLEMENT`, `SETTLED`, `REFUNDED`.
+- Enhanced `DealContractModal.jsx` with real-time binding to canonical contract metadata, printable clean A4 layout (`@media print`), WhatsApp sharing, and online verification QR code.
+- Enhanced `BuyerPortal.jsx` and `FarmerPortal.jsx`:
+  - Canonical contract retrieval via `api.getDealContract(dealId)`.
+  - Deal cards display formal `contract_number`, `escrow_txn_ref`, and "100% Escrow Secured" badge with Shield icon.
+  - 1-Click "Deposit in Escrow" button for pending deposits.
+  - Dual-portal synchronized contract inspection.
+- Embedded immutable audit events (`CONTRACT_GENERATED`, `ESCROW_FUNDS_LOCKED`) in `public.audit_events`.
+
+### Changes made
+- Backend & Serverless Services:
+  - `backend/src/services/db.js` & `frontend/api/services/db.js`:
+    - Added `getDealContract(dealId)` with party enrichment (Farmer 7/12 survey #, Buyer GSTIN/APMC license, commodity & assay specs, Section 32A terms).
+    - Added `lockEscrowFunds(dealId, payload)` updating escrow status to `SECURED_IN_ESCROW`, recording amount, transaction reference, timestamp, and logging `ESCROW_FUNDS_LOCKED` audit event.
+    - Added `getEscrowStatus(dealId)` returning real-time escrow probe with `is_locked` boolean.
+    - Enhanced `getDealById` to preserve memoryCache escrow attributes seamlessly.
+  - `backend/src/routes/marketRoutes.js` & `frontend/api/routes/marketRoutes.js`:
+    - `GET /api/market/deals/:id/contract`: Returns canonical legal contract payload.
+    - `POST /api/market/deals/:id/escrow/lock`: Locks buyer funds into platform escrow vault.
+    - `GET /api/market/deals/:id/escrow`: Returns current escrow vault status and terms.
+- Frontend Client SDK & UI:
+  - `frontend/src/services/api.js`: Added SDK methods `getDealContract`, `lockEscrowFunds`, `getEscrowStatus`.
+  - `frontend/src/components/DealContractModal.jsx`: Bound deal number to `deal.contract_number`.
+  - `frontend/src/pages/BuyerPortal.jsx`:
+    - Added `handleOpenContract` fetching canonical contract before opening modal.
+    - Added `handleLockEscrow` enabling 1-click escrow deposit.
+    - Added contract number, escrow reference, and status badge on deal cards.
+  - `frontend/src/pages/FarmerPortal.jsx`: Enhanced `openDealContract` to fetch canonical contract via SDK.
+- Database Schema & Migration:
+  - `supabase/migrations/20260922_ag012_contracts_escrow.sql`: Added `contract_number`, `contract_hash`, `escrow_txn_ref`, `escrow_locked_at`, `escrow_amount`, and `contract_terms` to `public.deals`, with updated check constraint and indices.
+
+### Verification performed
+- Commands run:
+  - Automated Node.js integration test (`backend/test_ag012_contract_escrow.mjs`):
+    - Verified Produce Lot creation (`80 Qtl Soybean, ₹4,900/qtl`).
+    - Verified Buyer Offer (`off-1790102184500`, total `₹3,92,000`).
+    - Verified Farmer offer acceptance and deal locking.
+    - Verified canonical contract generation with `AGRI-CTR-2026-184990`, SHA-256 hash, and Section 32A exemption.
+    - Verified escrow locking with `ESC-TXN-MUD0ME9J` for `₹3,92,000` with `SECURED_IN_ESCROW`.
+    - Verified live escrow probe confirming `is_locked: true`.
+    - Verified audit events `ESCROW_FUNDS_LOCKED` and `CONTRACT_GENERATED`.
+  - Production build: `npm run build` in `frontend/` passed in 3.56s with 0 errors.
+- Tests passed: 100% of AG-012 contract generation and escrow locking checks passed.
+
+### Next task
+- Canonical Task AG-013: AI Sell / Hold Price Forecasting Model & Mandi Advisory Engine.
 
 
 

@@ -170,9 +170,9 @@ export default function DealContractModal({ deal, isOpen, onClose, currentLang =
 
   const t = CONTRACT_TRANSLATIONS[currentLang] || CONTRACT_TRANSLATIONS.mr;
 
-  const dealNumber = deal.id?.startsWith('deal-') 
+  const dealNumber = deal.contract_number || (deal.id?.startsWith('deal-') 
     ? `AGM-${deal.id.replace('deal-', '')}` 
-    : (deal.id || 'AGM-DEAL-001');
+    : (deal.id || 'AGM-DEAL-001'));
 
   const locale = currentLang === 'en' ? 'en-IN' : currentLang === 'hi' ? 'hi-IN' : 'mr-IN';
   const formattedDate = deal.created_at 

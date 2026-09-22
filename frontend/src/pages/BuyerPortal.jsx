@@ -302,6 +302,43 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
     }
   };
 
+  const handleOpenContract = async (deal) => {
+    try {
+      const res = await api.getDealContract(deal.id);
+      if (res && res.contract) {
+        setSelectedDealForContract({
+          ...deal,
+          ...res.contract,
+          contract_number: res.contract.contract_number,
+          escrow_status: res.contract.escrow?.status || deal.escrow_status
+        });
+        return;
+      }
+    } catch (e) {}
+    setSelectedDealForContract(deal);
+  };
+
+  const handleLockEscrow = async (deal) => {
+    const confirmMsg = currentLang === 'en'
+      ? `Authorize deposit of ₹${Number(deal.total_deal_value).toLocaleString()} into AgriMandi 100% Secure Escrow Vault?`
+      : currentLang === 'hi'
+      ? `क्या आप ₹${Number(deal.total_deal_value).toLocaleString()} की राशि एस्क्रो वॉल्ट में सुरक्षित जमा करना चाहते हैं?`
+      : `आपण ₹${Number(deal.total_deal_value).toLocaleString()} ची रक्कम कृषीसेतू १००% एस्क्रो वॉल्टमध्ये जमा करू इच्छिता का?`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      await api.lockEscrowFunds(deal.id, {
+        buyer_id: buyerProfile.id,
+        escrow_amount: deal.total_deal_value,
+        payment_method: 'NET_BANKING_RTGS'
+      });
+      alert(currentLang === 'en' ? '✓ Funds successfully secured in Escrow Vault!' : '✓ रक्कम एस्क्रो वॉल्टमध्ये यशस्वीरित्या जमा झाली!');
+      loadMarketData(buyerProfile);
+    } catch (err) {
+      alert('Error: ' + (err.response?.data?.message || err.message));
+    }
+  };
+
   const handleOpenBidModal = (lot) => {
     const isVerified = Boolean(buyerProfile.is_verified || buyerProfile.status === 'VERIFIED');
     if (!isVerified || buyerProfile.status === 'PENDING_VERIFICATION' || buyerProfile.status === 'UNDER_REVIEW' || buyerProfile.status === 'DOCUMENTS_SUBMITTED') {
@@ -1032,10 +1069,32 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                     <div key={deal.id} className="p-4 rounded-xl bg-[#FAF7F2] border border-[#E5DFD4] flex flex-col justify-between">
                       <div>
                         <div className="flex items-center justify-between pb-2 border-b border-[#E5DFD4]">
-                          <span className="font-mono font-bold text-xs text-[#1B4332]">{deal.id}</span>
-                          <span className="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
-                            {deal.escrow_status || 'SECURED_IN_ESCROW'}
-                          </span>
+                          <div>
+                            <span className="font-mono font-bold text-xs text-[#1B4332] block">
+                              {deal.contract_number || deal.id}
+                            </span>
+                            {deal.escrow_txn_ref && (
+                              <span className="text-[10px] font-mono text-stone-500 block">
+                                Ref: {deal.escrow_txn_ref}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {deal.escrow_status === 'PENDING_DEPOSIT' ? (
+                              <button
+                                onClick={() => handleLockEscrow(deal)}
+                                className="px-2.5 py-1 bg-[#1B4332] hover:bg-[#2D6A4F] text-white text-[10px] font-bold rounded-lg shadow-2xs transition-all cursor-pointer flex items-center gap-1"
+                              >
+                                <Lock className="w-3 h-3 text-[#A3E635]" />
+                                <span>{currentLang === 'en' ? 'Deposit in Escrow' : 'एस्क्रो जमा करा'}</span>
+                              </button>
+                            ) : (
+                              <span className="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded flex items-center gap-1">
+                                <ShieldCheck className="w-3 h-3 text-emerald-700" />
+                                {deal.escrow_status || 'SECURED_IN_ESCROW'}
+                              </span>
+                            )}
+                          </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
@@ -1232,7 +1291,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
 
                       <div className="mt-3 grid grid-cols-3 gap-1.5">
                         <button
-                          onClick={() => setSelectedDealForContract(deal)}
+                          onClick={() => handleOpenContract(deal)}
                           className="py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
                         >
                           <Eye className="w-3 h-3" />

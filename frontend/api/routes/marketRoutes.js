@@ -337,6 +337,61 @@ router.get('/deals/:id', async (req, res) => {
   }
 });
 
+// AG-012: Generate / Retrieve Digital Farm-Gate Trade Contract & Waybill
+router.get('/deals/:id/contract', async (req, res) => {
+  try {
+    const contract = await db.getDealContract(req.params.id);
+    res.json({
+      status: 'success',
+      contract
+    });
+  } catch (err) {
+    res.status(err.message === 'Deal not found' ? 404 : 500).json({
+      status: 'error',
+      message: err.message
+    });
+  }
+});
+
+// AG-012: Lock Escrow Funds for Deal Contract
+router.post('/deals/:id/escrow/lock', async (req, res) => {
+  try {
+    const { buyer_id, escrow_amount, payment_method, actor_id } = req.body;
+    const result = await db.lockEscrowFunds(req.params.id, {
+      buyer_id,
+      escrow_amount,
+      payment_method,
+      actor_id
+    });
+    res.json({
+      status: 'success',
+      message: '100% Deal funds securely locked in AgriMandi Escrow Vault',
+      escrow: result
+    });
+  } catch (err) {
+    res.status(err.message === 'Deal not found' ? 404 : 500).json({
+      status: 'error',
+      message: err.message
+    });
+  }
+});
+
+// AG-012: Get Live Escrow Status
+router.get('/deals/:id/escrow', async (req, res) => {
+  try {
+    const escrow = await db.getEscrowStatus(req.params.id);
+    res.json({
+      status: 'success',
+      escrow
+    });
+  } catch (err) {
+    res.status(err.message === 'Deal not found' ? 404 : 500).json({
+      status: 'error',
+      message: err.message
+    });
+  }
+});
+
 // ===================== TRANSPORTERS (LOGISTICS) =====================
 
 // Get Registered Transporters
