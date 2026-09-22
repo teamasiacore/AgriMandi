@@ -53,6 +53,7 @@ export const api = {
   getTransporterTrips: (id) => client.get(`/transporters/${id}/trips`).then(res => res.data),
 
   // Auth & Profile
+  sendOtp: (data) => client.post('/auth/send-otp', data).then(res => res.data),
   login: (data) => client.post('/auth/login', data).then(res => res.data),
   register: (data) => client.post('/auth/register', data).then(res => res.data),
   getFarmerProfile: (id) => client.get(`/auth/farmer/profile/${id}`).then(res => res.data),

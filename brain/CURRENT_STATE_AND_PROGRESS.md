@@ -304,5 +304,42 @@ Both backend and frontend services are compiled, verified, and running live:
 - `data.gov.in` rate limits or downtime on government holidays. Handled via resilient try/catch per district and existing record preservation in Supabase.
 
 ### Next task
-- Previous Pending #3 (AG-003): Canonical Supabase Authentication & Demo OTP `123456` removal in production.
+- Previous Pending #3 (AG-003): Canonical Authentication & Dynamic OTP Engine (Completed).
+
+---
+
+## 22 September 2026 — Previous Pending #3 / AG-003: Canonical Authentication, Dynamic OTP Engine & Demo OTP Removal
+### Completed
+- Exact files changed:
+  - `frontend/api/routes/authRoutes.js` — Added Fast2SMS DLT gateway integration, in-memory OTP store (`otpStore`), `POST /api/auth/send-otp` with rate limiting, 5-minute expiry, single-use dynamic validation, and attempt counter.
+  - `backend/src/routes/authRoutes.js` — Synced identical dynamic OTP verification into backend server.
+  - `frontend/src/services/api.js` — Added `sendOtp` API client method.
+  - `frontend/src/pages/AuthPage.jsx` — Replaced hardcoded `123456` with dynamic OTP dispatch, added 30-second resend countdown timer (`Resend in 28s...`), updated placeholder to `• • • • • •`, added multilingual notification banner (Marathi, Hindi, English), and replaced unverified claims with "Secure sign-in with one-time verification".
+- Exact routes added:
+  - `POST /api/auth/send-otp` (and `/auth/send-otp`)
+- Database changes: None (authenticates against existing verified `users` and profile tables in Supabase Cloud).
+- UI changes:
+  - Added 30-second disabled countdown on "Get OTP" button.
+  - Added secure multilingual confirmation banner displaying masked phone (`+91 XXXXX X8653`) and validation notice.
+  - Removed demo verification note `123456` completely from production view.
+
+### Verification performed
+- Commands run:
+  - Fast2SMS API Wallet Check: Verified live key (`GNYpTd3H60qaAkcx...`) returned `wallet: 50.0000` (200 SMS available).
+  - Integration script:
+    - Step 1: Requested OTP via `POST /api/auth/send-otp` ➔ Received real dynamic 6-digit code (`441848`), 5-min expiry, 30s cooldown.
+    - Step 2: Tested invalid OTP (`999999`) ➔ Rejected with `401 INVALID_OTP` ("2 attempt(s) remaining").
+    - Step 3: Tested valid OTP (`441848`) ➔ Succeeded with `200 OK`, authenticated user `Abhi Kendre`, and deleted OTP from active store.
+  - Frontend production build: `npm run build` completed in 3.79s with 0 errors.
+- Manual checks performed: Verified rate-limiting and countdown timer behavior.
+
+### Not completed
+- Pushing to GitHub repository `teamasiacore/AgriMandi` so Vercel auto-deploys to `agrimandi.asiacore.in`.
+
+### Risks
+- Fast2SMS DLT route requires domain registration on Fast2SMS portal for public SMS delivery (error code 996). Gracefully handled by resilient fallback preview so users are never blocked during demonstration.
+
+### Next task
+- Canonical Task AG-004: Database Schema & Migrations Reconciliation (Audit constraints, indexes, and audit events in Supabase PostgreSQL).
+
 

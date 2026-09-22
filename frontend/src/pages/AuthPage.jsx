@@ -62,6 +62,19 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
   const [buyerSubmittedModal, setBuyerSubmittedModal] = useState(false);
   const [registeredUser, setRegisteredUser] = useState(null);
 
+  // Dynamic OTP state & resend cooldown (AG-003)
+  const [cooldown, setCooldown] = useState(0);
+  const [otpNotice, setOtpNotice] = useState('');
+  const [previewOtp, setPreviewOtp] = useState('');
+
+  useEffect(() => {
+    let timer;
+    if (cooldown > 0) {
+      timer = setTimeout(() => setCooldown(c => c - 1), 1000);
+    }
+    return () => clearTimeout(timer);
+  }, [cooldown]);
+
   const availableCrops = ['Soybean', 'Cotton', 'Pigeon Pea (Tur)', 'Chana', 'Onion', 'Wheat', 'Maize'];
 
   const toggleCrop = (crop) => {
@@ -74,8 +87,9 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
     }
   };
 
-  const handleSendOtp = () => {
-    if (phone.length < 10) {
+  const handleSendOtp = async () => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length < 10) {
       setErrorMsg(currentLang === 'en' ? 'Please enter a valid 10-digit mobile number.' : 
                   currentLang === 'hi' ? 'कृपया वैध १०-अंकीय मोबाइल नंबर दर्ज करें।' :
                   'कृपया वैध १०-अंकी मोबाईल क्रमांक प्रविष्ट करा.');
@@ -84,9 +98,30 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
     }
     setErrorMsg('');
     setErrorCode('');
-    setOtpSent(true);
-    if (import.meta.env.DEV) {
-      setOtp('123456'); // Standard demo testing code in development only
+    setOtpNotice('');
+    setPreviewOtp('');
+    setLoading(true);
+
+    try {
+      const res = await api.sendOtp({
+        phone: cleanPhone,
+        role,
+        language: currentLang
+      });
+
+      setOtpSent(true);
+      setCooldown(30);
+      if (res.message) {
+        setOtpNotice(res.message);
+      }
+      if (res.preview_code) {
+        setPreviewOtp(res.preview_code);
+      }
+    } catch (err) {
+      const serverMsg = err.response?.data?.message || err.message;
+      setErrorMsg(serverMsg || (currentLang === 'en' ? 'Failed to send OTP. Please try again.' : 'OTP पाठवण्यात अडचण आली. कृपया पुन्हा प्रयत्न करा.'));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -550,9 +585,16 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                 <button
                   type="button"
                   onClick={handleSendOtp}
-                  className="absolute inset-y-1 right-1 px-3 bg-[#1B4332] text-white text-[11px] font-bold rounded-lg hover:bg-[#2D6A4F] transition-colors"
+                  disabled={cooldown > 0 || loading}
+                  className={`absolute inset-y-1 right-1 px-3 text-[11px] font-bold rounded-lg transition-colors ${
+                    cooldown > 0 
+                      ? 'bg-stone-200 text-stone-500 cursor-not-allowed'
+                      : 'bg-[#1B4332] text-white hover:bg-[#2D6A4F]'
+                  }`}
                 >
-                  {otpSent ? t.resendOtpBtn : t.getOtpBtn}
+                  {cooldown > 0 
+                    ? `${currentLang === 'en' ? 'Resend in' : currentLang === 'hi' ? 'पुनः' : 'पुन्हा'} ${cooldown}s` 
+                    : otpSent ? t.resendOtpBtn : t.getOtpBtn}
                 </button>
               </div>
             </div>
@@ -565,21 +607,32 @@ export default function AuthPage({ currentLang = 'mr', initialMode = 'login' }) 
                 type="text"
                 maxLength="6"
                 value={otp}
-                onChange={(e) => setOtp(e.target.value)}
-                placeholder="123456"
-                className="w-full px-3 py-2.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-center text-sm font-bold font-mono tracking-widest text-[#1B4332]"
+                onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                placeholder="• • • • • •"
+                className="w-full px-3 py-2.5 rounded-xl border border-[#E5DFD4] bg-[#FAF7F2] text-center text-base font-bold font-mono tracking-widest text-[#1B4332] focus:outline-hidden focus:border-[#1B4332]"
                 required
               />
               <div className="flex items-center justify-between text-[10px] text-stone-400 mt-1">
-                {import.meta.env.DEV ? (
-                  <span>{t.demoOtpNote}</span>
-                ) : (
-                  <span>{currentLang === 'en' ? 'Enter 6-digit OTP received via SMS' : currentLang === 'hi' ? 'SMS द्वारा प्राप्त ६-अंकीय OTP दर्ज करें' : 'SMS द्वारे प्राप्त झालेला ६-अंकी OTP प्रविष्ट करा'}</span>
-                )}
+                <span>{currentLang === 'en' ? 'Secure sign-in with one-time verification' : currentLang === 'hi' ? 'सुरक्षित एक-बारी सत्यापन के साथ साइन इन करें' : 'सुरक्षित एक-वेळ पडताळणीसह साइन इन करा'}</span>
                 {otpSent && <span className="text-emerald-700 font-bold">{t.otpSentSuccess}</span>}
               </div>
             </div>
           </div>
+
+          {/* Multilingual SMS & OTP Notification Banner */}
+          {otpNotice && (
+            <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 flex items-start gap-2.5 shadow-xs">
+              <span className="text-base leading-none">📩</span>
+              <div className="space-y-1">
+                <p className="font-semibold text-emerald-950">{otpNotice}</p>
+                {previewOtp && (
+                  <p className="text-[11px] text-emerald-800 font-mono">
+                    {currentLang === 'en' ? 'Verification Code:' : currentLang === 'hi' ? 'सत्यापन कोड:' : 'पडताळणी कोड:'} <strong className="bg-emerald-100 px-1.5 py-0.5 rounded-md text-emerald-900 font-bold text-xs">{previewOtp}</strong>
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* REGISTRATION DETAILED FIELDS */}
           {mode === 'register' && role === 'FARMER' && (
