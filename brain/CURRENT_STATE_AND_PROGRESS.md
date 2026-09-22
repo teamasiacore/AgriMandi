@@ -416,5 +416,44 @@ Both backend and frontend services are compiled, verified, and running live:
 ### Next task
 - Canonical Task AG-006: Farmer/FPO Onboarding (Progressive lightweight onboarding with explicit DPDP consent, keeping 7/12 and bank details optional & private).
 
+---
+
+## September 22, 2026 — Task AG-006: Farmer & FPO Onboarding and Review Lifecycle
+### Completed
+- Exact files changed:
+  - `frontend/api/services/db.js` (Updated `createUser` to support progressive farmer onboarding with optional 7/12 land records and bank details, explicit DPDP consent insertion into `public.consents`, verification case into `public.verification_cases` when 7/12 is submitted, FPO organisation & membership creation in `public.organisations` and `public.memberships`, immutable audit logging in `public.audit_events`, and fallback role mapping for `users_role_check`).
+  - `backend/src/services/db.js` (Synced canonical onboarding, consents, verification cases, and audit logging to backend).
+- Exact routes added/enhanced:
+  - `POST /api/auth/register` (Underlying `createUser` flow creates relational links across `users`, `farmer_profiles`, `organisations`, `memberships`, `consents`, `verification_cases`, and `audit_events`).
+- Database changes:
+  - Validated live Supabase Cloud PostgreSQL (`lqoychozoysmxibhcmuf.supabase.co`):
+    - Progressive Farmer onboarding writes directly to `farmer_profiles` with `is_verified: false` and `verification_status: 'SUBMITTED'` (if 7/12 present) or `'NOT_SUBMITTED'`.
+    - Explicit DPDP onboarding consent writes to `public.consents` with timestamp and purpose.
+    - 7/12 Land verification records automatically spawn a case in `public.verification_cases` (`case_type: 'SAAT_BARA_7_12'`, status `SUBMITTED`).
+    - FPO onboarding creates an organisation in `public.organisations` (`org_type: 'FPO'`, verification status `DOCUMENTS_PENDING`) and links the registering user as `MANAGER` in `public.memberships`.
+    - Every onboarding triggers an immutable audit log entry in `public.audit_events`.
+- UI changes:
+  - Preserved lightweight progressive registration with explicit DPDP checkbox and optional land survey record.
+
+### Verification performed
+- Commands run:
+  - Executed automated integration test script against live Supabase Cloud.
+  - Successfully verified farmer registration (`Balasaheb Patil` / `916911951991`) with survey record `SURVEY-442/1`, confirmed `farmer_profiles` row creation with `verification_status: 'SUBMITTED'`, `is_verified: false`.
+  - Successfully verified FPO registration (`Marathwada Farmers Producer Co` / `913982495351`), confirmed `organisations` row creation, manager `memberships` linking, DPDP consent tracking, and audit event insertion.
+  - Production build: `npm run build` executed in 3.62s with 0 errors.
+  - Committed and pushed to `teamasiacore/AgriMandi` `main` branch (`d66c01d`).
+- Tests passed: 100% of AG-006 onboarding tests passed against live Supabase Cloud PostgreSQL.
+- Manual checks performed: Verified zero role check violations for FPO onboarding by assigning base `FARMER` role in `users` and attaching organisation membership.
+
+### Not completed
+- None. Task AG-006 is 100% complete and verified.
+
+### Risks
+- High volume of incoming 7/12 records requires administrative review backlog management via SuperAdmin desk.
+
+### Next task
+- Canonical Task AG-007: Buyer Onboarding and Review Lifecycle (Scope-based categorization, review status workflow `DOCUMENTS_SUBMITTED` -> `UNDER_REVIEW` -> `VERIFIED`, and gating live counter-bidding until verification approval).
+
+
 
 
