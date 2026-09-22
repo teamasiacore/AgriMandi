@@ -1168,6 +1168,89 @@ export const db = {
             } catch (errFpo) {
               console.warn('FPO onboarding notice:', errFpo?.message);
             }
+          } else if (userData.role === 'BUYER') {
+            try {
+              const buyerId = `byr-${Date.now()}`;
+              const companyName = userData.company_name || data.name;
+              const gstinUpper = userData.gstin ? userData.gstin.toUpperCase().trim() : null;
+              const panUpper = userData.pan ? userData.pan.toUpperCase().trim() : (gstinUpper ? gstinUpper.substring(2, 12) : null);
+              const buyerCategory = userData.buyer_category || 'Processor or mill';
+              const targetCrops = Array.isArray(userData.target_crops || userData.crops) 
+                ? (userData.target_crops || userData.crops) 
+                : [userData.crops || 'Soybean'];
+
+              const buyerPayload = {
+                id: buyerId,
+                user_id: data.id,
+                company_name: companyName,
+                legal_name: companyName,
+                representative_name: userData.representative_name || data.name,
+                phone: data.phone,
+                gstin: gstinUpper,
+                pan: panUpper,
+                buyer_category: buyerCategory,
+                license_type: userData.license_type || 'APMC Direct Purchase License',
+                license_number: userData.license_number || '',
+                daily_capacity_mt: userData.daily_capacity_mt ? Number(userData.daily_capacity_mt) : 0,
+                district: data.district || 'Latur',
+                city: `${data.district || 'Latur'} Industrial Area`,
+                address: userData.address || '',
+                target_crops: targetCrops,
+                operating_districts: [data.district || 'Latur'],
+                status: 'UNDER_REVIEW',
+                is_verified: false,
+                rating: 5.0,
+                reviews_count: 0,
+                created_at: new Date().toISOString()
+              };
+
+              await supabase.from('buyer_profiles').upsert([buyerPayload], { onConflict: 'gstin' });
+
+              const existingBIdx = memoryCache.buyers.findIndex(b => b.phone === data.phone || (gstinUpper && b.gstin === gstinUpper));
+              if (existingBIdx !== -1) memoryCache.buyers[existingBIdx] = buyerPayload;
+              else memoryCache.buyers.unshift(buyerPayload);
+
+              // DPDP Consent for Buyer (AG-007)
+              await supabase.from('consents').insert([{
+                id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                user_id: data.id,
+                consent_type: 'BUYER_TRADE_CONSENT',
+                purpose: 'Explicit consent for commercial buyer onboarding, statutory document verification (GSTIN/APMC), and market trade execution under DPDP Act',
+                is_granted: true,
+                ip_address: userData.ip_address || null,
+                user_agent: userData.user_agent || null,
+                granted_at: new Date().toISOString()
+              }]);
+
+              // Commercial Verification Case (AG-007)
+              await supabase.from('verification_cases').insert([{
+                id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                entity_type: 'BUYER',
+                entity_id: data.id,
+                case_type: 'COMMERCIAL_CREDENTIALS',
+                status: 'UNDER_REVIEW',
+                decision_notes: `GSTIN: ${gstinUpper || 'N/A'} | License: ${userData.license_number || 'N/A'} submitted for verification. Category: ${buyerCategory}`,
+                submitted_at: new Date().toISOString()
+              }]);
+
+              // Immutable Audit Event (AG-007)
+              await db.logAuditEvent({
+                actor_id: data.id,
+                actor_role: 'BUYER',
+                action: 'BUYER_ONBOARDING_COMPLETED',
+                entity: 'BUYER_PROFILE',
+                entity_id: buyerId,
+                new_state: {
+                  company_name: companyName,
+                  gstin: gstinUpper,
+                  buyer_category: buyerCategory,
+                  district: data.district,
+                  status: 'UNDER_REVIEW'
+                }
+              });
+            } catch (errBuyer) {
+              console.warn('Buyer onboarding notice:', errBuyer?.message);
+            }
           }
 
           const existingIdx = memoryCache.users.findIndex(u => u.phone === userData.phone);
@@ -2073,6 +2156,344 @@ export const db = {
       delivery_status: deal.delivery_status || 'PENDING_PICKUP',
       member_payouts: memberPayouts,
       statutory_citation: 'Maharashtra APMC Direct Farm-Gate Procurement Rules (Section 59): 0% APMC Mandi Cess levied on FPO Farmer Bulk Aggregations.'
+    };
+  },
+
+  // ===================== BUYER PROFILES & VERIFICATION (AG-007) =====================
+  createBuyerProfile: async (buyerData) => {
+    const buyerId = buyerData.id || `byr-${Date.now()}`;
+    const gstinUpper = buyerData.gstin ? buyerData.gstin.toUpperCase().trim() : null;
+    const panUpper = buyerData.pan ? buyerData.pan.toUpperCase().trim() : (gstinUpper ? gstinUpper.substring(2, 12) : null);
+    const companyName = buyerData.company_name || buyerData.legal_name || 'Agro Buyer';
+    const buyerCategory = buyerData.buyer_category || 'Processor or mill';
+    const targetCrops = Array.isArray(buyerData.target_crops || buyerData.crops) 
+      ? (buyerData.target_crops || buyerData.crops) 
+      : [buyerData.crops || 'Soybean'];
+
+    const newBuyer = {
+      id: buyerId,
+      user_id: buyerData.user_id || null,
+      company_name: companyName,
+      legal_name: buyerData.legal_name || companyName,
+      representative_name: buyerData.representative_name || companyName,
+      phone: buyerData.phone,
+      gstin: gstinUpper,
+      pan: panUpper,
+      buyer_category: buyerCategory,
+      license_type: buyerData.license_type || 'APMC Direct Purchase License',
+      license_number: buyerData.license_number || '',
+      daily_capacity_mt: Number(buyerData.daily_capacity_mt) || 0,
+      district: buyerData.district || 'Latur',
+      city: buyerData.city || `${buyerData.district || 'Latur'} Industrial Area`,
+      address: buyerData.address || '',
+      target_crops: targetCrops,
+      operating_districts: buyerData.operating_districts || [buyerData.district || 'Latur'],
+      status: buyerData.status || 'UNDER_REVIEW',
+      is_verified: Boolean(buyerData.is_verified),
+      rating: 5.0,
+      reviews_count: 0,
+      created_at: new Date().toISOString()
+    };
+
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('buyer_profiles').upsert([newBuyer], { onConflict: 'gstin' }).select().single();
+        if (!error && data) {
+          const idx = memoryCache.buyers.findIndex(b => b.id === buyerId || (gstinUpper && b.gstin === gstinUpper));
+          if (idx !== -1) memoryCache.buyers[idx] = data;
+          else memoryCache.buyers.unshift(data);
+
+          if (data.user_id) {
+            await supabase.from('consents').insert([{
+              id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              user_id: data.user_id,
+              consent_type: 'BUYER_TRADE_CONSENT',
+              purpose: 'Explicit consent for commercial buyer onboarding and verification under DPDP Act',
+              is_granted: true,
+              granted_at: new Date().toISOString()
+            }]).catch(() => {});
+
+            await supabase.from('verification_cases').insert([{
+              id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              entity_type: 'BUYER',
+              entity_id: data.user_id,
+              case_type: 'COMMERCIAL_CREDENTIALS',
+              status: 'UNDER_REVIEW',
+              decision_notes: `GSTIN: ${gstinUpper || 'N/A'} | License: ${buyerData.license_number || 'N/A'} submitted for verification.`,
+              submitted_at: new Date().toISOString()
+            }]).catch(() => {});
+          }
+
+          await db.logAuditEvent({
+            actor_id: data.user_id || data.id,
+            actor_role: 'BUYER',
+            action: 'BUYER_ONBOARDING_COMPLETED',
+            entity: 'BUYER_PROFILE',
+            entity_id: data.id,
+            new_state: { company_name: companyName, gstin: gstinUpper, status: data.status }
+          });
+
+          return data;
+        }
+      } catch (err) {
+        console.warn('Supabase createBuyerProfile error:', err.message);
+      }
+    }
+
+    const idx = memoryCache.buyers.findIndex(b => b.id === buyerId || (gstinUpper && b.gstin === gstinUpper));
+    if (idx !== -1) memoryCache.buyers[idx] = newBuyer;
+    else memoryCache.buyers.unshift(newBuyer);
+    return newBuyer;
+  },
+
+  getBuyers: async () => {
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('buyer_profiles').select('*').or('is_verified.eq.true,status.eq.VERIFIED').order('created_at', { ascending: false });
+        if (!error && data) return data;
+      } catch (err) {}
+    }
+    return memoryCache.buyers.filter(b => b.is_verified || b.status === 'VERIFIED');
+  },
+
+  getAllBuyers: async () => {
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('buyer_profiles').select('*').order('created_at', { ascending: false });
+        if (!error && data) return data;
+      } catch (err) {}
+    }
+    return memoryCache.buyers;
+  },
+
+  getBuyerById: async (id) => {
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('buyer_profiles').select('*').eq('id', id).maybeSingle();
+        if (!error && data) return data;
+      } catch (err) {}
+    }
+    return memoryCache.buyers.find(b => b.id === id);
+  },
+
+  getBuyerProfile: async (identifier) => {
+    if (!identifier) return null;
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('buyer_profiles')
+          .select('*')
+          .or(`id.eq.${identifier},user_id.eq.${identifier},phone.eq.${identifier}`)
+          .maybeSingle();
+        if (!error && data) return data;
+      } catch (err) {}
+    }
+    return memoryCache.buyers.find(b => b.id === identifier || b.user_id === identifier || b.phone === identifier) || null;
+  },
+
+  verifyBuyer: async (buyerId, verified = true, adminNotes = '') => {
+    const statusVal = verified ? 'VERIFIED' : 'UNDER_REVIEW';
+    const updatePayload = {
+      is_verified: verified,
+      status: statusVal,
+      verified_at: verified ? new Date().toISOString() : null,
+      verified_by: verified ? 'ASIACore' : null,
+      admin_notes: adminNotes || (verified ? 'Approved by ASIACore Administration' : 'Review status updated')
+    };
+
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('buyer_profiles').update(updatePayload).eq('id', buyerId).select().maybeSingle();
+        if (!error && data) {
+          if (data.user_id) {
+            await supabase.from('users').update({ is_verified: verified }).eq('id', data.user_id).catch(() => {});
+            await supabase.from('verification_cases').update({
+              status: verified ? 'APPROVED' : 'UNDER_REVIEW',
+              decision_notes: updatePayload.admin_notes,
+              reviewed_at: new Date().toISOString()
+            }).eq('entity_id', data.user_id).catch(() => {});
+          }
+
+          const idx = memoryCache.buyers.findIndex(b => b.id === buyerId);
+          if (idx !== -1) memoryCache.buyers[idx] = data;
+
+          await db.logAuditEvent({
+            actor_id: 'superadmin-01',
+            actor_role: 'SUPERADMIN',
+            action: verified ? 'BUYER_VERIFIED' : 'BUYER_REVOKED',
+            entity: 'BUYER_PROFILE',
+            entity_id: buyerId,
+            new_state: updatePayload
+          });
+
+          return data;
+        }
+      } catch (err) {
+        console.warn('verifyBuyer error:', err.message);
+      }
+    }
+
+    const buyer = memoryCache.buyers.find(b => b.id === buyerId);
+    if (buyer) {
+      Object.assign(buyer, updatePayload);
+    }
+    return buyer;
+  },
+
+  rejectBuyer: async (buyerId, rejectionReason = '') => {
+    const updatePayload = {
+      is_verified: false,
+      status: 'REJECTED',
+      admin_notes: rejectionReason || 'Information does not match official APMC/GSTIN records.',
+      verified_by: 'ASIACore',
+      verified_at: new Date().toISOString()
+    };
+
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('buyer_profiles').update(updatePayload).eq('id', buyerId).select().maybeSingle();
+        if (!error && data) {
+          if (data.user_id) {
+            await supabase.from('users').update({ is_verified: false }).eq('id', data.user_id).catch(() => {});
+            await supabase.from('verification_cases').update({
+              status: 'REJECTED',
+              decision_notes: updatePayload.admin_notes,
+              reviewed_at: new Date().toISOString()
+            }).eq('entity_id', data.user_id).catch(() => {});
+          }
+
+          const idx = memoryCache.buyers.findIndex(b => b.id === buyerId);
+          if (idx !== -1) memoryCache.buyers[idx] = data;
+
+          await db.logAuditEvent({
+            actor_id: 'superadmin-01',
+            actor_role: 'SUPERADMIN',
+            action: 'BUYER_REJECTED',
+            entity: 'BUYER_PROFILE',
+            entity_id: buyerId,
+            new_state: updatePayload
+          });
+
+          return data;
+        }
+      } catch (err) {}
+    }
+
+    const buyer = memoryCache.buyers.find(b => b.id === buyerId);
+    if (buyer) {
+      Object.assign(buyer, updatePayload);
+    }
+    return buyer;
+  },
+
+  verifyFarmer: async (farmerId, verified = true) => {
+    const updatePayload = {
+      is_verified: verified,
+      verification_status: verified ? 'VERIFIED' : 'REJECTED',
+      verified_by: verified ? 'ASIACore' : null,
+      verified_at: verified ? new Date().toISOString() : null
+    };
+
+    if (supabaseConnected) {
+      try {
+        await supabase.from('farmer_profiles').update(updatePayload).or(`user_id.eq.${farmerId},id.eq.${farmerId}`);
+        await supabase.from('users').update({ is_verified: verified }).eq('id', farmerId);
+        await supabase.from('verification_cases').update({
+          status: verified ? 'APPROVED' : 'REJECTED',
+          reviewed_at: new Date().toISOString()
+        }).eq('entity_id', farmerId).catch(() => {});
+
+        await db.logAuditEvent({
+          actor_id: 'superadmin-01',
+          actor_role: 'SUPERADMIN',
+          action: verified ? 'FARMER_LAND_VERIFIED' : 'FARMER_LAND_UNVERIFIED',
+          entity: 'FARMER_PROFILE',
+          entity_id: farmerId,
+          new_state: updatePayload
+        });
+      } catch (err) {}
+    }
+
+    const farmer = memoryCache.users.find(u => (u.id === farmerId || u.user_id === farmerId));
+    if (farmer) {
+      Object.assign(farmer, updatePayload);
+    }
+    return farmer;
+  },
+
+  deleteUser: async (id) => {
+    if (supabaseConnected) {
+      try {
+        await supabase.from('users').delete().eq('id', id);
+        await supabase.from('farmer_profiles').delete().or(`user_id.eq.${id},id.eq.${id}`);
+        await supabase.from('buyer_profiles').delete().or(`user_id.eq.${id},id.eq.${id}`);
+      } catch (err) {}
+    }
+    memoryCache.users = memoryCache.users.filter(u => u.id !== id && u.user_id !== id);
+    memoryCache.buyers = memoryCache.buyers.filter(b => b.id !== id && b.user_id !== id);
+    return true;
+  },
+
+  getSupabaseStatus: () => ({
+    connected: supabaseConnected,
+    url: SUPABASE_URL
+  }),
+
+  getAdminStats: async () => {
+    let farmersCount = memoryCache.users.filter(u => u.role === 'FARMER').length;
+    let verifiedFarmersCount = memoryCache.users.filter(u => u.role === 'FARMER' && u.is_verified).length;
+    let buyersCount = memoryCache.buyers.length;
+    let verifiedBuyersCount = memoryCache.buyers.filter(b => b.is_verified || b.status === 'VERIFIED').length;
+    let pendingBuyersCount = memoryCache.buyers.filter(b => b.status === 'PENDING_VERIFICATION' || b.status === 'UNDER_REVIEW' || b.status === 'DOCUMENTS_SUBMITTED').length;
+    let lotsCount = memoryCache.lots.length;
+    let activeLotsCount = memoryCache.lots.filter(l => l.status === 'LISTED').length;
+    let totalVolumeQtl = memoryCache.lots.reduce((acc, l) => acc + (Number(l.quantity_qtl) || 0), 0);
+    let dealsCount = memoryCache.deals.length;
+    let totalEscrowVal = memoryCache.deals.reduce((acc, d) => acc + (Number(d.total_deal_value) || 0), 0);
+
+    if (supabaseConnected) {
+      try {
+        const [farmersRes, buyersRes, lotsRes, dealsRes] = await Promise.all([
+          supabase.from('farmer_profiles').select('id, is_verified'),
+          supabase.from('buyer_profiles').select('id, status, is_verified'),
+          supabase.from('produce_lots').select('id, quantity_qtl, status'),
+          supabase.from('deals').select('id, total_deal_value')
+        ]);
+
+        if (farmersRes.data) {
+          farmersCount = farmersRes.data.length;
+          verifiedFarmersCount = farmersRes.data.filter(f => f.is_verified).length;
+        }
+        if (buyersRes.data) {
+          buyersCount = buyersRes.data.length;
+          verifiedBuyersCount = buyersRes.data.filter(b => b.is_verified || b.status === 'VERIFIED').length;
+          pendingBuyersCount = buyersRes.data.filter(b => b.status === 'PENDING_VERIFICATION' || b.status === 'UNDER_REVIEW' || b.status === 'DOCUMENTS_SUBMITTED' || (!b.is_verified && b.status !== 'REJECTED')).length;
+        }
+        if (lotsRes.data) {
+          lotsCount = lotsRes.data.length;
+          activeLotsCount = lotsRes.data.filter(l => l.status === 'LISTED').length;
+          totalVolumeQtl = lotsRes.data.reduce((acc, l) => acc + (Number(l.quantity_qtl) || 0), 0);
+        }
+        if (dealsRes.data) {
+          dealsCount = dealsRes.data.length;
+          totalEscrowVal = dealsRes.data.reduce((acc, d) => acc + (Number(d.total_deal_value) || 0), 0);
+        }
+      } catch (err) {
+        console.warn('Supabase getAdminStats notice:', err.message);
+      }
+    }
+
+    return {
+      totalFarmers: farmersCount,
+      verifiedFarmers: verifiedFarmersCount,
+      totalBuyers: buyersCount,
+      verifiedBuyers: verifiedBuyersCount,
+      pendingBuyers: pendingBuyersCount,
+      totalLots: lotsCount,
+      activeLots: activeLotsCount,
+      totalVolumeQtl,
+      totalDeals: dealsCount,
+      totalEscrowVal,
+      supabaseStatus: { connected: supabaseConnected, url: SUPABASE_URL }
     };
   },
 

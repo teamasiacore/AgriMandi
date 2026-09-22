@@ -454,6 +454,52 @@ Both backend and frontend services are compiled, verified, and running live:
 ### Next task
 - Canonical Task AG-007: Buyer Onboarding and Review Lifecycle (Scope-based categorization, review status workflow `DOCUMENTS_SUBMITTED` -> `UNDER_REVIEW` -> `VERIFIED`, and gating live counter-bidding until verification approval).
 
+---
+
+## September 22, 2026 — Task AG-007: Buyer Onboarding and Review Lifecycle
+### Completed
+- Exact files changed:
+  - `frontend/api/services/db.js` (Implemented `createBuyerProfile`, `getBuyers`, `getAllBuyers`, `getBuyerById`, `getBuyerProfile`, `verifyBuyer`, `rejectBuyer`, `verifyFarmer`, `deleteUser`, `getSupabaseStatus`, and live relational `getAdminStats`).
+  - `backend/src/services/db.js` (Synced canonical buyer profile creation, review workflow, and SuperAdmin operations).
+  - `frontend/api/routes/marketRoutes.js` (Added verification guard in `POST /api/market/offers` rejecting unverified buyers with HTTP 403 `BUYER_NOT_VERIFIED`).
+  - `backend/src/routes/marketRoutes.js` (Synced verification guard to backend runtime).
+  - `frontend/src/pages/BuyerPortal.jsx` (Secured `is_verified` state, blocked unverified buyers from opening counter-bid modal with informative bilingual alert, and added prominent review banner showing current review status).
+- Exact routes added/enhanced:
+  - `POST /api/market/offers` (Protected with buyer verification guard).
+  - `GET /api/buyers` (Serves verified buyers for public trade discovery).
+  - `GET /api/admin/buyers` (Serves all buyer applications for SuperAdmin review).
+  - `POST /api/admin/buyers/:id/verify` (Approves buyer, sets `is_verified: true`, status `VERIFIED`, resolves verification case, logs audit event).
+  - `POST /api/admin/buyers/:id/reject` (Rejects buyer with administrative reason, sets status `REJECTED`, updates verification case, logs audit event).
+- Database changes:
+  - Validated live against Supabase Cloud PostgreSQL (`lqoychozoysmxibhcmuf.supabase.co`):
+    - `public.buyer_profiles` actively stores category (`Processor or mill`, `Trader`, etc.), GSTIN, PAN, APMC license, daily capacity, and review status (`UNDER_REVIEW`).
+    - `public.consents` records `BUYER_TRADE_CONSENT` under DPDP Act.
+    - `public.verification_cases` creates commercial credentials review case with entity type `BUYER`.
+    - `public.audit_events` immutably logs `BUYER_ONBOARDING_COMPLETED`, `BUYER_VERIFIED`, and `BUYER_REJECTED`.
+- UI changes:
+  - `BuyerPortal.jsx`: Added prominent administrative review banner displaying current status (`UNDER_REVIEW`, `DOCUMENTS_SUBMITTED`). Live bidding guarded against unverified accounts.
+
+### Verification performed
+- Commands run:
+  - Automated Node.js integration test script `test_ag007_buyer.mjs` run directly against Supabase Cloud:
+    - Successfully registered Buyer (`Marathwada Oil & Dal Mills Pvt Ltd` / `27AAAAA9395B1Z5`), confirmed initial state `status: 'UNDER_REVIEW'`, `is_verified: false`.
+    - Verified guard successfully blocked unverified buyer bidding (`BUYER_NOT_VERIFIED`).
+    - Verified SuperAdmin 1-click verification approved buyer to `status: 'VERIFIED'`, `is_verified: true`, `verified_by: 'ASIACore'`.
+    - Verified immutable audit trail recorded in `audit_events`.
+  - Frontend production build: `npm run build` executed in 3.55s with 0 errors.
+- Tests passed: 100% of AG-007 Buyer Onboarding & Review tests passed against live Supabase Cloud.
+- Manual checks performed: Verified zero secrets or internal stack traces leak in error responses.
+
+### Not completed
+- None. Task AG-007 is 100% complete and verified.
+
+### Risks
+- Commercial buyers without a GSTIN must be directed to local FPO aggregation desks.
+
+### Next task
+- Canonical Task AG-008: Transporter Onboarding and Fleet Verification (Vehicle profiles, capacity MT, service talukas/districts, status transition `PROFILE_SUBMITTED` -> `ACTIVE_FOR_BOOKINGS`).
+
+
 
 
 

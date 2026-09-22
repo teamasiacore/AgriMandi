@@ -199,8 +199,8 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
           city: u.district ? `MIDC ${u.district}` : 'MIDC Industrial Area',
           district: u.district || 'Latur',
           license: u.license_type || 'APMC Direct Purchase License',
-          status: u.status || 'ACTIVE',
-          is_verified: Boolean(u.is_verified || u.status === 'VERIFIED' || u.status === 'ACTIVE')
+          status: u.status || 'UNDER_REVIEW',
+          is_verified: Boolean(u.is_verified && u.status === 'VERIFIED')
         };
         setBuyerProfile(uProfile);
       } catch (e) {}
@@ -245,13 +245,14 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
   });
 
   const handleOpenBidModal = (lot) => {
-    if (buyerProfile.status === 'PENDING_VERIFICATION') {
+    const isVerified = Boolean(buyerProfile.is_verified || buyerProfile.status === 'VERIFIED');
+    if (!isVerified || buyerProfile.status === 'PENDING_VERIFICATION' || buyerProfile.status === 'UNDER_REVIEW' || buyerProfile.status === 'DOCUMENTS_SUBMITTED') {
       alert(
         currentLang === 'en'
-          ? 'Your account verification is pending review by SuperAdmin (ASIACore). Bidding will be activated upon approval.'
+          ? 'Your account is under administrative review by ASIACore. Live counter-bidding unlocks once your GSTIN and APMC license are verified.'
           : currentLang === 'hi'
-          ? 'आपका खाता सत्यापन सुपरएडमिन (ASIACore) के पास समीक्षाधीन है। सत्यापन के बाद ही बोली लगाई जा सकती है।'
-          : 'आपले खाते पडताळणी प्रलंबित आहे. SuperAdmin (ASIACore) मंजुरीनंतरच बोली लावता येईल.'
+          ? 'आपका खाता ASIACore प्रशासन द्वारा समीक्षाधीन है। GSTIN और APMC लाइसेंस के सत्यापन के बाद ही लाइव बोली की सुविधा उपलब्ध होगी।'
+          : 'आपले खाते ASIACore प्रशासनाच्या पुनरावलोकनाखाली आहे. GSTIN व APMC परवाना पडताळणी पूर्ण झाल्यावरच थेट बोली लावता येईल.'
       );
       return;
     }
@@ -404,19 +405,24 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6">
         
         {/* Pending Verification Notice Banner */}
-        {buyerProfile.status === 'PENDING_VERIFICATION' && (
+        {(!buyerProfile.is_verified || buyerProfile.status !== 'VERIFIED') && (
           <div className="mb-6 p-4 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 flex items-start gap-3 shadow-xs">
             <Clock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
             <div className="space-y-1 text-xs">
-              <p className="font-bold text-sm text-amber-950">
-                {currentLang === 'en' ? 'Account Verification in Progress' : currentLang === 'hi' ? 'खाता सत्यापन प्रक्रियाधीन' : 'खाते पडताळणी प्रलंबित'}
-              </p>
+              <div className="flex items-center gap-2">
+                <p className="font-bold text-sm text-amber-950">
+                  {currentLang === 'en' ? 'Account Verification in Progress' : currentLang === 'hi' ? 'खाता सत्यापन प्रक्रियाधीन' : 'खाते पडताळणी प्रलंबित'}
+                </p>
+                <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full uppercase font-bold tracking-wide">
+                  {buyerProfile.status || 'UNDER_REVIEW'}
+                </span>
+              </div>
               <p className="text-amber-800 leading-relaxed">
                 {currentLang === 'en'
-                  ? `Your GSTIN (${buyerProfile.gstin || 'Under Review'}) and APMC Direct Procurement License are currently undergoing verification by SuperAdmin (ASIACore). Direct bidding will be unlocked upon approval.`
+                  ? `Your registered GSTIN (${buyerProfile.gstin || 'Under Review'}) and APMC Direct Procurement License are currently undergoing verification by ASIACore Administration. Direct counter-bidding and contract locking will be unlocked upon approval.`
                   : currentLang === 'hi'
-                  ? `आपका GSTIN (${buyerProfile.gstin || 'समीक्षाधीन'}) और APMC खरीद लाइसेंस सुपरएडमिन (ASIACore) द्वारा सत्यापन प्रक्रिया में है। स्वीकृति के बाद बोली सक्रिय होगी।`
-                  : `आपले GSTIN (${buyerProfile.gstin || 'पुनरावलोकनाखाली'}) आणि APMC परवाना SuperAdmin (ASIACore) पडताळणीत आहे. मंजुरीनंतर थेट बोली लावता येईल.`}
+                  ? `आपका पंजीकृत GSTIN (${buyerProfile.gstin || 'समीक्षाधीन'}) और APMC खरीद लाइसेंस ASIACore प्रशासन द्वारा सत्यापन प्रक्रिया में है। स्वीकृति के बाद बोली सक्रिय होगी।`
+                  : `आपले नोंदणीकृत GSTIN (${buyerProfile.gstin || 'पुनरावलोकनाखाली'}) आणि APMC परवाना ASIACore प्रशासनाच्या पडताळणीत आहे. मंजुरीनंतर थेट बोली लावता येईल.`}
               </p>
             </div>
           </div>

@@ -117,6 +117,16 @@ router.post('/offers', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'This lot is already locked into a deal.' });
     }
 
+    // AG-007 Verification Guard: Check buyer verification status before placing binding offer
+    const buyerProfile = await db.getBuyerProfile(buyer_id) || await db.getBuyerProfile(buyer_phone);
+    if (buyerProfile && !buyerProfile.is_verified && buyerProfile.status !== 'VERIFIED') {
+      return res.status(403).json({
+        status: 'error',
+        code: 'BUYER_NOT_VERIFIED',
+        message: 'Your commercial buyer account is under review. Live counter-bidding unlocks once your GSTIN and APMC license are verified by ASIACore Administration.'
+      });
+    }
+
     const newOffer = await db.createOffer({
       lot_id,
       buyer_id,
