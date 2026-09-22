@@ -17,6 +17,7 @@ import SelectTransporterModal from '../components/farmer/SelectTransporterModal'
 import WeighmentAssaySlipModal from '../components/WeighmentAssaySlipModal';
 import TaxInvoiceModal from '../components/TaxInvoiceModal';
 import MarketReferenceDesk from '../components/market/MarketReferenceDesk';
+import MultiMandiComparisonDesk from '../components/realization/MultiMandiComparisonDesk';
 
 const LOGISTICS_LABELS = {
   en: {
@@ -111,6 +112,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
   const [calcStorageDays, setCalcStorageDays] = useState(0);
   const [calculating, setCalculating] = useState(false);
   const [realizationData, setRealizationData] = useState(null);
+  const [multiMandiData, setMultiMandiData] = useState(null);
 
   // Lots & Offers
   const [myLots, setMyLots] = useState([]);
@@ -277,7 +279,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
     }
   };
 
-  // Run Net Realization Calculator
+  // Run Net Realization Calculator & Multi-Mandi Comparison (AG-014)
   const runCalculator = async (overrideParams = {}) => {
     setCalculating(true);
     try {
@@ -288,9 +290,17 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
         vehicleType: overrideParams.vehicle || calcVehicle,
         storageDays: Number(overrideParams.storage !== undefined ? overrideParams.storage : calcStorageDays) || 0
       };
-      const res = await api.calculateRealization(payload);
-      if (res && res.apmcRoute) {
-        setRealizationData(res);
+      
+      const [resDiscover, resCompare] = await Promise.allSettled([
+        api.calculateRealization(payload),
+        api.compareMultiMandiRealization(payload)
+      ]);
+
+      if (resDiscover.status === 'fulfilled' && resDiscover.value?.apmcRoute) {
+        setRealizationData(resDiscover.value);
+      }
+      if (resCompare.status === 'fulfilled' && resCompare.value?.rankedMarkets) {
+        setMultiMandiData(resCompare.value);
       }
     } catch (err) {
       console.error('Realization calculation error:', err);
@@ -302,6 +312,18 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
   useEffect(() => {
     runCalculator();
   }, [calcCrop, calcQty, calcDistrict, calcVehicle, calcStorageDays]);
+
+  const handleSelectMarketFromDesk = (mkt) => {
+    setLotForm(prev => ({
+      ...prev,
+      crop: calcCrop,
+      quantity_qtl: calcQty,
+      expected_price_per_qtl: mkt.netInHandPerQtl || mkt.stickerPrice,
+      district: user.district || calcDistrict,
+      farm_address: user.village ? `${user.village}, ${user.district || calcDistrict}` : (prev.farm_address || '')
+    }));
+    setIsListingModalOpen(true);
+  };
 
   const handleSelectBuyerForLot = (buyer) => {
     setLotForm(prev => ({
@@ -1395,6 +1417,15 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
               )}
 
             </div>
+
+            {/* AG-014: Multi-Mandi Net Realization Comparison Desk */}
+            <MultiMandiComparisonDesk
+              comparisonData={multiMandiData}
+              loading={calculating}
+              currentLang={currentLang}
+              onSelectMarket={handleSelectMarketFromDesk}
+            />
+
           </div>
         )}
 

@@ -1,5 +1,6 @@
 import express from 'express';
 import { db } from '../services/db.js';
+import { mandiService } from '../services/mandiService.js';
 
 const router = express.Router();
 
@@ -195,7 +196,211 @@ async function handleRealization(req, res) {
   }
 }
 
+// AG-014: Core APMC Market Hubs of Maharashtra
+export const CORE_APMC_HUBS = [
+  { id: 'apmc-latur', market: 'Latur APMC', district: 'Latur', lat: 18.4088, lng: 76.5604, division: 'Marathwada' },
+  { id: 'apmc-lasalgaon', market: 'Lasalgaon APMC', district: 'Nashik', lat: 20.1472, lng: 74.2259, division: 'North Maharashtra' },
+  { id: 'apmc-nashik', market: 'Nashik APMC', district: 'Nashik', lat: 19.9975, lng: 73.7898, division: 'North Maharashtra' },
+  { id: 'apmc-solapur', market: 'Solapur APMC', district: 'Solapur', lat: 17.6599, lng: 75.9064, division: 'Western Maharashtra' },
+  { id: 'apmc-jalna', market: 'Jalna APMC', district: 'Jalna', lat: 19.8410, lng: 75.8864, division: 'Marathwada' },
+  { id: 'apmc-akola', market: 'Akola APMC', district: 'Akola', lat: 20.7002, lng: 77.0082, division: 'Vidarbha' },
+  { id: 'apmc-pune', market: 'Gultekdi APMC (Pune)', district: 'Pune', lat: 18.5204, lng: 73.8567, division: 'Western Maharashtra' },
+  { id: 'apmc-nanded', market: 'Nanded APMC', district: 'Nanded', lat: 19.1383, lng: 77.3210, division: 'Marathwada' },
+  { id: 'apmc-ahmednagar', market: 'Ahmednagar APMC', district: 'Ahmednagar', lat: 19.0952, lng: 74.7496, division: 'North Maharashtra' }
+];
+
+// AG-014: Multi-Mandi Net Realization Comparison Handler
+async function handleCompareMultiMandi(req, res) {
+  try {
+    const {
+      crop = 'Soybean',
+      quantityQtl = 50,
+      farmerDistrict = 'Latur',
+      farmLat,
+      farmLng,
+      vehicleType = 'standard_truck',
+      storageDays = 0,
+      expectedPrice
+    } = req.body;
+
+    const districtInfo = DISTRICT_COORDS[farmerDistrict] || DISTRICT_COORDS['Latur'];
+    const fCoord = (farmLat && farmLng) ? { lat: Number(farmLat), lng: Number(farmLng) } : districtInfo;
+    const qty = Math.max(1, Number(quantityQtl) || 50);
+    const holdDays = Math.max(0, Number(storageDays) || 0);
+
+    // Normalize crop and lookup benchmark
+    const cleanCrop = (crop || '').toLowerCase().trim();
+    let baseBenchmark = 4850;
+    for (const [key, val] of Object.entries(CROP_BENCHMARKS)) {
+      if (cleanCrop.includes(key)) {
+        baseBenchmark = val;
+        break;
+      }
+    }
+    if (expectedPrice && Number(expectedPrice) > 1000) {
+      baseBenchmark = Number(expectedPrice);
+    }
+
+    // Vehicle tariff
+    const vehicle = VEHICLE_TARIFFS[vehicleType] || VEHICLE_TARIFFS['standard_truck'];
+    const tariffRate = vehicle.ratePerKm;
+    const baseFee = vehicle.baseFee;
+
+    // Fetch real live prices from mandiService if available
+    let liveRecords = [];
+    try {
+      const liveRes = await mandiService.getLiveRates({ commodity: crop, district: 'all', limit: 80 });
+      if (liveRes && liveRes.records) {
+        liveRecords = liveRes.records;
+      }
+    } catch (e) {
+      console.warn('⚠️ Could not fetch live rates in compare:', e.message);
+    }
+
+    // Evaluate each APMC Hub
+    const comparedMandis = CORE_APMC_HUBS.map(hub => {
+      // Calculate Haversine great-circle distance + 1.25 road winding factor
+      const aerialDist = haversineDistance(fCoord.lat, fCoord.lng, hub.lat, hub.lng);
+      // If same district, minimum local distance is 18-25km
+      const isSameDistrict = farmerDistrict.toLowerCase() === hub.district.toLowerCase();
+      const roadDistKm = isSameDistrict
+        ? (districtInfo.apmcDistKm || 20)
+        : Math.max(15, Math.round(aerialDist * 1.25));
+
+      // Check if real price exists for this hub
+      const match = liveRecords.find(r => 
+        (r.market && r.market.toLowerCase().includes(hub.market.toLowerCase().split(' ')[0])) ||
+        (r.district && r.district.toLowerCase() === hub.district.toLowerCase())
+      );
+
+      // Sticker price from live record or geographic benchmark
+      let stickerPrice = match ? Number(match.modal_price) : baseBenchmark;
+      // Realistic regional market variance if fallback (e.g. Pune terminal mandi +₹75, Lasalgaon onion +₹90)
+      if (!match) {
+        if (hub.district === 'Pune') stickerPrice += 75;
+        else if (hub.district === 'Nashik' && cleanCrop.includes('onion')) stickerPrice += 90;
+        else if (hub.district === 'Latur' && (cleanCrop.includes('soya') || cleanCrop.includes('tur'))) stickerPrice += 40;
+        else if (hub.district === 'Akola' && cleanCrop.includes('cotton')) stickerPrice += 60;
+      }
+
+      // Cost deductions
+      const freightPerQtl = Math.round((baseFee / qty) + (roadDistKm * tariffRate));
+      const mandiCessPerQtl = Math.round(stickerPrice * 0.0105); // 1.05% APMC cess
+      const handlingPerQtl = 25; // Weighment, tolnar, hamali
+      const storagePerQtl = Math.round(holdDays * 0.50); // ₹0.50/day
+
+      const totalDeductionsPerQtl = freightPerQtl + mandiCessPerQtl + handlingPerQtl + storagePerQtl;
+      const netInHandPerQtl = Math.max(0, stickerPrice - totalDeductionsPerQtl);
+      const totalInHand = netInHandPerQtl * qty;
+
+      return {
+        id: hub.id,
+        type: 'APMC_MANDI',
+        marketName: hub.market,
+        district: hub.district,
+        division: hub.division,
+        distanceKm: roadDistKm,
+        stickerPrice,
+        isLiveToday: match?.is_live_today || false,
+        breakdown: {
+          freightPerQtl,
+          mandiCessPerQtl,
+          handlingPerQtl,
+          storagePerQtl,
+          totalDeductionsPerQtl
+        },
+        netInHandPerQtl,
+        totalInHand,
+        paymentTerms: '3-7 Days (Arhatya Cheque / APMC Bill)'
+      };
+    });
+
+    // Also include the Direct AgriMandi Farm-Gate Route
+    const directPrice = Math.round(baseBenchmark - 30);
+    const directTotalInHand = directPrice * qty;
+    const directOption = {
+      id: 'agrimandi-direct',
+      type: 'DIRECT_MILL',
+      marketName: 'AgriMandi Direct Farm-Gate Mill',
+      district: farmerDistrict,
+      division: 'Direct Procurement',
+      distanceKm: 0,
+      stickerPrice: directPrice,
+      isLiveToday: true,
+      breakdown: {
+        freightPerQtl: 0,
+        mandiCessPerQtl: 0,
+        handlingPerQtl: 0,
+        storagePerQtl: 0,
+        totalDeductionsPerQtl: 0
+      },
+      netInHandPerQtl: directPrice,
+      totalInHand: directTotalInHand,
+      paymentTerms: 'Instant T+0 Escrow Direct Bank Transfer'
+    };
+
+    // Combine all options and sort descending by net in-hand return
+    const allOptions = [...comparedMandis, directOption].sort((a, b) => b.netInHandPerQtl - a.netInHandPerQtl);
+
+    // Assign ranking
+    allOptions.forEach((opt, idx) => {
+      opt.rank = idx + 1;
+      opt.isOptimal = (idx === 0);
+    });
+
+    const optimalMarket = allOptions[0];
+
+    // Detect "Sticker Price Trap":
+    // A distant mandi with higher sticker price than optimalMarket, but giving lower net return!
+    let stickerPriceTrap = null;
+    const trappedCandidate = allOptions.find(opt => 
+      opt.id !== optimalMarket.id && 
+      opt.stickerPrice > optimalMarket.stickerPrice && 
+      opt.netInHandPerQtl < optimalMarket.netInHandPerQtl
+    );
+
+    if (trappedCandidate) {
+      const grossDifference = trappedCandidate.stickerPrice - optimalMarket.stickerPrice;
+      const netLoss = optimalMarket.netInHandPerQtl - trappedCandidate.netInHandPerQtl;
+      const totalLoss = netLoss * qty;
+
+      stickerPriceTrap = {
+        trappedMarketName: trappedCandidate.marketName,
+        distanceKm: trappedCandidate.distanceKm,
+        higherStickerPrice: trappedCandidate.stickerPrice,
+        grossDifference,
+        freightCostPerQtl: trappedCandidate.breakdown.freightPerQtl,
+        netLossPerQtl: netLoss,
+        totalLossCash: totalLoss,
+        optimalMarketName: optimalMarket.marketName,
+        optimalNetInHand: optimalMarket.netInHandPerQtl,
+        explanationEn: `Don't be misled by ${trappedCandidate.marketName}'s sticker rate (+₹${grossDifference}/Qtl). After ₹${trappedCandidate.breakdown.freightPerQtl}/Qtl road freight (${trappedCandidate.distanceKm} km), you lose ₹${netLoss}/Qtl (-₹${totalLoss.toLocaleString('en-IN')} total in-hand) compared to ${optimalMarket.marketName}!`,
+        explanationMr: `${trappedCandidate.marketName} चा दर्शनी भाव +₹${grossDifference}/क्विंटल जास्त दिसत असला तरी, ${trappedCandidate.distanceKm} किमी अंतराचा वाहतूक खर्च (₹${trappedCandidate.breakdown.freightPerQtl}/क्विंटल) वजा जाता ${optimalMarket.marketName} पेक्षा तुम्हाला ₹${netLoss}/क्विंटल (एकूण ₹${totalLoss.toLocaleString('en-IN')}) कमी मिळतील!`,
+        explanationHi: `${trappedCandidate.marketName} का मॉडल भाव +₹${grossDifference}/क्विंटल अधिक दिख रहा है, लेकिन ${trappedCandidate.distanceKm} किमी भाड़ा (₹${trappedCandidate.breakdown.freightPerQtl}/क्विंटल) कटने के बाद ${optimalMarket.marketName} की तुलना में आपको ₹${netLoss}/क्विंटल (कुल ₹${totalLoss.toLocaleString('en-IN')}) का नुकसान होगा!`
+      };
+    }
+
+    res.json({
+      status: 'success',
+      timestamp: new Date().toISOString(),
+      crop,
+      quantityQtl: qty,
+      farmerDistrict,
+      vehicleUsed: vehicle.name,
+      storageDays: holdDays,
+      optimalMarket,
+      stickerPriceTrap,
+      totalMarketsCompared: allOptions.length,
+      rankedMarkets: allOptions
+    });
+  } catch (err) {
+    console.error('Multi-mandi compare error:', err);
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+}
+
 router.post('/discover', handleRealization);
 router.post('/calculate', handleRealization);
+router.post('/compare', handleCompareMultiMandi);
 
 export default router;

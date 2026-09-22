@@ -23,8 +23,9 @@ export const api = {
   getTicker: () => client.get('/mandi/ticker').then(res => res.data),
   getSummary: () => client.get('/mandi/summary').then(res => res.data),
 
-  // Net Realization
+  // Net Realization & Multi-Mandi Comparison (AG-014)
   calculateRealization: (payload) => client.post('/realization/discover', payload).then(res => res.data),
+  compareMultiMandiRealization: (payload) => client.post('/realization/compare', payload).then(res => res.data),
 
   // Lots Marketplace
   // Lots Marketplace & Lifecycle (AG-010)

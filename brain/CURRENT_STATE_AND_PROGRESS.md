@@ -775,3 +775,46 @@ Both backend and frontend services are compiled, verified, and running live:
   - Cotton / Jalna: Today ₹7,237/Qtl, 7D Projected ₹7,229/Qtl.
   - All tests passed with exit code 0.
 - **Production Build**: `npm run build` in `frontend/` exited code 0 in 3.41s.
+
+---
+
+## 🌾 18. Milestone AG-014: Multi-Mandi Net Realization Comparison Desk (100% COMPLETE)
+
+### What was completed
+- **Multi-Mandi Haversine Distance & Freight Engine**:
+  - Implemented `handleCompareMultiMandi` in `backend/src/routes/realizationRoutes.js` and `frontend/api/routes/realizationRoutes.js`.
+  - Defined `CORE_APMC_HUBS` master representing 9 core agricultural exchange hubs across Maharashtra (Latur, Lasalgaon, Nashik, Solapur, Jalna, Akola, Gultekdi/Pune, Nanded, Ahmednagar).
+  - Dynamic Haversine great-circle distance math ($D_{\text{km}}$) with $1.25\times$ road winding factor and minimum local district radius.
+  - Dynamic vehicle-tiered freight calculation ($C_{\text{freight}} = \frac{\text{baseFee}}{\text{qty}} + (D_{\text{km}} \times \text{tariffRate})$).
+- **Statutory Mandi Deductions Model**:
+  - Mandi cess deduction: $1.05\%$ statutory market committee fee.
+  - Hamali / weighment (tolnar) fee: ₹25/quintal.
+  - Warehouse storage fee: $₹0.50/\text{qtl/day} \times D_{\text{days}}$.
+  - True In-Hand Net Realization: $P_{\text{modal}} - C_{\text{freight}} - C_{\text{cess}} - C_{\text{handling}} - C_{\text{storage}}$.
+- **Direct Farm-Gate Procurement Baseline**:
+  - Integrated AgriMandi Direct Farm-Gate Mill route with **₹0 freight** (buyer pickup), **₹0 APMC cess** (Section 32A exemption), and **₹0 hamali**.
+- **Descending Net Realization Ranking & Optimal Market Detection**:
+  - Automatically sorts all compared APMCs and Direct routes from **Highest In-Hand Earning** to Lowest.
+  - Highlights Rank #1 as the Optimal Market Champion with total cash payout.
+- **Sticker Price Trap Detection & Alerts**:
+  - Automatically identifies if a distant mandi has a deceptively higher sticker price that is wiped out by transportation freight.
+  - Generates clear, educational warnings in Marathi, Hindi, and English explaining the exact cash loss per quintal and total in-hand deficit.
+- **Interactive Comparison Desk UI**:
+  - Created `frontend/src/components/realization/MultiMandiComparisonDesk.jsx`.
+  - Integrated into Tab 2 (Calculator) of `FarmerPortal.jsx` with real-time responsive updates on commodity, quantity, vehicle, or location changes.
+  - 1-Click "Select Market" action that directly populates the produce listing wizard.
+- **SDK Method Exposed**:
+  - Added `api.compareMultiMandiRealization(payload)` in `frontend/src/services/api.js`.
+
+### Verification Performed
+- **Automated Integration Test**: `backend/test_ag014_multi_mandi.mjs` executed:
+  - Verified 9 core APMC hubs in Maharashtra.
+  - Connected directly to live Supabase (`lqoychozoysmxibhcmuf.supabase.co`).
+  - Latur Soybean (50 Qtl): Optimal Market #1 AgriMandi Direct Farm-Gate Mill (Net: ₹4,820/Qtl, Total: ₹2,41,000). Local mandi freight ₹86/Qtl vs distant Solapur freight ₹577/Qtl. Sticker price trap accurately detected for Latur APMC (+₹30 sticker vs -₹132 net loss).
+  - Nashik Onion (100 Qtl): Optimal Market Lasalgaon APMC (Net: ₹3,842/Qtl).
+  - Verified strict descending sort order across all options.
+  - All unit & algorithm assertions passed with exit code 0.
+- **Production Build**: `npm run build` in `frontend/` exited code 0 in 3.63s.
+
+### Next task
+- Canonical Task AG-015: FPO Group Aggregation, Bulk Lot Pooling & Commission Ledger.
