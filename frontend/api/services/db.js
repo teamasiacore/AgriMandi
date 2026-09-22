@@ -839,6 +839,8 @@ export const db = {
             crops: fp.primary_crops || ['Soybean'],
             primary_crops: fp.primary_crops || ['Soybean'],
             bank_ifsc: fp.bank_ifsc || '',
+            bank_account: fp.bank_account || '',
+            verification_status: fp.verification_status || (fp.saat_bara_number ? (fp.is_verified ? 'VERIFIED' : 'SUBMITTED') : 'NOT_SUBMITTED'),
             is_verified: Boolean(fp.is_verified),
             created_at: fp.created_at
           };
@@ -860,15 +862,20 @@ export const db = {
         if (profileData.land_size_acres !== undefined) fpPayload.land_size_acres = profileData.land_size_acres ? Number(profileData.land_size_acres) : null;
         if (profileData.saat_bara_number !== undefined) {
           fpPayload.saat_bara_number = profileData.saat_bara_number.trim();
+          fpPayload.verification_status = fpPayload.saat_bara_number ? 'SUBMITTED' : 'NOT_SUBMITTED';
           if (profileData.is_verified !== undefined) {
             fpPayload.is_verified = Boolean(profileData.is_verified);
           }
+        }
+        if (profileData.verification_status) {
+          fpPayload.verification_status = profileData.verification_status;
         }
         if (profileData.crops || profileData.primary_crops) {
           const crops = profileData.crops || profileData.primary_crops;
           fpPayload.primary_crops = Array.isArray(crops) ? crops : [crops];
         }
         if (profileData.bank_ifsc !== undefined) fpPayload.bank_ifsc = profileData.bank_ifsc.trim();
+        if (profileData.bank_account !== undefined) fpPayload.bank_account = profileData.bank_account.trim();
 
         // Update farmer_profiles table
         const { data: updatedFp, error: fpErr } = await supabase
@@ -892,6 +899,16 @@ export const db = {
         }
 
         if (!fpErr && updatedFp) {
+          // Log immutable audit event for profile updates
+          await db.logAuditEvent({
+            actor_id: updatedFp.user_id || identifier,
+            actor_role: 'FARMER',
+            action: 'FARMER_PROFILE_UPDATED',
+            entity: 'FARMER_PROFILE',
+            entity_id: updatedFp.id || identifier,
+            new_state: fpPayload
+          });
+
           return {
             id: updatedFp.id,
             user_id: updatedFp.user_id,
@@ -906,6 +923,8 @@ export const db = {
             crops: updatedFp.primary_crops || ['Soybean'],
             primary_crops: updatedFp.primary_crops || ['Soybean'],
             bank_ifsc: updatedFp.bank_ifsc || '',
+            bank_account: updatedFp.bank_account || '',
+            verification_status: updatedFp.verification_status || (updatedFp.saat_bara_number ? 'SUBMITTED' : 'NOT_SUBMITTED'),
             is_verified: Boolean(updatedFp.is_verified),
             created_at: updatedFp.created_at
           };
@@ -980,10 +999,13 @@ export const db = {
   },
 
   createUser: async (userData) => {
+    const validRoles = ['FARMER', 'BUYER', 'TRANSPORTER', 'ADMIN', 'SUPERADMIN'];
+    const dbRole = validRoles.includes(userData.role) ? userData.role : 'FARMER';
+
     const userTablePayload = {
       id: userData.id || `usr-${Date.now()}`,
       phone: userData.phone,
-      role: userData.role,
+      role: dbRole,
       name: userData.name || userData.full_name || 'Agri User',
       district: userData.district || 'Maharashtra',
       village: userData.village || '',
@@ -994,9 +1016,12 @@ export const db = {
       try {
         const { data, error } = await supabase.from('users').upsert([userTablePayload], { onConflict: 'phone' }).select().single();
         if (!error && data) {
-          // If Farmer, also create in farmer_profiles
+          // If Farmer, create in farmer_profiles, consents, verification_cases & audit log (AG-006)
           if (userData.role === 'FARMER') {
             try {
+              const hasSaatBara = Boolean(userData.saat_bara_number && userData.saat_bara_number.trim().length > 0);
+              const verificationStatus = userData.verification_status || (hasSaatBara ? 'SUBMITTED' : 'NOT_SUBMITTED');
+
               await supabase.from('farmer_profiles').upsert([{
                 user_id: data.id,
                 full_name: data.name,
@@ -1007,8 +1032,55 @@ export const db = {
                 land_size_acres: userData.land_size_acres ? Number(userData.land_size_acres) : null,
                 saat_bara_number: userData.saat_bara_number || '',
                 primary_crops: Array.isArray(userData.crops) ? userData.crops : [userData.crops || 'Soybean'],
-                is_verified: Boolean(userData.is_verified) // Review-based verification only
+                bank_ifsc: userData.bank_ifsc || '',
+                bank_account: userData.bank_account || '',
+                verification_status: verificationStatus,
+                is_verified: false // Land record verification requires administrative review
               }], { onConflict: 'user_id' });
+
+              // Record DPDP explicit onboarding consent (AG-006)
+              if (userData.consent_accepted) {
+                await supabase.from('consents').insert([{
+                  id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  user_id: data.id,
+                  consent_type: 'ONBOARDING_DATA_CONSENT',
+                  purpose: 'Explicit consent for agricultural marketplace discovery and trade coordination under DPDP Act',
+                  is_granted: true,
+                  ip_address: userData.ip_address || null,
+                  user_agent: userData.user_agent || null,
+                  granted_at: new Date().toISOString()
+                }]);
+              }
+
+              // Create review case if 7/12 land record was submitted
+              if (hasSaatBara) {
+                await supabase.from('verification_cases').insert([{
+                  id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  entity_type: 'FARMER_LAND',
+                  entity_id: data.id,
+                  case_type: 'SAAT_BARA_7_12',
+                  status: 'SUBMITTED',
+                  decision_notes: `7/12 Land record survey #${userData.saat_bara_number} submitted for verification.`,
+                  submitted_at: new Date().toISOString()
+                }]);
+              }
+
+              // Immutable Audit Event
+              await db.logAuditEvent({
+                actor_id: data.id,
+                actor_role: 'FARMER',
+                action: 'FARMER_ONBOARDING_COMPLETED',
+                entity: 'USER',
+                entity_id: data.id,
+                new_state: {
+                  name: data.name,
+                  district: data.district,
+                  taluka: userData.taluka,
+                  crops: userData.crops,
+                  has_saat_bara: hasSaatBara,
+                  verification_status: verificationStatus
+                }
+              });
             } catch (errProfile) {
               console.warn('farmer_profiles upsert notice:', errProfile?.message);
             }
@@ -1028,38 +1100,74 @@ export const db = {
                 is_available: true,
                 rating: 5.0,
                 trips_completed: 0,
-                is_verified: Boolean(userData.is_verified), // Provisional until reviewed
+                is_verified: false, // Provisional until reviewed
+                status: 'PROFILE_SUBMITTED',
                 created_at: new Date().toISOString()
               };
               await supabase.from('transporter_profiles').upsert([tpData], { onConflict: 'vehicle_number' });
               const existingTpIdx = memoryCache.transporters.findIndex(t => t.phone === data.phone || t.vehicle_number === tpData.vehicle_number);
               if (existingTpIdx !== -1) memoryCache.transporters[existingTpIdx] = tpData;
               else memoryCache.transporters.unshift(tpData);
+
+              await db.logAuditEvent({
+                actor_id: data.id,
+                actor_role: 'TRANSPORTER',
+                action: 'TRANSPORTER_REGISTERED',
+                entity: 'USER',
+                entity_id: data.id,
+                new_state: { vehicle_number: tpData.vehicle_number, vehicle_type: tpData.vehicle_type }
+              });
             } catch (errTp) {}
           } else if (userData.role === 'FPO') {
             try {
-              const fpoData = {
-                id: `fpo-${Date.now()}`,
-                user_id: data.id,
-                fpo_name: userData.fpo_name || userData.company_name || data.name,
-                registration_no: userData.registration_no || `MH-FPO-${Date.now()}`,
-                contact_person: userData.contact_person || data.name,
-                phone: data.phone,
+              const orgId = `org-fpo-${Date.now()}`;
+              const regNo = userData.registration_no || `MH-FPO-${Date.now()}`;
+              const fpoName = userData.fpo_name || userData.company_name || data.name;
+
+              // 1. Create entry in organisations table
+              await supabase.from('organisations').upsert([{
+                id: orgId,
+                legal_name: fpoName,
+                trade_name: fpoName,
+                org_type: 'FPO',
+                registration_no: regNo,
                 district: data.district || 'Latur',
                 taluka: userData.taluka || '',
-                members_count: Number(userData.members_count) || 50,
-                warehouse_location: userData.warehouse_location || userData.address || '',
-                primary_crops: Array.isArray(userData.crops) ? userData.crops : [userData.crops || 'Soybean'],
-                bank_ifsc: userData.bank_ifsc || '',
-                bank_account: userData.bank_account || '',
-                is_verified: true,
-                created_at: new Date().toISOString()
-              };
-              await supabase.from('fpo_profiles').upsert([fpoData], { onConflict: 'registration_no' });
-              const existingFpoIdx = memoryCache.fpos.findIndex(f => f.phone === data.phone || f.registration_no === fpoData.registration_no);
-              if (existingFpoIdx !== -1) memoryCache.fpos[existingFpoIdx] = fpoData;
-              else memoryCache.fpos.unshift(fpoData);
-            } catch (errFpo) {}
+                address: userData.warehouse_location || userData.address || '',
+                verification_status: 'DOCUMENTS_PENDING'
+              }], { onConflict: 'registration_no' });
+
+              // 2. Create membership
+              await supabase.from('memberships').upsert([{
+                id: `mem-${Date.now()}`,
+                user_id: data.id,
+                organisation_id: orgId,
+                role_in_org: 'MANAGER',
+                status: 'ACTIVE'
+              }], { onConflict: 'user_id,organisation_id' });
+
+              // 3. Persist DPDP consent
+              await supabase.from('consents').insert([{
+                id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                user_id: data.id,
+                consent_type: 'FPO_AGGREGATION_CONSENT',
+                purpose: 'FPO farm pooling, member aggregation, and direct trade coordination consent under DPDP Act',
+                is_granted: true,
+                granted_at: new Date().toISOString()
+              }]);
+
+              // 4. Record audit event
+              await db.logAuditEvent({
+                actor_id: data.id,
+                actor_role: 'FPO',
+                action: 'FPO_ONBOARDING_COMPLETED',
+                entity: 'ORGANISATION',
+                entity_id: orgId,
+                new_state: { fpo_name: fpoName, registration_no: regNo, district: data.district }
+              });
+            } catch (errFpo) {
+              console.warn('FPO onboarding notice:', errFpo?.message);
+            }
           }
 
           const existingIdx = memoryCache.users.findIndex(u => u.phone === userData.phone);
