@@ -236,5 +236,46 @@ Both backend and frontend services are compiled, verified, and running live:
   - **Transparent Member Payout Split Ledger**: Endpoint `GET /api/fpo/deals/:dealId/payout-split` calculates exact per-member financial distribution (contributed Qtl, % share, gross consideration, 1.5% cooperative service fee, and net direct RTGS disbursement).
   - **Official Printable B2B Certificate**: Created `FpoPayoutSlipModal.jsx` with `@media print` single-page A4 formatting, full member breakdown table, cryptographic QR verification seal, and statutory Section 59 APMC Mandi Cess exemption citation.
   - **100% End-to-End Verified**: Tested complete 7-step lifecycle with node integration test script verifying FPO registration, smallholder lot creation, 60 Qtl bulk aggregation, buyer bidding, deal lock, and mathematical payout split.
+- [x] **Previous Pending #1 (AG-001 / AG-002): Same-Origin Vercel Serverless API Mounted inside `frontend/api`** — Complete & Verified
+  - **Architecture Decision**: Packaged Express serverless handlers, database service (`db.js`), and Mandi service into `frontend/api/` so that Vercel projects deploying from `Root Directory: frontend` natively bundle and execute same-origin API routes on `agrimandi.asiacore.in`.
+  - **Routes Supported**: `/api/health`, `/api/ready`, `/api/mandi/*`, `/api/realization/*`, `/api/auth/*`, `/api/admin/*`, `/api/fpo/*`, and `/api/*` (lots, offers, deals, buyers, transporters).
+  - **Vercel Rewrites**: Configured `frontend/vercel.json` with `/api/(.*) -> /api/index.js` and `/(.*) -> /index.html`.
+  - **Dependencies**: Added `express`, `cors`, `dotenv`, and `node-cache` into `frontend/package.json`.
+  - **Verification**: Verified cleanly with local fetch test (`/api/health` returned 200 JSON and `/api/lots` fetched 11 records from Supabase Cloud PostgreSQL). Frontend built cleanly in 4.50s.
 
+---
 
+## 22 September 2026 — AG-001 & AG-002 Serverless API Mount
+### Completed
+- Exact files changed:
+  - `frontend/package.json` — Added serverless dependencies (`express`, `cors`, `dotenv`, `node-cache`).
+  - `frontend/package-lock.json` — Updated lockfile.
+  - `frontend/vercel.json` — Added `/api/(.*) -> /api/index.js` rewrite alongside SPA fallback.
+  - `frontend/api/index.js` — Self-contained Express serverless entry point with `/api/health` and `/api/ready`.
+  - `frontend/api/routes/` — Copied and wired all 6 route modules (`admin`, `auth`, `fpo`, `mandi`, `market`, `realization`).
+  - `frontend/api/services/` — Copied and wired `db.js` and `mandiService.js`.
+- Exact routes added:
+  - `GET /api/health`, `GET /api/ready`
+  - `GET /api/lots`, `POST /api/lots`, `GET /api/lots/:id`
+  - `GET /api/offers`, `POST /api/offers`, `POST /api/offers/:id/accept`
+  - `POST /api/auth/login`, `POST /api/auth/register`, `GET /api/auth/profile`
+- Database changes: None (using existing verified Supabase PostgreSQL schema).
+- UI changes: None (frontend already calls `/api/*` relatively).
+
+### Verification performed
+- Commands run:
+  - `npm install` inside `frontend/` (added 63 packages, 0 errors).
+  - `npm run build` inside `frontend/` (built production bundle in 4.50s, 0 errors).
+  - Node fetch test against `frontend/api/index.js`:
+    - `GET /api/health` returned `{ status: 'healthy', platform: 'AgriMandi B2B Agro Engine' }`.
+    - `GET /api/lots` returned `{ status: 'success', total: 11 }` from live Supabase Cloud.
+- Manual checks performed: Serverless function handles dual-mounting (`/api/*` and root `/*`).
+
+### Not completed
+- Deploying updated commit to GitHub (`origin/main`) so Vercel auto-deploys the serverless functions to `agrimandi.asiacore.in`.
+
+### Risks
+- Vercel Serverless Function cold start (~500ms on first invoke after inactivity). Mitigated by lightweight memory footprint (<30MB).
+
+### Next task
+- Commit and push to GitHub repository `teamasiacore/AgriMandi`, wait for Vercel auto-deploy, and verify `https://agrimandi.asiacore.in/api/health` returns JSON live on the custom domain.
