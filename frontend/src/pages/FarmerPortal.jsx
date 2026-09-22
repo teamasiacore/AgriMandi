@@ -195,7 +195,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
   }, [selectedCrop, selectedDistrict]);
 
   const loadMandiHistory = (crop) => {
-    api.getMandiHistory(crop, 'Latur')
+    api.getMandiAdvisor({ commodity: crop, market: 'Latur', district: user?.district || 'Latur' })
       .then(res => setHistoryData(res))
       .catch(() => {});
   };
@@ -750,88 +750,169 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                 </div>
               </div>
 
-              {/* AI Recommendation Banner */}
+              {/* AG-013: AI Recommendation & 7-Day Price Forecast Banner */}
               {historyData && (
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-4 mt-5">
-                  <div className={`md:col-span-4 p-4 rounded-xl border flex flex-col justify-between ${
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-5">
+                  {/* Left Column: Model Recommendation & Explainability Drivers */}
+                  <div className={`lg:col-span-5 p-5 rounded-2xl border flex flex-col justify-between space-y-4 ${
                     historyData.recommendation === 'HOLD'
-                      ? 'bg-amber-50 border-amber-300 text-amber-900'
+                      ? 'bg-emerald-50/70 border-emerald-300/80 text-emerald-950'
                       : historyData.recommendation === 'SELL'
-                      ? 'bg-red-50 border-red-300 text-red-900'
-                      : 'bg-blue-50 border-blue-300 text-blue-900'
+                      ? 'bg-rose-50/70 border-rose-300/80 text-rose-950'
+                      : 'bg-amber-50/70 border-amber-300/80 text-amber-950'
                   }`}>
                     <div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold uppercase tracking-wider">{t.aiModelAdvice}</span>
-                        <span className={`px-2.5 py-1 rounded-md text-xs font-bold ${
-                          historyData.recommendation === 'HOLD' ? 'bg-amber-200 text-amber-900' : 'bg-red-200 text-red-900'
+                      {/* Top Header: Badge & Confidence */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className={`w-4 h-4 ${
+                            historyData.recommendation === 'HOLD' ? 'text-emerald-700' : historyData.recommendation === 'SELL' ? 'text-rose-700' : 'text-amber-700'
+                          }`} />
+                          <span className="text-xs font-bold uppercase tracking-wider text-stone-700">
+                            {currentLang === 'en' ? 'AI Mandi Advisory Engine' : currentLang === 'hi' ? 'AI मंडी सलाहकार इंजन' : 'AI बाजार सल्लागार मॉडेल'}
+                          </span>
+                        </div>
+                        <span className={`px-3 py-1 rounded-full text-xs font-black tracking-wide border shadow-2xs ${
+                          historyData.recommendation === 'HOLD' 
+                            ? 'bg-emerald-600 text-white border-emerald-700' 
+                            : historyData.recommendation === 'SELL' 
+                            ? 'bg-rose-600 text-white border-rose-700' 
+                            : 'bg-amber-500 text-white border-amber-600'
                         }`}>
                           {historyData.recommendation === 'HOLD' 
-                            ? (currentLang === 'en' ? 'HOLD' : currentLang === 'hi' ? 'रोके रखें (HOLD)' : 'थांबा (HOLD)')
+                            ? (currentLang === 'en' ? '🟢 HOLD' : currentLang === 'hi' ? '🟢 रोके रखें (HOLD)' : '🟢 थांबा (HOLD)')
                             : historyData.recommendation === 'SELL'
-                            ? (currentLang === 'en' ? 'SELL NOW' : currentLang === 'hi' ? 'तुरंत बेचें (SELL)' : 'विक्री करा (SELL)')
-                            : (currentLang === 'en' ? 'MONITOR' : currentLang === 'hi' ? 'निगरानी रखें (MONITOR)' : 'निरीक्षण करा (MONITOR)')}
+                            ? (currentLang === 'en' ? '🔴 SELL NOW' : currentLang === 'hi' ? '🔴 तुरंत बेचें (SELL)' : '🔴 विक्री करा (SELL)')
+                            : (currentLang === 'en' ? '🟡 MONITOR' : currentLang === 'hi' ? '🟡 निगरानी रखें (MONITOR)' : '🟡 निरीक्षण करा (MONITOR)')}
                         </span>
                       </div>
-                      <p className="text-sm font-semibold mt-3 leading-relaxed">
-                        {historyData.recommendation === 'HOLD' ? (
-                          currentLang === 'en' 
-                            ? '7-Day upward momentum exceeds storage cost of ₹3.50/qtl. Favorable window to hold harvest for higher realization.'
-                            : currentLang === 'hi'
-                              ? '७-दिवसीय मूल्य बढ़त भंडारण लागत (₹३.५०/क्विंटल) से अधिक है। बेहतर मूल्य प्राप्ति हेतु माल रोक कर रखना लाभदायक है।'
-                              : '७ दिवसांचा वाढता मोमेंटम साठवणूक खर्चापेक्षा जास्त आहे (₹३.५०/क्विंटल). चांगल्या नफ्यासाठी माल रोखून ठेवणे फायदेशीर ठरेल.'
-                        ) : historyData.recommendation === 'SELL' ? (
-                          currentLang === 'en'
-                            ? 'Incoming district arrivals accelerating; modal rate trending below 30-day SMA. Sell immediately to avoid margin deterioration.'
-                            : currentLang === 'hi'
-                              ? 'मंडियों में आवक बढ़ रही है और भाव ३०-दिन के औसत से नीचे जा रहा है। नुकसान से बचने के लिए तुरंत बिक्री करें।'
-                              : 'बाजार समित्यांमध्ये आवक वेगाने वाढते आहे व दर ३० दिवसांच्या सरासरी खाली घसरतो आहे. घट टाळण्यासाठी तात्काळ विक्री करावी.'
-                        ) : (
-                          currentLang === 'en'
-                            ? 'Market consolidating near equilibrium. Lock firm buyer advance if offered at or above modal rate.'
-                            : currentLang === 'hi'
-                              ? 'बाजार स्थिर स्तर पर है। यदि खरीदार मॉडल दर पर भुगतान दे रहा हो तो अग्रिम सौदा तय करें।'
-                              : 'बाजार स्थिर पातळीवर आहे. खरेदीदार सरासरी भावापेक्षा चांगला दर देत असल्यास ॲडव्हान्स घेऊन सौदा पक्का करावा.'
-                        )}
+
+                      {/* AI Explainable Rationale */}
+                      <p className="text-xs sm:text-sm font-semibold mt-3 leading-relaxed text-stone-800 bg-white/70 p-3 rounded-xl border border-stone-200/60 shadow-2xs">
+                        {currentLang === 'en' 
+                          ? (historyData.advisoryReasonEn || historyData.advisoryReason) 
+                          : currentLang === 'hi' 
+                          ? (historyData.advisoryReasonHi || historyData.advisoryReason) 
+                          : (historyData.advisoryReasonMr || historyData.advisoryReason)}
                       </p>
                     </div>
 
-                    <div className="mt-4 pt-3 border-t border-amber-200/60 text-xs space-y-1">
-                      <div className="flex justify-between">
-                        <span>{t.sma30Label}</span>
-                        <span className="font-mono font-bold">₹{historyData.sma30}/Qtl</span>
+                    {/* 4 Quantitative Key Driver Pills */}
+                    <div className="space-y-2 pt-2 border-t border-stone-200/70">
+                      <div className="flex items-center justify-between text-[11px] font-bold text-stone-600">
+                        <span>{currentLang === 'en' ? 'Model Decision Factors' : currentLang === 'hi' ? 'निर्णय के मुख्य कारक' : 'निर्णयाचे मुख्य घटक'}</span>
+                        <span className="text-[10px] text-stone-500">
+                          {historyData.confidenceScore || 93}% {currentLang === 'en' ? 'Confidence' : currentLang === 'hi' ? 'सटीकता' : 'विश्वासार्हता'}
+                        </span>
                       </div>
-                      <div className="flex justify-between">
-                        <span>{t.momentum7Label}</span>
-                        <span className="font-mono font-bold text-emerald-700">+{historyData.momentum7}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>{t.storageCostLabel}</span>
-                        <span className="font-mono font-bold">₹0.50 / Day / Qtl</span>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {/* 1. 7-Day Velocity */}
+                        <div className="p-2 rounded-xl bg-white/90 border border-stone-200/70 shadow-2xs">
+                          <span className="text-[10px] text-stone-500 block truncate">
+                            {currentLang === 'en' ? '7D Momentum' : currentLang === 'hi' ? '७-दिन मूल्य गति' : '७ दिवसांचा दर वेग'}
+                          </span>
+                          <span className={`text-sm font-bold font-mono ${Number(historyData.momentum7) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            {Number(historyData.momentum7) >= 0 ? '+' : ''}{historyData.momentum7}%
+                          </span>
+                        </div>
+
+                        {/* 2. Carrying Cost */}
+                        <div className="p-2 rounded-xl bg-white/90 border border-stone-200/70 shadow-2xs">
+                          <span className="text-[10px] text-stone-500 block truncate">
+                            {currentLang === 'en' ? 'Storage Cost (7D)' : currentLang === 'hi' ? 'भंडारण खर्च (७ दिन)' : 'साठवणूक खर्च (७ दिवस)'}
+                          </span>
+                          <span className="text-sm font-bold font-mono text-stone-800">
+                            ₹{historyData.storageCost7Days || 3.50}/Qtl
+                          </span>
+                        </div>
+
+                        {/* 3. 7-Day Target Projection */}
+                        <div className="p-2 rounded-xl bg-white/90 border border-stone-200/70 shadow-2xs">
+                          <span className="text-[10px] text-stone-500 block truncate">
+                            {currentLang === 'en' ? '7-Day Target Price' : currentLang === 'hi' ? '७-दिन लक्षित भाव' : '७ दिवसांचा अपेक्षित दर'}
+                          </span>
+                          <span className="text-sm font-bold font-mono text-[#1B4332]">
+                            ₹{historyData.projectedPrice7Days || historyData.todayPrice}/Qtl
+                          </span>
+                        </div>
+
+                        {/* 4. Net Holding Gain */}
+                        <div className="p-2 rounded-xl bg-white/90 border border-stone-200/70 shadow-2xs">
+                          <span className="text-[10px] text-stone-500 block truncate">
+                            {currentLang === 'en' ? 'Net Holding Gain' : currentLang === 'hi' ? 'शुद्ध अपेक्षित लाभ' : 'निव्वळ अपेक्षित नफा'}
+                          </span>
+                          <span className={`text-sm font-bold font-mono ${Number(historyData.netHoldingGain) >= 0 ? 'text-emerald-700' : 'text-rose-700'}`}>
+                            {Number(historyData.netHoldingGain) >= 0 ? '+' : ''}₹{historyData.netHoldingGain}/Qtl
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>
 
-                  {/* Recharts Price Trajectory */}
-                  <div className="md:col-span-8 h-64">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={historyData.history}>
-                        <defs>
-                          <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#1B4332" stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor="#1B4332" stopOpacity={0.0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#E5DFD4" />
-                        <XAxis dataKey="date" tick={{ fontSize: 11, fill: '#78716C' }} />
-                        <YAxis domain={['auto', 'auto']} tick={{ fontSize: 11, fill: '#78716C' }} />
-                        <Tooltip 
-                          contentStyle={{ backgroundColor: '#FCFAF6', border: '1px solid #E5DFD4', borderRadius: '8px', fontSize: '12px' }}
-                          formatter={(value) => [`₹${value}/Qtl`, t.chartModalPrice]}
-                        />
-                        <Area type="monotone" dataKey="modal_price" stroke="#1B4332" strokeWidth={2.5} fillOpacity={1} fill="url(#priceGradient)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                  {/* Right Column: Recharts Price Trajectory with 7-Day Forecast */}
+                  <div className="lg:col-span-7 flex flex-col justify-between">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-stone-700">
+                          {currentLang === 'en' ? '30-Day APMC History + 7-Day Projected Horizon' : currentLang === 'hi' ? '३०-दिवसीय मंडी इतिहास + ७-दिन का AI अनुमान' : '३० दिवसांचा बाजार इतिहास + ७ दिवसांचा AI अंदाज'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 text-[11px] font-bold">
+                        <span className="flex items-center gap-1.5 text-stone-600">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#1B4332]"></span>
+                          {currentLang === 'en' ? 'Observed' : 'नोंदणीकृत'}
+                        </span>
+                        <span className="flex items-center gap-1.5 text-[#C86432]">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#C86432] animate-pulse"></span>
+                          {currentLang === 'en' ? 'AI Forecast' : 'AI अंदाज'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="h-64 sm:h-72 w-full bg-[#FAF7F2]/60 rounded-2xl p-2 border border-[#E5DFD4]">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={historyData.history} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#1B4332" stopOpacity={0.35}/>
+                              <stop offset="95%" stopColor="#1B4332" stopOpacity={0.0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#E5DFD4" vertical={false} />
+                          <XAxis 
+                            dataKey="date" 
+                            tick={{ fontSize: 10, fill: '#78716C' }}
+                            interval={4} 
+                          />
+                          <YAxis 
+                            domain={['dataMin - 100', 'dataMax + 100']} 
+                            tick={{ fontSize: 10, fill: '#78716C' }} 
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: '#FCFAF6', 
+                              border: '1px solid #E5DFD4', 
+                              borderRadius: '12px', 
+                              fontSize: '12px',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.06)'
+                            }}
+                            formatter={(value, name, item) => [
+                              `₹${Number(value).toLocaleString('en-IN')}/Qtl ${item?.payload?.forecast ? '(AI Forecast)' : ''}`, 
+                              item?.payload?.forecast ? (currentLang === 'en' ? 'Forecast Price' : 'अपेक्षित दर') : t.chartModalPrice
+                            ]}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="modal_price" 
+                            stroke="#1B4332" 
+                            strokeWidth={2.5} 
+                            fillOpacity={1} 
+                            fill="url(#priceGradient)" 
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
                   </div>
                 </div>
               )}

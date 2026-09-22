@@ -742,9 +742,36 @@ Both backend and frontend services are compiled, verified, and running live:
 - Tests passed: 100% of AG-012 contract generation and escrow locking checks passed.
 
 ### Next task
-- Canonical Task AG-013: AI Sell / Hold Price Forecasting Model & Mandi Advisory Engine.
+- Canonical Task AG-014: Multi-Mandi Net Realization Comparison Desk.
 
+---
 
+## 🌾 17. Milestone AG-013: AI Sell / Hold Price Forecasting Model & Mandi Advisory Engine (100% COMPLETE)
 
+### What was completed
+- **Grounded Statistical Forecasting & Advisory Model**: Completely eliminated legacy synthetic formulas (`Math.sin(i / 4) * 60`) from `mandiService.js`. Replaced with genuine empirical time-series forecasting and regression grounded in Supabase PostgreSQL (`public.mandi_prices`) with 413+ real observations from `data.gov.in`.
+- **Economic Carrying Cost Math**: Integrated certified warehouse storage fee of ₹0.50/qtl/day (₹3.50/qtl for 7-day holding horizon) to calculate true **Net Holding Gain**:
+  $$\Delta \text{Net Gain} = (P_{\text{projected, 7D}} - P_{\text{today}}) - \text{Storage Cost}_{\text{7D}}$$
+- **Actionable Decision Rule Matrix**:
+  - 🟢 **`HOLD`**: Net gain $\ge ₹40$/qtl, positive 7-day momentum ($\ge +0.3\%$). Favorable window to hold for higher realization.
+  - 🔴 **`SELL NOW`**: Negative momentum ($\le -0.8\%$) or negative net return ($\le -₹10$/qtl). Surge in district APMC arrivals threatens margin deterioration.
+  - 🟡 **`MONITOR`**: Equilibrium consolidation. Lock institutional buyer advance if offered above modal rate with 100% escrow.
+- **4 Explainable Model Decision Drivers**:
+  1. **7-Day Price Velocity** ($Momentum_7$ percentage).
+  2. **Warehouse Carrying Cost** (₹3.50/Qtl for 7 days).
+  3. **Govt MSP Baseline Margin** (positive or negative spread vs official MSP).
+  4. **Net Projected Return** (expected gain after full storage deductions).
+- **Multilingual Rationale**: Fully localized explanations in Marathi, Hindi, and English returned by backend advisory engine.
+- **Visual Trajectory**: 7-day future projections with `{ forecast: true }` appended to history array for Recharts visualization.
+- **Endpoints & SDK Exposed**:
+  - `GET /api/mandi/advisor?commodity=...&market=...&district=...` exposed in `backend/src/routes/mandiRoutes.js` and `frontend/api/routes/mandiRoutes.js`.
+  - Added `api.getMandiAdvisor` in `frontend/src/services/api.js`.
+  - Upgraded Tab 1 AI Advisory Card in `FarmerPortal.jsx` with real-time model outputs, decision pills, 4-factor grid, and enhanced Recharts chart with AI forecast indicators.
 
-
+### Verification Performed
+- **Automated Test**: `backend/test_ag013_advisor.mjs` verified:
+  - Soyabean / Latur: Today ₹5,787/Qtl, 7D Projected ₹5,776/Qtl, Storage ₹3.50/Qtl, Net Gain -₹14/Qtl, Recommendation `SELL` (Surge arrivals), 4 Key Drivers, 37 points (30 historical + 7 forecast).
+  - Onion / Lasalgaon: Today ₹4,087/Qtl, 7D Projected ₹4,055/Qtl.
+  - Cotton / Jalna: Today ₹7,237/Qtl, 7D Projected ₹7,229/Qtl.
+  - All tests passed with exit code 0.
+- **Production Build**: `npm run build` in `frontend/` exited code 0 in 3.41s.

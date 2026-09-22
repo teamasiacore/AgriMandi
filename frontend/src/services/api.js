@@ -18,8 +18,8 @@ export const api = {
   getLiveRates: (params) => client.get('/mandi/live', { params }).then(res => res.data),
   getReferencePrices: (params) => client.get('/mandi/reference-prices', { params }).then(res => res.data),
   getCommodities: () => client.get('/mandi/commodities').then(res => res.data),
-  getMarkets: () => client.get('/mandi/markets').then(res => res.data),
-  getMandiHistory: (commodity, market) => client.get('/mandi/history', { params: { commodity, market } }).then(res => res.data),
+  getMandiHistory: (commodity, market, district) => client.get('/mandi/history', { params: { commodity, market, district } }).then(res => res.data),
+  getMandiAdvisor: (params) => client.get('/mandi/advisor', { params }).then(res => res.data),
   getTicker: () => client.get('/mandi/ticker').then(res => res.data),
   getSummary: () => client.get('/mandi/summary').then(res => res.data),
 

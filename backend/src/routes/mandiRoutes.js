@@ -53,10 +53,21 @@ router.get('/markets', (req, res) => {
   }
 });
 
-router.get('/history', (req, res) => {
+router.get('/history', async (req, res) => {
   try {
-    const { commodity, market } = req.query;
-    const data = mandiService.getHistory(commodity || 'Soyabean', market || 'Latur');
+    const { commodity, market, district } = req.query;
+    const data = await mandiService.getHistory(commodity || 'Soyabean', market || 'Latur', district || 'all');
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// 5. AG-013: AI Price Forecasting & Mandi Advisory Model (Sell/Hold)
+router.get('/advisor', async (req, res) => {
+  try {
+    const { commodity, market, district } = req.query;
+    const data = await mandiService.getAdvisorRecommendation(commodity || 'Soyabean', market || 'Latur', district || 'all');
     res.json(data);
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
