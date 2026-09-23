@@ -65,6 +65,41 @@ const TRANSLATIONS = {
   }
 };
 
+// Maharashtra Coordinates for Grounded Haversine Distance (AG-016)
+const DISTRICT_COORDS = {
+  'Latur': { lat: 18.4088, lng: 76.5604 },
+  'Solapur': { lat: 17.6599, lng: 75.9064 },
+  'Jalna': { lat: 19.8410, lng: 75.8863 },
+  'Nashik': { lat: 20.0059, lng: 73.7898 },
+  'Akola': { lat: 20.7002, lng: 77.0082 },
+  'Pune': { lat: 18.5204, lng: 73.8567 },
+  'Nanded': { lat: 19.1383, lng: 77.3210 },
+  'Nagpur': { lat: 21.1458, lng: 79.0882 },
+  'Ahmednagar': { lat: 19.0952, lng: 74.7496 },
+  'Yavatmal': { lat: 20.3888, lng: 78.1204 },
+  'Amravati': { lat: 20.9374, lng: 77.7796 },
+  'Kolhapur': { lat: 16.7050, lng: 74.2433 },
+  'Chhatrapati Sambhajinagar': { lat: 19.8762, lng: 75.3433 },
+  'Aurangabad': { lat: 19.8762, lng: 75.3433 },
+  'Beed': { lat: 18.9894, lng: 75.7601 },
+  'Parbhani': { lat: 19.2686, lng: 76.7708 },
+  'Hingoli': { lat: 19.7196, lng: 77.1478 },
+  'Washim': { lat: 20.1110, lng: 77.1352 },
+  'Buldhana': { lat: 20.5312, lng: 76.1843 },
+  'Wardha': { lat: 20.7453, lng: 78.6022 }
+};
+
+function calculateHaversineDistance(originDistrict, destDistrict) {
+  const c1 = DISTRICT_COORDS[originDistrict] || DISTRICT_COORDS['Latur'];
+  const c2 = DISTRICT_COORDS[destDistrict] || c1;
+  const R = 6371;
+  const dLat = (c2.lat - c1.lat) * (Math.PI / 180);
+  const dLng = (c2.lng - c1.lng) * (Math.PI / 180);
+  const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(c1.lat*(Math.PI/180))*Math.cos(c2.lat*(Math.PI/180))*Math.sin(dLng/2)*Math.sin(dLng/2);
+  const straight = Math.round(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)));
+  return Math.max(25, Math.round((straight || 20) * 1.25));
+}
+
 // Fallback verified transporters for instant hyperlocal matching if database empty
 const FALLBACK_TRANSPORTERS = [
   {
@@ -75,7 +110,7 @@ const FALLBACK_TRANSPORTERS = [
     vehicle_type: 'Bolero Maxi Truck (1.5 MT)',
     capacity_mt: 2.0,
     base_district: 'Latur',
-    per_km_rate: 4.80,
+    per_km_rate: 16.00,
     rating: 4.9,
     trips_completed: 48,
     is_available: true
@@ -88,7 +123,7 @@ const FALLBACK_TRANSPORTERS = [
     vehicle_type: 'Eicher Pro Medium (5 MT)',
     capacity_mt: 5.5,
     base_district: 'Nashik',
-    per_km_rate: 4.20,
+    per_km_rate: 24.00,
     rating: 5.0,
     trips_completed: 82,
     is_available: true
@@ -98,10 +133,10 @@ const FALLBACK_TRANSPORTERS = [
     driver_name: 'Balaji Kadam',
     phone: '9860123456',
     vehicle_number: 'MH-13-TR-9110',
-    vehicle_type: 'Eicher Medium Truck (7 MT)',
-    capacity_mt: 7.0,
+    vehicle_type: '10-Tyre Heavy Truck (16 MT)',
+    capacity_mt: 16.0,
     base_district: 'Solapur',
-    per_km_rate: 4.20,
+    per_km_rate: 36.00,
     rating: 4.9,
     trips_completed: 64,
     is_available: true
@@ -124,6 +159,19 @@ export default function SelectTransporterModal({
   const t = TRANSLATIONS[currentLang] || TRANSLATIONS.mr;
   const quantityQtl = Number(deal?.quantity_qtl || deal?.quantity || 50);
   const requiredMt = quantityQtl / 10;
+
+  // Grounded Haversine Distance
+  const originDistrict = deal?.district || 'Latur';
+  const destDistrict = deal?.delivery_destination?.includes('MIDC')
+    ? (deal.delivery_destination.split(' ').pop() || originDistrict)
+    : (deal?.delivery_destination || originDistrict);
+  const realDistanceKm = calculateHaversineDistance(originDistrict, destDistrict);
+
+  const calculateTransporterFreight = (tp) => {
+    const baseFee = (tp.capacity_mt || 2) >= 10 ? 1200 : (tp.capacity_mt || 2) >= 5 ? 800 : 500;
+    const perKm = Number(tp.per_km_rate) || 16.00;
+    return baseFee + Math.round(realDistanceKm * perKm);
+  };
 
   useEffect(() => {
     if (!isOpen) return;
@@ -156,8 +204,7 @@ export default function SelectTransporterModal({
     setDispatchingId(tp.id);
     setErrorMsg('');
     try {
-      const estDistance = 45; // Average farm-to-mill distance in km
-      const estFreight = Math.round(estDistance * (tp.per_km_rate || 4.20) * 10);
+      const dynamicFreight = calculateTransporterFreight(tp);
 
       const res = await api.dispatchDeal({
         deal_id: deal.id,
@@ -166,7 +213,7 @@ export default function SelectTransporterModal({
         driver_phone: tp.phone || '',
         vehicle_number: tp.vehicle_number || 'MH-24-VEHICLE',
         vehicle_type: tp.vehicle_type || 'Bolero Maxi Truck (1.5 MT)',
-        freight_amount: estFreight
+        freight_amount: dynamicFreight
       });
 
       setSuccessMsg(t.successNotice);
@@ -256,7 +303,7 @@ export default function SelectTransporterModal({
             <div className="space-y-3">
               {transporters.map((tp) => {
                 const isRecommended = (tp.capacity_mt || 2.0) >= requiredMt && (tp.capacity_mt || 2.0) <= (requiredMt + 3.0);
-                const estFreight = Math.round(45 * (tp.per_km_rate || 4.20) * 10);
+                const estFreight = calculateTransporterFreight(tp);
 
                 return (
                   <div 
@@ -302,7 +349,9 @@ export default function SelectTransporterModal({
                       <div className="text-left sm:text-right">
                         <span className="text-[10px] text-stone-400 uppercase font-bold block">{t.estFreight}</span>
                         <span className="text-base font-bold font-mono text-[#1B4332]">₹{estFreight.toLocaleString()}</span>
-                        <span className="text-[9px] text-stone-400 block font-mono">(₹{tp.per_km_rate || 4.20}/km)</span>
+                        <span className="text-[9px] text-stone-500 block font-mono">
+                          {realDistanceKm} km @ ₹{tp.per_km_rate || 16}/km
+                        </span>
                       </div>
 
                       <button

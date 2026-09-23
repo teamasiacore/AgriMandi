@@ -864,3 +864,47 @@ Both backend and frontend services are compiled, verified, and running live:
 ### Next task
 - Canonical Task AG-016: Logistics Booking, Vehicle Dispatch & Haversine Freight Engine.
 
+---
+
+## 🚚 20. Milestone AG-016: Logistics Booking, Vehicle Dispatch & Haversine Freight Engine (100% COMPLETE)
+
+### What was completed
+- **Grounded Haversine Logistics Freight Engine**:
+  - Implemented `POST /api/transporters/calculate-freight` across backend and serverless API layers.
+  - Haversine great-circle distance math with Maharashtra coordinates (`DISTRICT_COORDS`) and statutory road winding curvature factor ($1.25\times$).
+  - Tiered vehicle payload specifications:
+    - *Bolero Maxi Truck (1.5 MT)* — 2.0 MT / 20 Qtl capacity, ₹16/km, base fee ₹500
+    - *Eicher Pro Medium (5 MT)* — 5.0 MT / 55 Qtl capacity, ₹24/km, base fee ₹800
+    - *10-Tyre Heavy Truck (16 MT)* — 16.0 MT / 160 Qtl capacity, ₹36/km, base fee ₹1,200
+    - *Multi-Axle Trailer (25 MT)* — 25.0 MT / 260 Qtl capacity, ₹48/km, base fee ₹1,500
+  - Transparent per-quintal freight quotient and capacity-fit auto-recommendation.
+- **Transporter Dispatch & Assignment Synchronization**:
+  - `POST /api/transporters/dispatch-deal` and backward-compatible `/dispatch-deal` alias.
+  - Synchronizes dispatch records to `public.transport_requests` table in Supabase PostgreSQL (`lqoychozoysmxibhcmuf.supabase.co`).
+  - Immutable audit trail logging (`TRANSPORTER_DISPATCHED`, `TRANSPORTER_ASSIGNED`, `TRIP_MILESTONE_UPDATED`).
+- **Complete 4-Stage Trip Milestone Lifecycle**:
+  - `DISPATCHED` ➔ `AT_FARM_GATE` ➔ `IN_TRANSIT` ➔ `DELIVERED`.
+  - Transporter portal integration with live status updating and digital e-Waybill pass generation (`WaybillModal.jsx`) with QR verification seal.
+- **UI Integration in Buyer & Farmer Portals**:
+  - Refactored `SelectTransporterModal.jsx` to replace legacy hardcoded distances with dynamic Haversine distance math.
+  - Live calculation of dynamic freight based on distance and vehicle tariff.
+- **Frontend SDK Wiring**:
+  - Added `getTransporters`, `getTransporterById`, `getAvailableTrips`, `getTransporterTrips`, `updateTransporterStatus`, `acceptTrip`, `dispatchDeal`, `updateTripMilestone`, and `calculateLogisticsFreight` in `frontend/src/services/api.js`.
+
+### Verification Performed
+- **Automated Integration Test**: `backend/test_ag016_logistics_dispatch.mjs` verified:
+  - Database connectivity to Supabase Cloud PostgreSQL.
+  - Haversine distance between Latur and Solapur: 108 km straight-line, 135 km road-adjusted ($1.25\times$).
+  - Genuine lot and offer creation with deal status `PENDING_PICKUP`.
+  - Vehicle dispatch updating deal status to `DISPATCHED` with recorded freight (₹4,040).
+  - 4-stage milestone progression (`AT_FARM_GATE` ➔ `IN_TRANSIT` ➔ `DELIVERED`).
+  - All test assertions passed with exit code 0.
+- **Production Build**: `npm run build` in `frontend/` completed with exit code 0.
+
+### Next Canonical Tasks
+1. **AG-017**: Gate Weighment & Quality Assay Recording Desk (Mill electronic weighbridge gross/tare weighment slip, pro-rata moisture & foreign matter deductions, assayer certificate generation).
+2. **AG-018**: T+0 Escrow Settlement, Direct RTGS Disbursement & B2B Tax Invoice (48-hr gate delivery escrow release, direct RTGS disbursement to farmer bank account, Section 32A exempt Tax Invoice).
+3. **AG-019**: APMC Dispute Resolution & Arbitral Authority Desk (Direct trade contract dispute filing, quality mismatch re-assay arbitration, escrow freeze/refund workflows).
+4. **AG-020**: System Production Hardening & Full E2E Smoke Test Run (Complete integration test of Farmer ➔ Buyer ➔ Transporter ➔ FPO ➔ Admin lifecycle).
+
+

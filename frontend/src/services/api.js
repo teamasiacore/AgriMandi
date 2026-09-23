@@ -99,7 +99,19 @@ export const api = {
   getFpoBulkLots: (fpoId) => client.get('/fpo/bulk-lots', { params: { fpo_id: fpoId } }).then(res => res.data),
   getFpoDeals: (fpoId) => client.get('/fpo/deals', { params: { fpo_id: fpoId } }).then(res => res.data),
   getFpoPayoutSplit: (dealId) => client.get(`/fpo/deals/${dealId}/payout-split`).then(res => res.data),
-  getFpoCommissionLedger: (fpoId) => client.get('/fpo/commission-ledger', { params: { fpo_id: fpoId } }).then(res => res.data)
+  getFpoCommissionLedger: (fpoId) => client.get('/fpo/commission-ledger', { params: { fpo_id: fpoId } }).then(res => res.data),
+
+  // Logistics & Transporter Fleet (AG-016)
+  getTransporters: (params) => client.get('/transporters', { params }).then(res => res.data),
+  getTransporterById: (id) => client.get(`/transporters/${id}`).then(res => res.data),
+  getAvailableTrips: (params) => client.get('/transporters/available-trips', { params }).then(res => res.data),
+  getTransporterTrips: (id) => client.get(`/transporters/${id}/trips`).then(res => res.data),
+  updateTransporterStatus: (id, is_available) => client.patch(`/transporters/${id}/status`, { is_available }).then(res => res.data),
+  acceptTrip: (data) => client.post('/transporters/accept-trip', data).then(res => res.data),
+  dispatchDeal: (data) => client.post('/transporters/dispatch-deal', data).then(res => res.data),
+  dispatchDealTransporter: (data) => client.post('/transporters/dispatch-deal', data).then(res => res.data),
+  updateTripMilestone: (dealId, data) => client.patch(`/transporters/trips/${dealId}/milestone`, data).then(res => res.data),
+  calculateLogisticsFreight: (data) => client.post('/transporters/calculate-freight', data).then(res => res.data)
 };
 
 export default api;

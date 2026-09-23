@@ -521,6 +521,149 @@ router.post('/transporters/dispatch-deal', async (req, res) => {
   }
 });
 
+// Alias /dispatch-deal for backward compatibility
+router.post('/dispatch-deal', async (req, res, next) => {
+  try {
+    const { deal_id, transporter_id, driver_name, driver_phone, vehicle_number, freight_amount, vehicle_type } = req.body;
+    if (!deal_id || !transporter_id) {
+      return res.status(400).json({ status: 'error', message: 'Deal ID and Transporter ID are required.' });
+    }
+
+    const updatedDeal = await db.assignTransporterToDeal({
+      deal_id,
+      transporter_id,
+      driver_name: driver_name || 'Verified Driver',
+      driver_phone: driver_phone || '',
+      vehicle_number: vehicle_number || 'MH-24-VEHICLE',
+      vehicle_type: vehicle_type || 'Bolero Maxi Truck (1.5 MT)',
+      freight_amount: Number(freight_amount) || 0
+    });
+
+    res.json({
+      status: 'success',
+      message: `🚚 Transporter ${driver_name || vehicle_number} dispatched successfully!`,
+      deal: updatedDeal
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// ===================== HAVERSINE FREIGHT QUOTATION ENGINE (AG-016) =====================
+const LOGISTICS_DISTRICT_COORDS = {
+  'Latur': { lat: 18.4088, lng: 76.5604 },
+  'Solapur': { lat: 17.6599, lng: 75.9064 },
+  'Jalna': { lat: 19.8410, lng: 75.8863 },
+  'Nashik': { lat: 20.0059, lng: 73.7898 },
+  'Akola': { lat: 20.7002, lng: 77.0082 },
+  'Pune': { lat: 18.5204, lng: 73.8567 },
+  'Nanded': { lat: 19.1383, lng: 77.3210 },
+  'Nagpur': { lat: 21.1458, lng: 79.0882 },
+  'Ahmednagar': { lat: 19.0952, lng: 74.7496 },
+  'Yavatmal': { lat: 20.3888, lng: 78.1204 },
+  'Amravati': { lat: 20.9374, lng: 77.7796 },
+  'Kolhapur': { lat: 16.7050, lng: 74.2433 },
+  'Chhatrapati Sambhajinagar': { lat: 19.8762, lng: 75.3433 },
+  'Aurangabad': { lat: 19.8762, lng: 75.3433 },
+  'Beed': { lat: 18.9894, lng: 75.7601 },
+  'Parbhani': { lat: 19.2686, lng: 76.7708 },
+  'Hingoli': { lat: 19.7196, lng: 77.1478 },
+  'Washim': { lat: 20.1110, lng: 77.1352 },
+  'Buldhana': { lat: 20.5312, lng: 76.1843 },
+  'Wardha': { lat: 20.7453, lng: 78.6022 }
+};
+
+const LOGISTICS_VEHICLE_SPECS = {
+  'Bolero Maxi Truck (1.5 MT)': { capacity_mt: 2.0, per_km_rate: 16.00, base_fee: 500, max_qtl: 20 },
+  'Eicher Pro Medium (5 MT)': { capacity_mt: 5.0, per_km_rate: 24.00, base_fee: 800, max_qtl: 55 },
+  '10-Tyre Heavy Truck (16 MT)': { capacity_mt: 16.0, per_km_rate: 36.00, base_fee: 1200, max_qtl: 160 },
+  'Multi-Axle Trailer (25 MT)': { capacity_mt: 25.0, per_km_rate: 48.00, base_fee: 1500, max_qtl: 260 }
+};
+
+function calculateHaversineDistanceKm(lat1, lon1, lat2, lon2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = 
+    Math.sin(dLat/2) * Math.sin(dLat/2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+    Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return Math.round(R * c);
+}
+
+/**
+ * POST /api/transporters/calculate-freight
+ * AG-016: Grounded Dynamic Haversine Freight Engine
+ */
+router.post('/transporters/calculate-freight', async (req, res) => {
+  try {
+    const {
+      origin_district = 'Latur',
+      destination_district = 'Latur',
+      origin_lat,
+      origin_lng,
+      destination_lat,
+      destination_lng,
+      quantity_qtl = 50,
+      vehicle_type
+    } = req.body;
+
+    const origCoord = LOGISTICS_DISTRICT_COORDS[origin_district] || LOGISTICS_DISTRICT_COORDS['Latur'];
+    const destCoord = LOGISTICS_DISTRICT_COORDS[destination_district] || origCoord;
+
+    const lat1 = Number(origin_lat) || origCoord.lat;
+    const lon1 = Number(origin_lng) || origCoord.lng;
+    const lat2 = Number(destination_lat) || destCoord.lat;
+    const lon2 = Number(destination_lng) || destCoord.lng;
+
+    const straightDist = calculateHaversineDistanceKm(lat1, lon1, lat2, lon2);
+    // 1.25x road winding factor; minimum local district haul is 25 km
+    const roadDistKm = Math.max(25, Math.round((straightDist || 20) * 1.25));
+    const qty = Math.max(1, Number(quantity_qtl) || 50);
+
+    const vehicleQuotes = Object.entries(LOGISTICS_VEHICLE_SPECS).map(([vName, spec]) => {
+      const distanceCharge = Math.round(roadDistKm * spec.per_km_rate);
+      const totalFreight = spec.base_fee + distanceCharge;
+      const perQtl = Number((totalFreight / qty).toFixed(1));
+      const isCapacityFit = qty <= spec.max_qtl;
+
+      return {
+        vehicle_type: vName,
+        capacity_mt: spec.capacity_mt,
+        max_qtl: spec.max_qtl,
+        per_km_rate: spec.per_km_rate,
+        base_fee: spec.base_fee,
+        distance_km: roadDistKm,
+        distance_charge: distanceCharge,
+        total_freight: totalFreight,
+        per_qtl_freight: perQtl,
+        is_capacity_fit: isCapacityFit
+      };
+    });
+
+    const recommended = vehicleQuotes.find(v => v.is_capacity_fit) || vehicleQuotes[vehicleQuotes.length - 1];
+    const selectedQuote = vehicle_type 
+      ? (vehicleQuotes.find(v => v.vehicle_type.toLowerCase() === vehicle_type.toLowerCase()) || recommended)
+      : recommended;
+
+    res.json({
+      status: 'success',
+      origin_district,
+      destination_district,
+      straight_distance_km: straightDist,
+      road_distance_km: roadDistKm,
+      road_winding_factor: 1.25,
+      quantity_qtl: qty,
+      recommended_vehicle: recommended.vehicle_type,
+      selected_quote: selectedQuote,
+      vehicle_quotes: vehicleQuotes
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 // Advance Trip Milestone (DISPATCHED ➔ AT_FARM_GATE ➔ IN_TRANSIT ➔ DELIVERED)
 router.patch('/transporters/trips/:dealId/milestone', async (req, res) => {
   try {

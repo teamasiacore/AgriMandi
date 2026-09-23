@@ -2205,65 +2205,127 @@ export const db = {
   },
 
   acceptTrip: async ({ deal_id, transporter_id, driver_name, driver_phone, vehicle_number, agreed_freight, vehicle_type }) => {
+    let deal = await db.getDealById(deal_id);
+    const freightAmount = Number(agreed_freight) || 0;
+    const vType = vehicle_type || 'Bolero Maxi Truck (1.5 MT)';
     const updatePayload = {
       delivery_status: 'DISPATCHED',
       transporter_id,
       transporter_name: driver_name,
       transporter_phone: driver_phone,
       vehicle_number,
-      vehicle_type: vehicle_type || 'Bolero Maxi Truck (1.5 MT)',
-      freight_amount: Number(agreed_freight) || 0,
+      vehicle_type: vType,
+      freight_amount: freightAmount,
       dispatched_at: new Date().toISOString()
     };
+
     if (supabaseConnected) {
       try {
         const { data, error } = await supabase.from('deals').update(updatePayload).eq('id', deal_id).select().single();
         if (!error && data) {
           const idx = memoryCache.deals.findIndex(d => d.id === deal_id);
           if (idx !== -1) memoryCache.deals[idx] = data;
-          return data;
+          deal = data;
         }
+
+        // Sync transport_requests record (AG-016)
+        const trqPayload = {
+          id: `trq-${deal_id}`,
+          order_id: deal_id,
+          transporter_id: transporter_id,
+          commodity: deal?.crop || 'Agricultural Produce',
+          approximate_quantity_qtl: Number(deal?.quantity_qtl) || 50,
+          pickup_location: deal?.farm_address || deal?.district || 'Farm Gate',
+          delivery_location: deal?.delivery_destination || 'Processing Mill Gate',
+          vehicle_type: vType,
+          freight_amount: freightAmount,
+          status: 'DISPATCHED'
+        };
+        await supabase.from('transport_requests').upsert([trqPayload], { onConflict: 'id' });
       } catch (err) {}
     }
-    const deal = memoryCache.deals.find(d => d.id === deal_id);
+
+    if (!deal) deal = memoryCache.deals.find(d => d.id === deal_id);
     if (deal) {
       Object.assign(deal, updatePayload);
+    } else {
+      deal = { id: deal_id, ...updatePayload };
     }
+
+    await db.logAuditEvent({
+      actor_id: transporter_id || 'transporter',
+      actor_role: 'TRANSPORTER',
+      action: 'TRANSPORTER_DISPATCHED',
+      entity: 'DEAL',
+      entity_id: deal_id,
+      new_state: { delivery_status: 'DISPATCHED', vehicle_number, driver_name, freight_amount: freightAmount }
+    });
+
     return deal;
   },
 
   assignTransporterToDeal: async ({ deal_id, transporter_id, driver_name, driver_phone, vehicle_number, freight_amount, vehicle_type }) => {
+    let deal = await db.getDealById(deal_id);
+    const freightNum = Number(freight_amount) || 0;
+    const vType = vehicle_type || 'Bolero Maxi Truck (1.5 MT)';
     const supabasePayload = {
       delivery_status: 'DISPATCHED',
       transporter_id,
       transporter_name: driver_name,
       transporter_phone: driver_phone,
       vehicle_number,
-      freight_amount: Number(freight_amount) || 0
+      vehicle_type: vType,
+      freight_amount: freightNum,
+      dispatched_at: new Date().toISOString()
     };
+
     if (supabaseConnected) {
       try {
         const { data, error } = await supabase.from('deals').update(supabasePayload).eq('id', deal_id).select().single();
         if (!error && data) {
-          const combined = { ...data, vehicle_type: vehicle_type || 'Bolero Maxi Truck (1.5 MT)' };
+          const combined = { ...data, vehicle_type: vType };
           const idx = memoryCache.deals.findIndex(d => d.id === deal_id);
           if (idx !== -1) memoryCache.deals[idx] = combined;
           else memoryCache.deals.push(combined);
-          return combined;
+          deal = combined;
         }
-        if (error) {
-          console.warn('Supabase assignTransporterToDeal warning:', error.message);
-        }
+
+        // Sync transport_requests record (AG-016)
+        const trqPayload = {
+          id: `trq-${deal_id}`,
+          order_id: deal_id,
+          transporter_id: transporter_id,
+          commodity: deal?.crop || 'Agricultural Produce',
+          approximate_quantity_qtl: Number(deal?.quantity_qtl) || 50,
+          pickup_location: deal?.farm_address || deal?.district || 'Farm Gate',
+          delivery_location: deal?.delivery_destination || 'Processing Mill Gate',
+          vehicle_type: vType,
+          freight_amount: freightNum,
+          status: 'DISPATCHED'
+        };
+        await supabase.from('transport_requests').upsert([trqPayload], { onConflict: 'id' });
       } catch (err) {
         console.warn('Supabase assignTransporterToDeal exception:', err.message);
       }
     }
-    const deal = memoryCache.deals.find(d => d.id === deal_id);
+
+    if (!deal) deal = memoryCache.deals.find(d => d.id === deal_id);
     if (deal) {
-      Object.assign(deal, supabasePayload, { vehicle_type: vehicle_type || 'Bolero Maxi Truck (1.5 MT)' });
-      return deal;
+      Object.assign(deal, supabasePayload, { vehicle_type: vType });
+    } else {
+      deal = { id: deal_id, ...supabasePayload, vehicle_type: vType };
     }
-    return { id: deal_id, ...supabasePayload, vehicle_type: vehicle_type || 'Bolero Maxi Truck (1.5 MT)' };
+
+    await db.logAuditEvent({
+      actor_id: transporter_id || 'system',
+      actor_role: 'SYSTEM',
+      action: 'TRANSPORTER_ASSIGNED',
+      entity: 'DEAL',
+      entity_id: deal_id,
+      new_state: { delivery_status: 'DISPATCHED', vehicle_number, driver_name, freight_amount: freightNum }
+    });
+
+    return deal;
   },
 
   updateTripMilestone: async ({ deal_id, milestone, notes, weighment_data }) => {
@@ -2271,6 +2333,7 @@ export const db = {
       delivery_status: milestone
     };
 
+    let updatedDeal = null;
     if (supabaseConnected) {
       try {
         const { data, error } = await supabase.from('deals').update(supabasePayload).eq('id', deal_id).select().single();
@@ -2279,22 +2342,37 @@ export const db = {
           const idx = memoryCache.deals.findIndex(d => d.id === deal_id);
           if (idx !== -1) memoryCache.deals[idx] = combined;
           else memoryCache.deals.push(combined);
-          return combined;
+          updatedDeal = combined;
         }
-        if (error) {
-          console.warn('Supabase updateTripMilestone warning:', error.message);
-        }
+
+        // Sync transport_requests status
+        await supabase.from('transport_requests').update({ status: milestone }).eq('order_id', deal_id);
       } catch (err) {
         console.warn('Supabase updateTripMilestone exception:', err.message);
       }
     }
-    const deal = memoryCache.deals.find(d => d.id === deal_id);
-    if (deal) {
-      deal.delivery_status = milestone;
-      if (notes) deal.transit_notes = notes;
-      return deal;
+
+    if (!updatedDeal) {
+      const deal = memoryCache.deals.find(d => d.id === deal_id);
+      if (deal) {
+        deal.delivery_status = milestone;
+        if (notes) deal.transit_notes = notes;
+        updatedDeal = deal;
+      } else {
+        updatedDeal = { id: deal_id, delivery_status: milestone, notes };
+      }
     }
-    return { id: deal_id, delivery_status: milestone, notes };
+
+    await db.logAuditEvent({
+      actor_id: updatedDeal.transporter_id || 'transporter',
+      actor_role: 'TRANSPORTER',
+      action: 'TRIP_MILESTONE_UPDATED',
+      entity: 'DEAL',
+      entity_id: deal_id,
+      new_state: { delivery_status: milestone, notes }
+    });
+
+    return updatedDeal;
   },
 
   getTransporterTrips: async (transporter_id) => {
