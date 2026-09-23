@@ -524,8 +524,8 @@ export const db = {
   },
 
   createOffer: async (offerData) => {
-    const qty = Number(offerData.quantity_requested_qtl) || 50;
-    const price = Number(offerData.offered_price_per_qtl) || 0;
+    const qty = Number(offerData.quantity_requested_qtl || offerData.quantity_qtl) || 50;
+    const price = Number(offerData.offered_price_per_qtl || offerData.price_per_qtl) || 0;
     const newOffer = {
       id: `off-${Date.now()}`,
       buyer_id: offerData.buyer_id || 'usr-buyer-1',
@@ -2526,6 +2526,22 @@ export const db = {
     } else {
       memoryCache.deals.push(enrichedDeal);
     }
+
+    await db.logAuditEvent({
+      actor_id: operator_name || 'mill-assayer',
+      actor_role: 'BUYER',
+      action: 'GATE_WEIGHMENT_CERTIFIED',
+      entity: 'DEAL',
+      entity_id: deal_id,
+      new_state: {
+        slip_no: weighmentRecord.slip_no,
+        net_qtl: weighmentRecord.net_qtl,
+        moisture_tested: weighmentRecord.moisture_tested,
+        foreign_matter: weighmentRecord.foreign_matter,
+        total_deductions: weighmentRecord.total_deductions,
+        final_payable_amount: weighmentRecord.final_payable_amount
+      }
+    });
 
     return {
       deal: enrichedDeal,

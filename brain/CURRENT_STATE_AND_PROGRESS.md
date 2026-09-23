@@ -902,9 +902,56 @@ Both backend and frontend services are compiled, verified, and running live:
 - **Production Build**: `npm run build` in `frontend/` completed with exit code 0.
 
 ### Next Canonical Tasks
-1. **AG-017**: Gate Weighment & Quality Assay Recording Desk (Mill electronic weighbridge gross/tare weighment slip, pro-rata moisture & foreign matter deductions, assayer certificate generation).
-2. **AG-018**: T+0 Escrow Settlement, Direct RTGS Disbursement & B2B Tax Invoice (48-hr gate delivery escrow release, direct RTGS disbursement to farmer bank account, Section 32A exempt Tax Invoice).
-3. **AG-019**: APMC Dispute Resolution & Arbitral Authority Desk (Direct trade contract dispute filing, quality mismatch re-assay arbitration, escrow freeze/refund workflows).
-4. **AG-020**: System Production Hardening & Full E2E Smoke Test Run (Complete integration test of Farmer ➔ Buyer ➔ Transporter ➔ FPO ➔ Admin lifecycle).
+1. **AG-018**: T+0 Escrow Settlement, Direct RTGS Disbursement & B2B Tax Invoice (48-hr gate delivery escrow release, direct RTGS disbursement to farmer bank account, Section 32A exempt Tax Invoice).
+2. **AG-019**: APMC Dispute Resolution & Arbitral Authority Desk (Direct trade contract dispute filing, quality mismatch re-assay arbitration, escrow freeze/refund workflows).
+3. **AG-020**: System Production Hardening & Full E2E Smoke Test Run (Complete integration test of Farmer ➔ Buyer ➔ Transporter ➔ FPO ➔ Admin lifecycle).
+
+---
+
+## 21. AG-017: Mill Gate Weighment & Quality Assay Recording Desk (COMPLETED)
+
+### Overview
+Implemented the industrial Electronic Weighbridge and Certified Quality Assay module for mill intake points. When produce reaches the buyer's processing mill gate, assayer operators record the loaded truck gross weight, empty truck tare weight, and statutory quality parameters (moisture %, foreign matter %, damage %). The system calculates exact net weights, applies standard APMC pro-rata deductions without simulations or arbitrary multipliers, certifies the weighment slip, transitions deal delivery to `DELIVERED`, and stages escrow into `READY_FOR_SETTLEMENT`.
+
+### Technical Architecture & Mathematical Formulas
+- **Zero Simulation Net Weight Math**:
+  $$\text{net\_kg} = \text{gross\_kg} - \text{tare\_kg}, \quad \text{net\_qtl} = \frac{\text{net\_kg}}{100}$$
+- **Base Realization Value**:
+  $$\text{Base Amount} = \text{net\_qtl} \times \text{price\_per\_qtl}$$
+- **Statutory Quality Deductions**:
+  - Baseline Moisture Threshold = $12.0\%$. Pro-rata deduction for excess moisture:
+    $$\text{Moisture Deduction} = \text{Base Amount} \times \frac{\max(0, \text{moisture\_tested} - 12.0)}{100}$$
+  - Baseline Foreign Matter (FM) Threshold = $2.0\%$. Deduction for excess foreign matter:
+    $$\text{FM Deduction} = \text{Base Amount} \times \frac{\max(0, \text{foreign\_matter} - 2.0)}{100}$$
+  - Total Quality Deductions:
+    $$\text{Total Deductions} = \text{Moisture Deduction} + \text{FM Deduction}$$
+  - Final Approved Payout:
+    $$\text{Final Payable Amount} = \max(0, \text{Base Amount} - \text{Total Deductions})$$
+- **State Transition**:
+  - `delivery_status`: `DELIVERED`
+  - `escrow_status`: `READY_FOR_SETTLEMENT`
+  - `total_deal_value`: Updated to `final_payable_amount`
+- **Immutable Audit Logging**:
+  - Emits `GATE_WEIGHMENT_CERTIFIED` audit event to `public.audit_events` and memory cache capturing slip number, net quintals, tested moisture, foreign matter, deductions, and approved amount.
+
+### Endpoints & SDK
+- `POST /api/deals/:dealId/weighment-assay`: Records electronic gross/tare weights and certified quality assay parameters.
+- `GET /api/deals/:dealId/weighment-assay`: Retrieves official certified weighment slip and assay certificate.
+- Frontend SDK methods in `frontend/src/services/api.js`: `recordWeighmentAssay` and `getWeighmentAssay`.
+
+### Verification Performed
+- **Automated Integration Test**: `backend/test_ag017_weighment_assay.mjs` verified:
+  - Lot & offer lifecycle with deal generated in `PENDING_PICKUP`.
+  - Gate weighment recording: Gross 14,800 kg, Tare 6,800 kg $\rightarrow$ Net 8,000 kg (80.0 Qtl).
+  - Base amount: 80 Qtl $\times$ ₹3,250 = ₹2,60,000.
+  - Moisture deduction: 13.5% vs 12.0% baseline ($1.5\%$) = ₹3,900.
+  - Foreign matter deduction: 2.5% vs 2.0% baseline ($0.5\%$) = ₹1,300.
+  - Total deductions: ₹5,200.
+  - Final payable amount: ₹2,54,800.
+  - Verified deal status transitions to `DELIVERED` and `escrow_status` to `READY_FOR_SETTLEMENT`.
+  - Verified slip generation (`WB-WHE-XXXXXX`) and retrieval via `getWeighmentAssay`.
+  - All test assertions passed with exit code 0.
+- **Production Build**: `npm run build` in `frontend/` completed in 3.62s with exit code 0.
+
 
 
