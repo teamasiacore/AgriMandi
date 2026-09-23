@@ -2663,6 +2663,24 @@ export const db = {
       memoryCache.deals.push(enrichedDeal);
     }
 
+    await db.logAuditEvent({
+      actor_id: authorized_by || deal.buyer_name || 'Buyer Finance Desk',
+      actor_role: 'BUYER',
+      action: 'ESCROW_DISBURSED_RTGS',
+      entity: 'DEAL',
+      entity_id: deal_id,
+      new_state: {
+        settlement_utr: settlementRecord.settlement_utr,
+        invoice_no: settlementRecord.invoice_no,
+        settled_amount: settlementRecord.settled_amount,
+        beneficiary_name: settlementRecord.beneficiary_name,
+        beneficiary_ifsc: settlementRecord.beneficiary_ifsc,
+        beneficiary_account: settlementRecord.beneficiary_account,
+        status: 'SETTLED',
+        settled_at: settlementRecord.settled_at
+      }
+    });
+
     return {
       deal: enrichedDeal,
       settlement: settlementRecord

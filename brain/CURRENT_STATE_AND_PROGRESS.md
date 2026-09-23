@@ -953,5 +953,49 @@ Implemented the industrial Electronic Weighbridge and Certified Quality Assay mo
   - All test assertions passed with exit code 0.
 - **Production Build**: `npm run build` in `frontend/` completed in 3.62s with exit code 0.
 
+---
+
+## 22. AG-018: T+0 Escrow Settlement, Direct RTGS Disbursement & B2B Tax Invoice (COMPLETED)
+
+### Overview
+Implemented the institutional T+0 Escrow Settlement, RBI RTGS payout release, and statutory B2B Tax Invoice generation module. Following gate weighment certification and pro-rata deductions, institutional buyers authorize instant fund disbursement from the AgriMandi Escrow account directly into the farmer's verified bank account (via IFSC/RTGS). The transaction transitions the deal to `SETTLED`, generates an official banking UTR (`UTR-AGRI-2026-XXXXXX`), produces a GST Section 32A exempt Tax Invoice with Saat-Bara and APMC license references, and emits an immutable audit event (`ESCROW_DISBURSED_RTGS`).
+
+### Technical Architecture & Verification
+- **T+0 Settlement Mechanism**:
+  - `settleDealEscrow` validates `READY_FOR_SETTLEMENT` status and final certified payable amount after assay deductions.
+  - Generates immutable settlement UTR and tax invoice number (`INV-[CROP]-[TIMESTAMP]`).
+  - Fetches beneficiary bank details from farmer profile (IFSC, masked account, Saat-Bara number).
+  - Updates `escrow_status: 'SETTLED'` and `delivery_status: 'DELIVERED'` in Supabase PostgreSQL and cache.
+- **Immutable Audit Logging**:
+  - Emits `ESCROW_DISBURSED_RTGS` audit event to `public.audit_events` and memory cache recording actor, UTR, invoice number, exact settled amount, and beneficiary bank details.
+- **Statutory B2B Tax Invoice Generator**:
+  - Generates official commercial tax invoice pursuant to Maharashtra APMC Rules (Section 59 direct farm-gate procurement exemption: 0% Mandi Cess).
+  - Contains complete Seller (Farmer name, phone, village, taluka, district, Saat-Bara 7/12 number, IFSC/Bank account) and Buyer (Corporate name, GSTIN, APMC Direct Purchase License number, processing plant address) credentials.
+  - Itemizes net certified quintals, unit contract rate, gross amount, assay deductions, taxable value, and net payable.
+  - Embeds digital verification QR seal and printable A4 invoice layout via `TaxInvoiceModal.jsx`.
+
+### Endpoints & SDK
+- `POST /api/deals/:dealId/settle`: Authorizes escrow release and executes T+0 RTGS bank disbursement.
+- `GET /api/deals/:dealId/settlement-invoice`: Retrieves the official B2B Tax Invoice and settlement receipt.
+- Frontend SDK methods in `frontend/src/services/api.js`: `settleDealEscrow` and `getSettlementInvoice`.
+- Modals: `ReleaseEscrowModal.jsx` and `TaxInvoiceModal.jsx` wired in both `BuyerPortal.jsx` and `FarmerPortal.jsx`.
+
+### Verification Performed
+- **Automated Integration Test**: `backend/test_ag018_escrow_settlement.mjs` verified:
+  - Lot & offer created for Soybean (100 Qtl @ ₹4,650/Qtl).
+  - Certified gate weighment applied ₹4,650 moisture deduction $\rightarrow$ Net approved payable: ₹4,60,350.
+  - Executed `settleDealEscrow` $\rightarrow$ verified `escrow_status: 'SETTLED'`, `settlement_utr: UTR-AGRI-2026-XXXXXX`, and exact settled amount ₹4,60,350.
+  - Retrieved `getSettlementInvoice` $\rightarrow$ verified matching invoice number, seller Saat-Bara, buyer APMC direct license, and Section 59 exemption citation.
+  - Verified `ESCROW_DISBURSED_RTGS` recorded in `public.audit_events`.
+  - All test assertions passed with exit code 0.
+- **Production Build**: `npm run build` in `frontend/` completed in 3.93s with exit code 0.
+
+---
+
+### Next Canonical Tasks
+1. **AG-019**: APMC Dispute Resolution & Arbitral Authority Desk (Direct trade contract dispute filing, quality mismatch re-assay arbitration, escrow freeze/refund workflows).
+2. **AG-020**: System Production Hardening & Full E2E Smoke Test Run (Complete integration test of Farmer ➔ Buyer ➔ Transporter ➔ FPO ➔ Admin lifecycle).
+
+
 
 
