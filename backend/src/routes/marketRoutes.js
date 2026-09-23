@@ -804,4 +804,101 @@ router.get('/deals/:dealId/settlement-invoice', async (req, res) => {
   }
 });
 
+// ===================== APMC DISPUTES & ARBITRAL AUTHORITY =====================
+
+// File a dispute / APMC grievance on a deal
+router.post('/disputes', async (req, res) => {
+  try {
+    const {
+      deal_id,
+      raised_by,
+      raised_by_role,
+      dispute_type,
+      claim_amount,
+      reason,
+      evidence_urls
+    } = req.body;
+
+    if (!deal_id) {
+      return res.status(400).json({ status: 'error', message: 'deal_id is required to raise a dispute.' });
+    }
+    if (!reason) {
+      return res.status(400).json({ status: 'error', message: 'A valid reason / grievance description is required.' });
+    }
+
+    const result = await db.createDispute({
+      deal_id,
+      raised_by,
+      raised_by_role,
+      dispute_type,
+      claim_amount,
+      reason,
+      evidence_urls
+    });
+
+    res.json({
+      status: 'success',
+      message: `⚖️ Dispute filed successfully under APMC Arbitral Authority! Case #${result.dispute.case_number}. Escrow funds safely frozen.`,
+      dispute: result.dispute,
+      deal: result.deal
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Get disputes with optional filters (deal_id, status, role, phone)
+router.get('/disputes', async (req, res) => {
+  try {
+    const { deal_id, status, role, phone } = req.query;
+    const disputes = await db.getDisputes({ deal_id, status, role, phone });
+    res.json({ status: 'success', count: disputes.length, disputes });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Get single dispute by ID or case number
+router.get('/disputes/:id', async (req, res) => {
+  try {
+    const dispute = await db.getDisputeById(req.params.id);
+    if (!dispute) {
+      return res.status(404).json({ status: 'error', message: 'Dispute case not found.' });
+    }
+    res.json({ status: 'success', dispute });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// Resolve dispute with binding APMC Arbitral Award
+router.post('/disputes/:id/resolve', async (req, res) => {
+  try {
+    const {
+      ruling,
+      resolution_notes,
+      refund_buyer_amount,
+      release_farmer_amount,
+      arbitrated_by
+    } = req.body;
+
+    const result = await db.resolveDispute(req.params.id, {
+      ruling,
+      resolution_notes,
+      refund_buyer_amount,
+      release_farmer_amount,
+      arbitrated_by
+    });
+
+    res.json({
+      status: 'success',
+      message: `⚖️ APMC Arbitral Ruling passed successfully! Case #${result.dispute.case_number} resolved. Escrow settled according to official decree.`,
+      dispute: result.dispute,
+      deal: result.deal
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
 export default router;

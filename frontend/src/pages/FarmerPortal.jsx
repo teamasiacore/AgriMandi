@@ -3,7 +3,7 @@ import {
   TrendingUp, PlusCircle, ShieldCheck, CheckCircle2, 
   MapPin, RefreshCw, BarChart3, Truck, UserCheck, X, AlertCircle,
   Calculator, Sparkles, ArrowRight, ArrowUpRight, Check, Info, ShieldAlert, Award, User, FileText, Printer, Scale,
-  Edit, Trash2, Send, Filter, Clock
+  Edit, Trash2, Send, Filter, Clock, Gavel
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 
@@ -18,6 +18,7 @@ import WeighmentAssaySlipModal from '../components/WeighmentAssaySlipModal';
 import TaxInvoiceModal from '../components/TaxInvoiceModal';
 import MarketReferenceDesk from '../components/market/MarketReferenceDesk';
 import MultiMandiComparisonDesk from '../components/realization/MultiMandiComparisonDesk';
+import FileDisputeModal from '../components/dispute/FileDisputeModal';
 
 const LOGISTICS_LABELS = {
   en: {
@@ -127,6 +128,7 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
   const [selectedDealForContract, setSelectedDealForContract] = useState(null);
   const [selectedDealForWeighmentSlip, setSelectedDealForWeighmentSlip] = useState(null);
   const [selectedDealForInvoice, setSelectedDealForInvoice] = useState(null);
+  const [selectedDealForDispute, setSelectedDealForDispute] = useState(null);
 
   // User Profile loaded dynamically from authenticated session
   const [user, setUser] = useState({
@@ -1776,7 +1778,44 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                       {/* Settlement & Payout Release Status Banner */}
                       {lot.status === 'DEAL_LOCKED' && (() => {
                         const lotDeal = Array.isArray(deals) ? deals.find(d => d.lot_id === lot.id) : null;
-                        if (!lotDeal || lotDeal.escrow_status !== 'SETTLED') return null;
+                        if (!lotDeal) return null;
+
+                        if (lotDeal.escrow_status === 'DISPUTED_IN_ARBITRATION') {
+                          return (
+                            <div className="mt-4 p-4 rounded-xl bg-amber-50 border-2 border-amber-400 space-y-2.5 shadow-xs text-xs text-amber-950">
+                              <div className="flex items-center justify-between font-bold">
+                                <span className="flex items-center gap-1.5 text-amber-900">
+                                  <AlertTriangle className="w-4 h-4 text-amber-700" />
+                                  APMC Dispute in Arbitration
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-200 text-amber-900 font-black">
+                                  ESCROW FROZEN
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-amber-800 leading-relaxed">
+                                An official dispute has been filed regarding this trade. 100% of deal funds (₹{Number(lotDeal.total_deal_value).toLocaleString('en-IN')}) are safely frozen in AgriMandi Escrow until the APMC Arbitral Authority certifies a ruling.
+                              </p>
+                              <div className="flex items-center justify-end gap-2 pt-1">
+                                <button
+                                  onClick={() => setSelectedDealForContract(lotDeal)}
+                                  className="px-3 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                                >
+                                  <FileText className="w-3.5 h-3.5 text-amber-700" />
+                                  <span>Contract</span>
+                                </button>
+                                <button
+                                  onClick={() => setSelectedDealForDispute(lotDeal)}
+                                  className="px-3 py-1.5 bg-amber-700 hover:bg-amber-800 text-white rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer shadow-xs"
+                                >
+                                  <Gavel className="w-3.5 h-3.5 text-white" />
+                                  <span>Case Details</span>
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (lotDeal.escrow_status !== 'SETTLED') return null;
 
                         const sLabels = SETTLEMENT_LABELS[currentLang] || SETTLEMENT_LABELS.mr;
                         const settledAmount = Number(lotDeal.total_deal_value || (Number(lotDeal.price_per_qtl || 0) * Number(lotDeal.quantity_qtl || 0)));
@@ -1831,6 +1870,13 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                               >
                                 <FileText className="w-3.5 h-3.5 text-[#A3E635]" />
                                 <span>{sLabels.viewTaxInvoice}</span>
+                              </button>
+                              <button
+                                onClick={() => setSelectedDealForDispute(lotDeal)}
+                                className="px-3 py-1.5 bg-white border border-stone-300 hover:bg-stone-100 text-stone-700 rounded-lg text-xs font-bold transition-colors flex items-center gap-1 cursor-pointer shadow-2xs"
+                              >
+                                <Gavel className="w-3.5 h-3.5 text-[#C86432]" />
+                                <span>Dispute</span>
                               </button>
                             </div>
                           </div>
@@ -1975,6 +2021,19 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                                             >
                                               <FileText className="w-3.5 h-3.5 text-[#A3E635]" />
                                               <span>{currentLang === 'en' ? 'Invoice' : currentLang === 'hi' ? 'बीजक' : 'इनव्हॉईस'}</span>
+                                            </button>
+                                          )}
+                                          {lotDeal && (
+                                            <button
+                                              onClick={() => setSelectedDealForDispute(lotDeal)}
+                                              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-colors flex items-center gap-1 cursor-pointer shadow-xs ${
+                                                lotDeal?.escrow_status === 'DISPUTED_IN_ARBITRATION'
+                                                  ? 'bg-amber-100 border border-amber-300 text-amber-900 font-black'
+                                                  : 'bg-stone-100 hover:bg-stone-200 text-stone-700 border border-[#E5DFD4]'
+                                              }`}
+                                            >
+                                              <Gavel className="w-3.5 h-3.5 text-[#C86432]" />
+                                              <span>{lotDeal?.escrow_status === 'DISPUTED_IN_ARBITRATION' ? 'Disputed' : 'Dispute'}</span>
                                             </button>
                                           )}
                                         </div>
@@ -2273,6 +2332,19 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
         onClose={() => setSelectedDealForInvoice(null)}
         deal={selectedDealForInvoice}
         currentLang={currentLang}
+      />
+
+      {/* APMC Statutory Dispute & Grievance Modal */}
+      <FileDisputeModal
+        isOpen={Boolean(selectedDealForDispute)}
+        onClose={() => setSelectedDealForDispute(null)}
+        deal={selectedDealForDispute}
+        role="FARMER"
+        userName={user?.name || 'Farmer Seller'}
+        currentLang={currentLang}
+        onSuccess={() => {
+          loadLotsAndOffers(user);
+        }}
       />
 
     </div>

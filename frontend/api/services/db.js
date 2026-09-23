@@ -89,6 +89,7 @@ let memoryCache = {
   lots: [],
   offers: [],
   deals: [],
+  disputes: [],
   transporters: [
     {
       id: 'TRP-MH-201',
@@ -2777,6 +2778,225 @@ export const db = {
       ],
       settlement: settlement,
       statutory_citation: 'Direct Farm-Gate Procurement under Maharashtra APMC Rules (Section 59 Exemption): 0% Mandi Cess levied.'
+    };
+  },
+
+  // ===================== APMC DISPUTES & ARBITRAL AUTHORITY =====================
+  createDispute: async ({
+    deal_id,
+    raised_by,
+    raised_by_role = 'FARMER',
+    dispute_type = 'QUALITY_MISMATCH',
+    claim_amount = 0,
+    reason = '',
+    evidence_urls = []
+  }) => {
+    let deal = null;
+    if (supabaseConnected) {
+      try {
+        const { data } = await supabase.from('deals').select('*').eq('id', deal_id).single();
+        if (data) deal = data;
+      } catch (e) {}
+    }
+    if (!deal) {
+      deal = memoryCache.deals.find(d => d.id === deal_id);
+    }
+    if (!deal) {
+      throw new Error(`Deal ${deal_id} not found.`);
+    }
+
+    const timestamp = Date.now();
+    const case_number = `APMC-ARB-2026-${timestamp.toString().slice(-6)}`;
+    const disputeId = `disp-${timestamp}`;
+
+    const newDispute = {
+      id: disputeId,
+      case_number,
+      deal_id,
+      lot_id: deal.lot_id,
+      crop: deal.crop,
+      variety: deal.variety,
+      farmer_name: deal.farmer_name,
+      farmer_phone: deal.farmer_phone,
+      buyer_name: deal.buyer_name,
+      buyer_phone: deal.buyer_phone,
+      raised_by: raised_by || deal.farmer_name || 'Complainant',
+      raised_by_role,
+      dispute_type,
+      claim_amount: Number(claim_amount) || Number(deal.total_deal_value) || 0,
+      total_deal_value: Number(deal.total_deal_value) || 0,
+      reason,
+      evidence_urls: Array.isArray(evidence_urls) ? evidence_urls : (evidence_urls ? [evidence_urls] : []),
+      status: 'UNDER_ARBITRATION',
+      weighment_slip: deal.weighment?.slip_no || null,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // 1. Freeze deal escrow status
+    const updateDealPayload = {
+      escrow_status: 'DISPUTED_IN_ARBITRATION'
+    };
+
+    if (supabaseConnected) {
+      try {
+        await supabase.from('deals').update(updateDealPayload).eq('id', deal_id);
+        try {
+          await supabase.from('grievances').insert([{
+            id: disputeId,
+            order_id: deal_id,
+            raised_by_user_id: deal.buyer_id || deal.farmer_id || null,
+            grievance_type: dispute_type,
+            status: 'UNDER_ARBITRATION',
+            description: reason,
+            created_at: newDispute.created_at
+          }]);
+        } catch (eGriev) {}
+      } catch (err) {
+        console.warn('Supabase createDispute notice:', err.message);
+      }
+    }
+
+    deal.escrow_status = 'DISPUTED_IN_ARBITRATION';
+    const dIdx = memoryCache.deals.findIndex(d => d.id === deal_id);
+    if (dIdx !== -1) memoryCache.deals[dIdx].escrow_status = 'DISPUTED_IN_ARBITRATION';
+
+    if (!memoryCache.disputes) memoryCache.disputes = [];
+    memoryCache.disputes.unshift(newDispute);
+
+    await db.logAuditEvent({
+      actor_id: raised_by || 'Dispute Initiator',
+      actor_role: raised_by_role,
+      action: 'DISPUTE_FILED_ARBITRATION',
+      entity: 'DEAL',
+      entity_id: deal_id,
+      new_state: {
+        dispute_id: disputeId,
+        case_number,
+        dispute_type,
+        claim_amount: newDispute.claim_amount,
+        reason,
+        status: 'UNDER_ARBITRATION'
+      }
+    });
+
+    return {
+      dispute: newDispute,
+      deal
+    };
+  },
+
+  getDisputes: async (filters = {}) => {
+    let list = memoryCache.disputes || [];
+    if (filters.deal_id) {
+      list = list.filter(d => d.deal_id === filters.deal_id);
+    }
+    if (filters.status) {
+      list = list.filter(d => d.status === filters.status);
+    }
+    if (filters.role && filters.phone) {
+      if (filters.role === 'FARMER') {
+        list = list.filter(d => d.farmer_phone === filters.phone);
+      } else if (filters.role === 'BUYER') {
+        list = list.filter(d => d.buyer_phone === filters.phone);
+      }
+    }
+    return list;
+  },
+
+  getDisputeById: async (disputeId) => {
+    const list = memoryCache.disputes || [];
+    const dispute = list.find(d => d.id === disputeId || d.case_number === disputeId);
+    if (!dispute) return null;
+    const deal = memoryCache.deals.find(d => d.id === dispute.deal_id) || null;
+    return {
+      ...dispute,
+      deal
+    };
+  },
+
+  resolveDispute: async (disputeId, {
+    ruling = 'MUTUAL_SETTLEMENT',
+    resolution_notes = '',
+    refund_buyer_amount = 0,
+    release_farmer_amount = 0,
+    arbitrated_by = 'APMC Arbitral Authority'
+  }) => {
+    if (!memoryCache.disputes) memoryCache.disputes = [];
+    const dispute = memoryCache.disputes.find(d => d.id === disputeId || d.case_number === disputeId);
+    if (!dispute) {
+      throw new Error(`Dispute ${disputeId} not found.`);
+    }
+
+    const resolved_at = new Date().toISOString();
+    const finalRefund = Number(refund_buyer_amount) || 0;
+    const finalRelease = Number(release_farmer_amount) || (dispute.total_deal_value - finalRefund);
+
+    dispute.status = 'RESOLVED_BY_ARBITRATION';
+    dispute.ruling = ruling;
+    dispute.resolution_notes = resolution_notes;
+    dispute.refund_buyer_amount = finalRefund;
+    dispute.release_farmer_amount = finalRelease;
+    dispute.arbitrated_by = arbitrated_by;
+    dispute.resolved_at = resolved_at;
+
+    // Update Deal
+    let deal = memoryCache.deals.find(d => d.id === dispute.deal_id);
+    if (deal) {
+      deal.escrow_status = 'SETTLED_BY_ARBITRATION';
+      deal.total_deal_value = finalRelease;
+      deal.arbitration_ruling = {
+        dispute_id: dispute.id,
+        case_number: dispute.case_number,
+        ruling,
+        resolution_notes,
+        refund_buyer_amount: finalRefund,
+        release_farmer_amount: finalRelease,
+        arbitrated_by,
+        resolved_at
+      };
+    }
+
+    if (supabaseConnected) {
+      try {
+        await supabase.from('deals').update({
+          escrow_status: 'SETTLED_BY_ARBITRATION',
+          total_deal_value: finalRelease
+        }).eq('id', dispute.deal_id);
+
+        try {
+          await supabase.from('grievances').update({
+            status: 'RESOLVED_BY_ARBITRATION',
+            resolution_notes,
+            resolved_by: arbitrated_by,
+            resolved_at
+          }).eq('id', dispute.id);
+        } catch (eGriev) {}
+      } catch (err) {
+        console.warn('Supabase resolveDispute notice:', err.message);
+      }
+    }
+
+    await db.logAuditEvent({
+      actor_id: arbitrated_by,
+      actor_role: 'ADMIN',
+      action: 'DISPUTE_RESOLVED_BY_ARBITRATION',
+      entity: 'DEAL',
+      entity_id: dispute.deal_id,
+      new_state: {
+        dispute_id: dispute.id,
+        case_number: dispute.case_number,
+        ruling,
+        refund_buyer_amount: finalRefund,
+        release_farmer_amount: finalRelease,
+        resolution_notes,
+        status: 'RESOLVED_BY_ARBITRATION'
+      }
+    });
+
+    return {
+      dispute,
+      deal
     };
   },
 

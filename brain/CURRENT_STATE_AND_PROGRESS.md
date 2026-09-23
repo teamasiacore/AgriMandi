@@ -992,9 +992,49 @@ Implemented the institutional T+0 Escrow Settlement, RBI RTGS payout release, an
 
 ---
 
-### Next Canonical Tasks
-1. **AG-019**: APMC Dispute Resolution & Arbitral Authority Desk (Direct trade contract dispute filing, quality mismatch re-assay arbitration, escrow freeze/refund workflows).
-2. **AG-020**: System Production Hardening & Full E2E Smoke Test Run (Complete integration test of Farmer ➔ Buyer ➔ Transporter ➔ FPO ➔ Admin lifecycle).
+## 23. AG-019: APMC Dispute Resolution & Arbitral Authority Desk (COMPLETED)
+
+### Overview
+Implemented the institutional dispute resolution and statutory arbitration system pursuant to Maharashtra APMC Direct Purchase Rules (Section 59). In the event of a quality dispute, weighbridge discrepancy, or contract breach, either party (Farmer or Buyer) can formally file a grievance before the APMC Arbitral Authority. Filing a dispute instantly and safely freezes 100% of deal escrow funds in `DISPUTED_IN_ARBITRATION` status. The APMC Arbitral Tribunal reviews claims, inspects joint samples and weighment telemetry, and enacts a binding legal award (`MUTUAL_SETTLEMENT`, `RELEASE_TO_FARMER`, `REFUND_TO_BUYER`, or `SPLIT_SETTLEMENT`), unfreezing and disbursing the escrow according to the decree.
+
+### Technical Architecture & Verification
+- **Escrow Safeguard & Freeze Math**:
+  - `createDispute` transitions deal `escrow_status` to `'DISPUTED_IN_ARBITRATION'`.
+  - Generates immutable case docket: `APMC-ARB-2026-XXXXXX` and dispute ID `disp-TIMESTAMP`.
+  - Emits `DISPUTE_FILED_ARBITRATION` audit event to `public.audit_events`.
+- **Arbitral Adjudication & Award Execution**:
+  - `resolveDispute` enforces arbitral decrees (`MUTUAL_SETTLEMENT`, `RELEASE_TO_FARMER`, `REFUND_TO_BUYER`, `SPLIT_SETTLEMENT`).
+  - Updates dispute status to `RESOLVED_BY_ARBITRATION` with presiding arbitrator signature.
+  - Updates deal `escrow_status` to `SETTLED_BY_ARBITRATION` and sets final deal value to the farmer release portion.
+  - Emits `DISPUTE_RESOLVED_BY_ARBITRATION` immutable audit event.
+- **Frontend Components & Modals**:
+  - `FileDisputeModal.jsx`: Trilingual modal for filing disputes with claim amount, categories, grounds, and evidence URLs. Wired into both `BuyerPortal.jsx` and `FarmerPortal.jsx`.
+  - `DisputeResolutionDesk.jsx`: Dedicated tribunal docket workspace in `SuperAdminDashboard.jsx` (Tab 5) featuring active case filters, evidence inspection, and award decree execution form.
+
+### Endpoints & SDK
+- `POST /api/disputes`: Files APMC grievance and freezes escrow.
+- `GET /api/disputes`: Queries dispute cases by deal, status, or party phone.
+- `GET /api/disputes/:id`: Detailed case docket with deal and weighment linkage.
+- `POST /api/disputes/:id/resolve`: Executes binding arbitral award decree.
+- Frontend SDK methods in `frontend/src/services/api.js`: `fileDispute`, `getDisputes`, `getDisputeById`, `resolveDispute`.
+
+### Verification Performed
+- **Automated Integration Test**: `backend/test_ag019_dispute_resolution.mjs` verified:
+  - Cotton lot (80 Qtl @ ₹7,250/Qtl) deal creation and gate weighment certification.
+  - Buyer filing dispute on staple length ($26\text{ mm}$ vs $28\text{ mm}$) with claim ₹45,000.
+  - Verified escrow safely frozen in `DISPUTED_IN_ARBITRATION` and case docket `APMC-ARB-2026-XXXXXX` assigned.
+  - Verified docket retrieval via `getDisputes` and `getDisputeById`.
+  - Enacted binding arbitral ruling `MUTUAL_SETTLEMENT` (₹15,000 buyer compensation refund, ₹4,20,000 released to farmer).
+  - Verified deal status transitioned to `SETTLED_BY_ARBITRATION` and dispute to `RESOLVED_BY_ARBITRATION`.
+  - Verified immutable audit events `DISPUTE_FILED_ARBITRATION` and `DISPUTE_RESOLVED_BY_ARBITRATION` persisted.
+  - All test assertions passed with exit code 0.
+- **Production Build**: `npm run build` in `frontend/` completed in 3.67s with exit code 0.
+
+---
+
+### Final Milestone Remaining:
+1. **AG-020**: System Production Hardening & Full E2E Smoke Test Run (Complete integration test of Farmer ➔ Buyer ➔ Transporter ➔ FPO ➔ Admin lifecycle).
+
 
 
 

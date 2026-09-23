@@ -3,7 +3,7 @@ import {
   Building2, ShieldCheck, ShoppingBag, MapPin, Filter, 
   Clock, Plus, X, FileText, CheckCircle2, AlertCircle, 
   Printer, ArrowRight, Lock, Scale, Truck, Search, Eye,
-  DollarSign, Users
+  DollarSign, Users, AlertTriangle, Gavel
 } from 'lucide-react';
 import api from '../services/api';
 import { translations, DISTRICT_OPTIONS } from '../utils/translations';
@@ -13,6 +13,7 @@ import GateWeighmentModal from '../components/buyer/GateWeighmentModal';
 import WeighmentAssaySlipModal from '../components/WeighmentAssaySlipModal';
 import ReleaseEscrowModal from '../components/buyer/ReleaseEscrowModal';
 import TaxInvoiceModal from '../components/TaxInvoiceModal';
+import FileDisputeModal from '../components/dispute/FileDisputeModal';
 
 const LOGISTICS_LABELS = {
   en: {
@@ -174,6 +175,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
   const [selectedDealForWeighmentSlip, setSelectedDealForWeighmentSlip] = useState(null);
   const [selectedDealForPayout, setSelectedDealForPayout] = useState(null);
   const [selectedDealForInvoice, setSelectedDealForInvoice] = useState(null);
+  const [selectedDealForDispute, setSelectedDealForDispute] = useState(null);
 
   // Buyer Profile loaded dynamically from session
   const [buyerProfile, setBuyerProfile] = useState({
@@ -1213,6 +1215,25 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                         const isReadyForPayout = deal.escrow_status === 'READY_FOR_SETTLEMENT';
                         const hasWeighment = Boolean(deal.weighment);
 
+                        if (deal.escrow_status === 'DISPUTED_IN_ARBITRATION') {
+                          return (
+                            <div className="mt-3 p-3 bg-amber-50 border border-amber-300 rounded-xl space-y-1.5 text-xs text-amber-950">
+                              <div className="flex items-center justify-between font-bold">
+                                <span className="flex items-center gap-1.5 text-amber-900">
+                                  <AlertTriangle className="w-4 h-4 text-amber-700" />
+                                  APMC Dispute in Arbitration
+                                </span>
+                                <span className="px-2 py-0.5 rounded-full text-[10px] bg-amber-200 text-amber-900 font-bold">
+                                  ESCROW FROZEN
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-amber-800 leading-tight">
+                                ₹{Number(deal.total_deal_value).toLocaleString('en-IN')} escrow funds frozen pending APMC arbitral ruling.
+                              </p>
+                            </div>
+                          );
+                        }
+
                         if (isSettled) {
                           return (
                             <div className="mt-3 p-3 bg-emerald-50 border border-emerald-300 rounded-xl space-y-2">
@@ -1289,24 +1310,24 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                         );
                       })()}
 
-                      <div className="mt-3 grid grid-cols-3 gap-1.5">
+                      <div className="mt-3 grid grid-cols-4 gap-1.5">
                         <button
                           onClick={() => handleOpenContract(deal)}
-                          className="py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
+                          className="py-2 bg-[#1B4332] hover:bg-[#2D6A4F] text-white rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
                         >
                           <Eye className="w-3 h-3" />
                           <span>{currentLang === 'en' ? 'Contract' : currentLang === 'hi' ? 'अनुबंध' : 'करार'}</span>
                         </button>
                         <button
                           onClick={() => setSelectedDealForWeighmentSlip(deal)}
-                          className="py-2 bg-white border border-[#E5DFD4] hover:bg-[#FAF7F2] text-stone-700 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
+                          className="py-2 bg-white border border-[#E5DFD4] hover:bg-[#FAF7F2] text-stone-700 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer"
                         >
                           <Scale className="w-3 h-3 text-[#C86432]" />
-                          <span>{currentLang === 'en' ? 'Weighment' : currentLang === 'hi' ? 'वेब्रिज' : 'वेब्रिज'}</span>
+                          <span>{currentLang === 'en' ? 'Weigh' : currentLang === 'hi' ? 'वेब्रिज' : 'वेब्रिज'}</span>
                         </button>
                         <button
                           onClick={() => setSelectedDealForInvoice(deal)}
-                          className={`py-2 rounded-lg text-[11px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer ${
+                          className={`py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer ${
                             deal.escrow_status === 'SETTLED'
                               ? 'bg-emerald-700 hover:bg-emerald-800 text-white'
                               : 'bg-stone-100 border border-[#E5DFD4] text-stone-500 hover:bg-stone-200'
@@ -1314,6 +1335,17 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                         >
                           <FileText className="w-3 h-3" />
                           <span>{currentLang === 'en' ? 'Invoice' : currentLang === 'hi' ? 'बीजक' : 'इनव्हॉईस'}</span>
+                        </button>
+                        <button
+                          onClick={() => setSelectedDealForDispute(deal)}
+                          className={`py-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 shadow-2xs transition-all cursor-pointer ${
+                            deal.escrow_status === 'DISPUTED_IN_ARBITRATION'
+                              ? 'bg-amber-100 border border-amber-300 text-amber-900 font-black'
+                              : 'bg-stone-50 border border-[#E5DFD4] hover:bg-stone-100 text-stone-600'
+                          }`}
+                        >
+                          <Gavel className="w-3 h-3 text-[#C86432]" />
+                          <span>{deal.escrow_status === 'DISPUTED_IN_ARBITRATION' ? 'Disputed' : 'Dispute'}</span>
                         </button>
                       </div>
                     </div>
@@ -1607,6 +1639,21 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
         onClose={() => setSelectedDealForInvoice(null)}
         deal={selectedDealForInvoice}
         currentLang={currentLang}
+      />
+
+      {/* ============================================================ */}
+      {/* MODAL 8: APMC STATUTORY DISPUTE & GRIEVANCE FILING */}
+      {/* ============================================================ */}
+      <FileDisputeModal
+        isOpen={Boolean(selectedDealForDispute)}
+        onClose={() => setSelectedDealForDispute(null)}
+        deal={selectedDealForDispute}
+        role="BUYER"
+        userName={buyerProfile?.company || buyerProfile?.name || 'Buyer Partner'}
+        currentLang={currentLang}
+        onSuccess={() => {
+          loadMarketData(buyerProfile);
+        }}
       />
 
     </div>

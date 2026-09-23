@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { 
   ShieldAlert, ShieldCheck, CheckCircle2, XCircle, Clock, 
   Building2, Sprout, Database, RefreshCw, LogOut, ArrowRight,
-  UserCheck, AlertTriangle, Eye, Award, ExternalLink, Lock, BadgeCheck, Trash2, Truck
+  UserCheck, AlertTriangle, Eye, Award, ExternalLink, Lock, BadgeCheck, Trash2, Truck,
+  Gavel, Scale
 } from 'lucide-react';
 import api from '../services/api';
+import DisputeResolutionDesk from '../components/admin/DisputeResolutionDesk';
 
 export default function SuperAdminDashboard({ currentLang = 'mr' }) {
   const navigate = useNavigate();
@@ -516,6 +518,18 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
               {lots.length}
             </span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('disputes')}
+            className={`py-3 px-5 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 shrink-0 cursor-pointer ${
+              activeTab === 'disputes'
+                ? 'bg-[#C86432] text-white shadow-xs'
+                : 'bg-white text-stone-600 hover:bg-[#FAF7F2] border border-[#E5DFD4]'
+            }`}
+          >
+            <Gavel className="w-4 h-4" />
+            <span>APMC Arbitral Authority Desk</span>
+          </button>
         </div>
 
         {/* TAB 1: BUYER VERIFICATION DESK */}
@@ -1006,6 +1020,11 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
               )}
             </div>
           </div>
+        )}
+
+        {/* TAB 5: APMC ARBITRAL AUTHORITY DESK */}
+        {activeTab === 'disputes' && (
+          <DisputeResolutionDesk currentLang={currentLang} />
         )}
 
       </div>

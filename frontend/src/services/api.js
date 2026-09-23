@@ -111,7 +111,13 @@ export const api = {
   dispatchDeal: (data) => client.post('/transporters/dispatch-deal', data).then(res => res.data),
   dispatchDealTransporter: (data) => client.post('/transporters/dispatch-deal', data).then(res => res.data),
   updateTripMilestone: (dealId, data) => client.patch(`/transporters/trips/${dealId}/milestone`, data).then(res => res.data),
-  calculateLogisticsFreight: (data) => client.post('/transporters/calculate-freight', data).then(res => res.data)
+  calculateLogisticsFreight: (data) => client.post('/transporters/calculate-freight', data).then(res => res.data),
+
+  // APMC Disputes & Arbitral Authority (AG-019)
+  fileDispute: (data) => client.post('/disputes', data).then(res => res.data),
+  getDisputes: (params) => client.get('/disputes', { params }).then(res => res.data),
+  getDisputeById: (id) => client.get(`/disputes/${id}`).then(res => res.data),
+  resolveDispute: (id, data) => client.post(`/disputes/${id}/resolve`, data).then(res => res.data)
 };
 
 export default api;
