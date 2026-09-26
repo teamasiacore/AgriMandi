@@ -238,7 +238,7 @@ export const db = {
     url: SUPABASE_URL,
     hasKey: Boolean(SUPABASE_KEY),
     connected: supabaseConnected,
-    storageType: '100% Supabase Cloud PostgreSQL (No Local JSON)',
+    storageType: supabaseConnected ? '100% Supabase Cloud PostgreSQL' : 'In-Memory Fallback (Supabase Offline)',
     tableNames: ['users', 'farmer_profiles', 'buyer_profiles', 'produce_lots', 'offers', 'deals', 'mandi_prices']
   }),
 
@@ -559,6 +559,17 @@ export const db = {
       } catch (err) {}
     }
     return memoryCache.offers.filter(o => o.lot_id === lotId).map(enrichOffer);
+  },
+
+  getOfferById: async (offerId) => {
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('offers').select('*').eq('id', offerId).maybeSingle();
+        if (!error && data) return enrichOffer(data);
+      } catch (err) {}
+    }
+    const mem = memoryCache.offers.find(o => o.id === offerId);
+    return mem ? enrichOffer(mem) : null;
   },
 
   getOffersByBuyerId: async (buyerId) => {
@@ -1267,6 +1278,16 @@ export const db = {
 
 
   // ===================== USERS & FARMERS =====================
+  getUserById: async (id) => {
+    if (supabaseConnected) {
+      try {
+        const { data, error } = await supabase.from('users').select('*').eq('id', id).maybeSingle();
+        if (!error && data) return data;
+      } catch (err) {}
+    }
+    return memoryCache.users.find(u => u.id === id);
+  },
+
   getUserByPhone: async (phone) => {
     if (supabaseConnected) {
       try {
@@ -3527,11 +3548,6 @@ export const db = {
     memoryCache.buyers = memoryCache.buyers.filter(b => b.id !== id && b.user_id !== id);
     return true;
   },
-
-  getSupabaseStatus: () => ({
-    connected: supabaseConnected,
-    url: SUPABASE_URL
-  }),
 
   getAdminStats: async () => {
     let farmersCount = memoryCache.users.filter(u => u.role === 'FARMER').length;

@@ -1,6 +1,7 @@
 import express from 'express';
 import axios from 'axios';
 import { db } from '../services/db.js';
+import { signToken, requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -296,7 +297,12 @@ router.post('/register', async (req, res) => {
       buyerProfile,
       transporterProfile,
       fpoProfile,
-      token: `token-${user.id}-${Date.now()}`
+      token: signToken({
+        id: user.id,
+        phone: user.phone || cleanPhone,
+        role: user.role,
+        name: user.name || user.full_name || ''
+      })
     });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
@@ -476,7 +482,51 @@ router.post('/login', async (req, res) => {
       farmerProfile,
       buyerProfile,
       fpoProfile,
-      token: `token-${user.id}-${Date.now()}`
+      token: signToken({
+        id: user.id,
+        phone: user.phone || cleanPhone,
+        role: user.role,
+        name: user.name || user.full_name || ''
+      })
+    });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// GET Current Authenticated User & Profile
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    let user = (await db.getUserById(req.user.id)) || (await db.getUserByPhone(req.user.phone));
+    if (!user) {
+      return res.status(404).json({ status: 'error', message: 'User not found.' });
+    }
+    let farmerProfile = null;
+    let buyerProfile = null;
+    let transporterProfile = null;
+    let fpoProfile = null;
+
+    if (user.role === 'FARMER') {
+      farmerProfile = await db.getFarmerProfile(user.phone);
+      if (farmerProfile) user = { ...user, ...farmerProfile };
+    } else if (user.role === 'BUYER') {
+      buyerProfile = (await db.getBuyerProfile(user.phone)) || (await db.getBuyerProfile(user.id));
+      if (buyerProfile) user = { ...user, ...buyerProfile };
+    } else if (user.role === 'TRANSPORTER') {
+      transporterProfile = await db.getTransporterByPhone(user.phone);
+      if (transporterProfile) user = { ...user, ...transporterProfile };
+    } else if (user.role === 'FPO') {
+      fpoProfile = await db.getFpoProfile(user.phone);
+      if (fpoProfile) user = { ...user, ...fpoProfile };
+    }
+
+    res.json({
+      status: 'success',
+      user,
+      farmerProfile,
+      buyerProfile,
+      transporterProfile,
+      fpoProfile
     });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });

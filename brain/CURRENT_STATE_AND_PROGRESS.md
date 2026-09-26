@@ -145,6 +145,15 @@ Both backend and frontend services are compiled, verified, and running live:
 - `frontend/src/pages/AuthPage.jsx` — Extended Farmer (7/12 number, land size, crops) and Buyer (GSTIN, PAN, APMC license, crushing capacity) registration.
 - `backend/src/services/db.js` — 100% Pure Supabase Cloud PostgreSQL client with zero local JSON file persistence.
 
+### 24. Priority 0 (P0) Security, Authentication & CORS Allowlist (Verified & Tested):
+- **Cryptographic JWT Middleware (`auth.js`)**: Implemented RFC 7519 HMAC-SHA256 token signer and verifier (`signToken`, `verifyToken`, `requireAuth`, `optionalAuth`, `requireRole`) across both `backend/src/middleware/` and `frontend/api/middleware/`.
+- **Bearer Token Interceptor (`api.js`)**: Added Axios request interceptor that automatically attaches `Authorization: Bearer <token>` from localStorage.
+- **Object-Level Authorization & IDOR Prevention (`marketRoutes.js`)**: Scoped produce lots and offers creation to authenticated token credentials. Blocked unauthorized updates and cancellations across different farmer accounts. Enforced lot ownership validation on `/offers/:id/accept` and `/offers/:id/counter`.
+- **SuperAdmin Protection (`adminRoutes.js`)**: Secured SuperAdmin authentication using environment variables (`ADMIN_USERNAME`, `ADMIN_PASSWORD`), cryptographically signed tokens with `SUPERADMIN` role claim, and enforced `router.use(requireAuth, requireRole('SUPERADMIN'))` on all administrative endpoints.
+- **Strict CORS Allowlist (`server.js`, `frontend/api/index.js`)**: Replaced wildcard `*` with strict allowlist matching official domain (`https://agrimandi.asiacore.in`), local development ports, and Vercel preview environments.
+- **Truthful Database Status**: Dynamically reports live Supabase Cloud status vs offline fallback.
+- **100% Zero-Parity Drift**: Maintained identical code across `backend/src/` and `frontend/api/` (Vercel Serverless). All unit and integration tests passing with 0 errors.
+
 ### Layer 1: Frontend (`frontend/package.json`)
 - **Framework & Core:** `react` (v19.2), `react-dom` (v19.2), `vite` (v8.2)
 - **Routing:** `react-router-dom` (v7.18) — Client-side SPA routing for Landing, Farmer, Buyer, FPO, APMC.

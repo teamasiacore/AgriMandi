@@ -1,5 +1,6 @@
 import express from 'express';
 import { db } from '../services/db.js';
+import { optionalAuth, requireAuth } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -29,12 +30,12 @@ router.get('/lots/:id', async (req, res) => {
 });
 
 // Create New Produce Lot (Farmer)
-router.post('/lots', async (req, res) => {
+router.post('/lots', optionalAuth, async (req, res) => {
   try {
     const {
-      farmer_id = 'usr-farmer-1',
-      farmer_name = 'Kisan Mitra',
-      farmer_phone = '9822012345',
+      farmer_id,
+      farmer_name,
+      farmer_phone,
       crop,
       variety = 'FAQ Standard',
       quantity_qtl,
@@ -54,10 +55,15 @@ router.post('/lots', async (req, res) => {
       });
     }
 
+    // Enforce authenticated identity if available
+    const effectiveFarmerId = (req.user && req.user.id) || farmer_id || 'usr-farmer-1';
+    const effectiveFarmerPhone = (req.user && req.user.phone) || farmer_phone || '9822012345';
+    const effectiveFarmerName = (req.user && req.user.name) || farmer_name || 'Kisan Mitra';
+
     const newLot = await db.createLot({
-      farmer_id,
-      farmer_name,
-      farmer_phone,
+      farmer_id: effectiveFarmerId,
+      farmer_name: effectiveFarmerName,
+      farmer_phone: effectiveFarmerPhone,
       crop,
       variety,
       quantity_qtl: Number(quantity_qtl),
@@ -78,7 +84,7 @@ router.post('/lots', async (req, res) => {
 });
 
 // Update / Edit Lot (Farmer)
-router.put('/lots/:id', async (req, res) => {
+router.put('/lots/:id', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const lot = await db.getLotById(id);
@@ -88,6 +94,15 @@ router.put('/lots/:id', async (req, res) => {
     if (lot.status === 'DEAL_LOCKED') {
       return res.status(400).json({ status: 'error', message: 'Cannot edit lot after deal is locked in contract.' });
     }
+
+    // IDOR Guard: Verify ownership
+    if (req.user && req.user.role !== 'SUPERADMIN' && !req.user.legacy) {
+      const isOwner = (lot.farmer_id && lot.farmer_id === req.user.id) || (lot.farmer_phone && lot.farmer_phone === req.user.phone);
+      if (!isOwner) {
+        return res.status(403).json({ status: 'error', message: 'Access denied: You can only edit your own produce lots.' });
+      }
+    }
+
     const updated = await db.updateLot(id, req.body);
     res.json({ status: 'success', message: 'Lot updated successfully', lot: updated });
   } catch (err) {
@@ -96,13 +111,21 @@ router.put('/lots/:id', async (req, res) => {
 });
 
 // Publish Draft Lot to Marketplace (Farmer)
-router.post('/lots/:id/publish', async (req, res) => {
+router.post('/lots/:id/publish', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const lot = await db.getLotById(id);
     if (!lot) {
       return res.status(404).json({ status: 'error', message: 'Lot not found' });
     }
+
+    if (req.user && req.user.role !== 'SUPERADMIN' && !req.user.legacy) {
+      const isOwner = (lot.farmer_id && lot.farmer_id === req.user.id) || (lot.farmer_phone && lot.farmer_phone === req.user.phone);
+      if (!isOwner) {
+        return res.status(403).json({ status: 'error', message: 'Access denied: You can only publish your own produce lots.' });
+      }
+    }
+
     const published = await db.publishLot(id);
     res.json({ status: 'success', message: 'Lot published to marketplace successfully', lot: published });
   } catch (err) {
@@ -111,7 +134,7 @@ router.post('/lots/:id/publish', async (req, res) => {
 });
 
 // Cancel Active Lot (Farmer)
-router.post('/lots/:id/cancel', async (req, res) => {
+router.post('/lots/:id/cancel', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { reason = 'Cancelled by farmer' } = req.body;
@@ -122,6 +145,14 @@ router.post('/lots/:id/cancel', async (req, res) => {
     if (lot.status === 'DEAL_LOCKED') {
       return res.status(400).json({ status: 'error', message: 'Cannot cancel lot with locked escrow contract.' });
     }
+
+    if (req.user && req.user.role !== 'SUPERADMIN' && !req.user.legacy) {
+      const isOwner = (lot.farmer_id && lot.farmer_id === req.user.id) || (lot.farmer_phone && lot.farmer_phone === req.user.phone);
+      if (!isOwner) {
+        return res.status(403).json({ status: 'error', message: 'Access denied: You can only cancel your own produce lots.' });
+      }
+    }
+
     const cancelled = await db.cancelLot(id, reason);
     res.json({ status: 'success', message: 'Lot cancelled successfully', lot: cancelled });
   } catch (err) {
@@ -130,7 +161,7 @@ router.post('/lots/:id/cancel', async (req, res) => {
 });
 
 // Delete Draft Lot (Farmer)
-router.delete('/lots/:id', async (req, res) => {
+router.delete('/lots/:id', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const lot = await db.getLotById(id);
@@ -140,6 +171,14 @@ router.delete('/lots/:id', async (req, res) => {
     if (lot.status === 'DEAL_LOCKED') {
       return res.status(400).json({ status: 'error', message: 'Cannot delete lot with active contract.' });
     }
+
+    if (req.user && req.user.role !== 'SUPERADMIN' && !req.user.legacy) {
+      const isOwner = (lot.farmer_id && lot.farmer_id === req.user.id) || (lot.farmer_phone && lot.farmer_phone === req.user.phone);
+      if (!isOwner) {
+        return res.status(403).json({ status: 'error', message: 'Access denied: You can only delete your own produce lots.' });
+      }
+    }
+
     await db.deleteLot(id);
     res.json({ status: 'success', message: 'Lot deleted successfully', id });
   } catch (err) {
@@ -159,7 +198,7 @@ router.get('/offers', async (req, res) => {
 });
 
 // Place Digital Offer / Bid (Buyer)
-router.post('/offers', async (req, res) => {
+router.post('/offers', optionalAuth, async (req, res) => {
   try {
     const {
       lot_id,
@@ -188,8 +227,13 @@ router.post('/offers', async (req, res) => {
       return res.status(400).json({ status: 'error', message: 'This lot is already locked into a deal.' });
     }
 
+    // Enforce authenticated buyer identity if present
+    const effectiveBuyerId = (req.user && req.user.id) || buyer_id;
+    const effectiveBuyerPhone = (req.user && req.user.phone) || buyer_phone;
+    const effectiveBuyerName = (req.user && req.user.name) || buyer_name;
+
     // AG-007 Verification Guard: Check buyer verification status before placing binding offer
-    const buyerProfile = await db.getBuyerProfile(buyer_id) || await db.getBuyerProfile(buyer_phone);
+    const buyerProfile = await db.getBuyerProfile(effectiveBuyerId) || await db.getBuyerProfile(effectiveBuyerPhone);
     if (buyerProfile && !buyerProfile.is_verified && buyerProfile.status !== 'VERIFIED') {
       return res.status(403).json({
         status: 'error',
@@ -200,9 +244,9 @@ router.post('/offers', async (req, res) => {
 
     const newOffer = await db.createOffer({
       lot_id,
-      buyer_id,
-      buyer_name,
-      buyer_phone,
+      buyer_id: effectiveBuyerId,
+      buyer_name: effectiveBuyerName,
+      buyer_phone: effectiveBuyerPhone,
       offered_price_per_qtl: Number(offered_price_per_qtl),
       quantity_requested_qtl: Number(quantity_requested_qtl),
       delivery_destination,
@@ -216,8 +260,22 @@ router.post('/offers', async (req, res) => {
 });
 
 // Accept Offer (Farmer locks deal)
-router.post('/offers/:id/accept', async (req, res) => {
+router.post('/offers/:id/accept', optionalAuth, async (req, res) => {
   try {
+    const offer = await db.getOfferById(req.params.id);
+    if (!offer) {
+      return res.status(404).json({ status: 'error', message: 'Offer not found or already closed.' });
+    }
+
+    // Verify farmer ownership of parent lot
+    if (req.user && req.user.role === 'FARMER' && !req.user.legacy) {
+      const lot = await db.getLotById(offer.lot_id);
+      const isOwner = lot && ((lot.farmer_id && lot.farmer_id === req.user.id) || (lot.farmer_phone && lot.farmer_phone === req.user.phone));
+      if (!isOwner) {
+        return res.status(403).json({ status: 'error', message: 'Access denied: You can only accept offers for your own produce lots.' });
+      }
+    }
+
     const result = await db.acceptOffer(req.params.id);
     if (!result) {
       return res.status(404).json({ status: 'error', message: 'Offer not found or already closed.' });
@@ -235,13 +293,27 @@ router.post('/offers/:id/accept', async (req, res) => {
 });
 
 // Counter-Offer (Farmer proposes counter price)
-router.post('/offers/:id/counter', async (req, res) => {
+router.post('/offers/:id/counter', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { counter_price_per_qtl, counter_notes, actor_id } = req.body;
     if (!counter_price_per_qtl || Number(counter_price_per_qtl) <= 0) {
       return res.status(400).json({ status: 'error', message: 'Valid counter price per quintal is required.' });
     }
+
+    const offer = await db.getOfferById(id);
+    if (!offer) {
+      return res.status(404).json({ status: 'error', message: 'Offer not found.' });
+    }
+
+    if (req.user && req.user.role === 'FARMER' && !req.user.legacy) {
+      const lot = await db.getLotById(offer.lot_id);
+      const isOwner = lot && ((lot.farmer_id && lot.farmer_id === req.user.id) || (lot.farmer_phone && lot.farmer_phone === req.user.phone));
+      if (!isOwner) {
+        return res.status(403).json({ status: 'error', message: 'Access denied: You can only counter offers on your own produce lots.' });
+      }
+    }
+
     const updated = await db.counterOffer(id, { counter_price_per_qtl, counter_notes, actor_id });
     res.json({
       status: 'success',
@@ -254,10 +326,23 @@ router.post('/offers/:id/counter', async (req, res) => {
 });
 
 // Accept Counter-Offer (Buyer agrees to farmer's counter rate)
-router.post('/offers/:id/accept-counter', async (req, res) => {
+router.post('/offers/:id/accept-counter', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { actor_id } = req.body;
+
+    const offer = await db.getOfferById(id);
+    if (!offer) {
+      return res.status(404).json({ status: 'error', message: 'Offer not found.' });
+    }
+
+    if (req.user && req.user.role === 'BUYER' && !req.user.legacy) {
+      const isBuyerOwner = (offer.buyer_id && offer.buyer_id === req.user.id) || (offer.buyer_phone && offer.buyer_phone === req.user.phone);
+      if (!isBuyerOwner) {
+        return res.status(403).json({ status: 'error', message: 'Access denied: You can only accept counter offers for your own bids.' });
+      }
+    }
+
     const result = await db.acceptCounterOffer(id, { actor_id });
     res.json({
       status: 'success',
@@ -272,10 +357,25 @@ router.post('/offers/:id/accept-counter', async (req, res) => {
 });
 
 // Reject Offer (Farmer declines offer)
-router.post('/offers/:id/reject', async (req, res) => {
+router.post('/offers/:id/reject', optionalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { reason, actor_id } = req.body;
+
+    const offer = await db.getOfferById(id);
+    if (!offer) {
+      return res.status(404).json({ status: 'error', message: 'Offer not found.' });
+    }
+
+    if (req.user && !req.user.legacy && req.user.role !== 'SUPERADMIN') {
+      const lot = await db.getLotById(offer.lot_id);
+      const isFarmerOwner = lot && ((lot.farmer_id && lot.farmer_id === req.user.id) || (lot.farmer_phone && lot.farmer_phone === req.user.phone));
+      const isBuyerOwner = (offer.buyer_id && offer.buyer_id === req.user.id) || (offer.buyer_phone && offer.buyer_phone === req.user.phone);
+      if (!isFarmerOwner && !isBuyerOwner) {
+        return res.status(403).json({ status: 'error', message: 'Access denied: You are not authorized to reject this offer.' });
+      }
+    }
+
     const updated = await db.rejectOffer(id, { reason, actor_id });
     res.json({
       status: 'success',

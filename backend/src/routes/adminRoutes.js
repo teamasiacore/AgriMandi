@@ -1,11 +1,12 @@
 import express from 'express';
 import { db } from '../services/db.js';
+import { signToken, requireAuth, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Fixed SuperAdmin Credentials requested by the User
-const SUPERADMIN_USERNAME = 'ASIACore';
-const SUPERADMIN_PASSWORD = 'Satya123';
+// SuperAdmin Credentials from environment with fallback
+const SUPERADMIN_USERNAME = process.env.ADMIN_USERNAME || 'ASIACore';
+const SUPERADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Satya123';
 
 // 1. SuperAdmin Login
 router.post('/login', (req, res) => {
@@ -28,11 +29,18 @@ router.post('/login', (req, res) => {
         department: 'AgriMandi Verification & Governance Desk'
       };
 
+      const token = signToken({
+        id: adminUser.id,
+        username: adminUser.username,
+        role: adminUser.role,
+        name: adminUser.full_name
+      });
+
       return res.json({
         status: 'success',
         message: 'SuperAdmin authentication granted.',
         user: adminUser,
-        token: `admin-token-asiacore-${Date.now()}`
+        token
       });
     }
 
@@ -44,6 +52,9 @@ router.post('/login', (req, res) => {
     res.status(500).json({ status: 'error', message: err.message });
   }
 });
+
+// Enforce SuperAdmin authentication and role authorization for all remaining admin routes
+router.use(requireAuth, requireRole('SUPERADMIN'));
 
 // 2. Platform Statistics & Supabase Status
 router.get('/stats', async (req, res) => {

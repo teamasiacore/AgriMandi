@@ -13,6 +13,19 @@ const client = axios.create({
   timeout: 15000
 });
 
+// Automatic Bearer Token Authorization Interceptor (SIH P0 Security)
+client.interceptors.request.use((config) => {
+  try {
+    const adminToken = localStorage.getItem('agri_admin_token');
+    const userToken = localStorage.getItem('agri_token');
+    const token = (config.url?.startsWith('/admin') ? adminToken : null) || userToken || adminToken;
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+  } catch (e) {}
+  return config;
+}, (error) => Promise.reject(error));
+
 export const api = {
   // Mandi Data & Market Reference (AG-009)
   getLiveRates: (params) => client.get('/mandi/live', { params }).then(res => res.data),

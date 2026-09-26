@@ -11,13 +11,31 @@ import fpoRoutes from './routes/fpoRoutes.js';
 
 const app = express();
 
-// Middlewares
-app.use(cors({
-  origin: '*',
+// Strict Origin Allowlist (SIH P0 Security)
+const ALLOWED_ORIGINS = [
+  'https://agrimandi.asiacore.in',
+  'https://www.agrimandi.asiacore.in',
+  'http://localhost:5173',
+  'http://localhost:3000',
+  'http://localhost:5000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5000'
+];
+
+const corsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || ALLOWED_ORIGINS.includes(origin) || origin.endsWith('.vercel.app') || origin.endsWith('.asiacore.in')) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS policy: Access from origin ' + origin + ' is restricted.'), false);
+  },
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-request-id', 'request-id']
-}));
-app.options('*', cors());
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 
 // Foundation: Unique Request IDs & Structured Safe Logging (AG-005)
