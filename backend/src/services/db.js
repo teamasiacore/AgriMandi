@@ -1978,17 +1978,24 @@ export const db = {
       notes = adminNotes || '';
     }
     const statusVal = isVerified ? 'ACTIVE_FOR_BOOKINGS' : 'PROFILE_SUBMITTED';
+    const now = new Date().toISOString();
     const updatePayload = {
       is_verified: isVerified,
       status: statusVal,
-      verified_at: isVerified ? new Date().toISOString() : null,
+      verified_at: isVerified ? now : null,
       verified_by: isVerified ? 'ASIACore' : null,
-      admin_notes: notes || (isVerified ? 'Approved by ASIACore Administration' : 'Review status updated')
+      updated_at: now
     };
 
     if (supabaseConnected) {
       try {
-        const { data, error } = await supabase.from('transporter_profiles').update(updatePayload).or(`id.eq.${transporterId},user_id.eq.${transporterId}`).select().maybeSingle();
+        const { data, error } = await supabase
+          .from('transporter_profiles')
+          .update(updatePayload)
+          .or(`id.eq.${transporterId},user_id.eq.${transporterId}`)
+          .select()
+          .maybeSingle();
+
         if (!error && data) {
           if (data.user_id) {
             try {
@@ -1997,14 +2004,14 @@ export const db = {
             try {
               await supabase.from('verification_cases').update({
                 status: isVerified ? 'APPROVED' : 'UNDER_REVIEW',
-                decision_notes: updatePayload.admin_notes,
-                reviewed_at: new Date().toISOString()
+                decision_notes: notes || 'Approved by ASIACore Administration',
+                reviewed_at: now
               }).eq('entity_id', data.user_id);
             } catch (vcErr) {}
           }
 
           const idx = memoryCache.transporters.findIndex(t => t.id === transporterId || t.user_id === transporterId);
-          if (idx !== -1) memoryCache.transporters[idx] = data;
+          if (idx !== -1) memoryCache.transporters[idx] = { ...data, admin_notes: notes };
 
           await db.logAuditEvent({
             actor_id: 'superadmin-01',
@@ -2012,19 +2019,22 @@ export const db = {
             action: isVerified ? 'TRANSPORTER_VERIFIED' : 'TRANSPORTER_REVOKED',
             entity: 'TRANSPORTER_PROFILE',
             entity_id: transporterId,
-            details: { admin_notes: updatePayload.admin_notes, status: statusVal }
+            details: { admin_notes: notes, status: statusVal }
           }).catch(() => {});
 
-          return data;
+          return { ...data, admin_notes: notes };
+        }
+        if (error) {
+          console.warn('verifyTransporter Supabase error:', error.message);
         }
       } catch (err) {
-        console.warn('verifyTransporter error:', err.message);
+        console.warn('verifyTransporter exception:', err.message);
       }
     }
 
     const tp = memoryCache.transporters.find(t => t.id === transporterId || t.user_id === transporterId);
     if (tp) {
-      Object.assign(tp, updatePayload);
+      Object.assign(tp, updatePayload, { admin_notes: notes });
     }
     return tp;
   },
@@ -2033,17 +2043,24 @@ export const db = {
     const reasonText = (typeof rejectionReason === 'object' && rejectionReason !== null)
       ? (rejectionReason.reason || rejectionReason.admin_notes || '')
       : (rejectionReason || '');
+    const now = new Date().toISOString();
     const updatePayload = {
       is_verified: false,
       status: 'REJECTED',
-      admin_notes: reasonText || 'Vehicle RTO documentation mismatch or invalid permit.',
       verified_by: 'ASIACore',
-      verified_at: new Date().toISOString()
+      verified_at: now,
+      updated_at: now
     };
 
     if (supabaseConnected) {
       try {
-        const { data, error } = await supabase.from('transporter_profiles').update(updatePayload).or(`id.eq.${transporterId},user_id.eq.${transporterId}`).select().maybeSingle();
+        const { data, error } = await supabase
+          .from('transporter_profiles')
+          .update(updatePayload)
+          .or(`id.eq.${transporterId},user_id.eq.${transporterId}`)
+          .select()
+          .maybeSingle();
+
         if (!error && data) {
           if (data.user_id) {
             try {
@@ -2052,14 +2069,14 @@ export const db = {
             try {
               await supabase.from('verification_cases').update({
                 status: 'REJECTED',
-                decision_notes: updatePayload.admin_notes,
-                reviewed_at: new Date().toISOString()
+                decision_notes: reasonText || 'Vehicle RTO documentation mismatch or invalid permit.',
+                reviewed_at: now
               }).eq('entity_id', data.user_id);
             } catch (vcErr) {}
           }
 
           const idx = memoryCache.transporters.findIndex(t => t.id === transporterId || t.user_id === transporterId);
-          if (idx !== -1) memoryCache.transporters[idx] = data;
+          if (idx !== -1) memoryCache.transporters[idx] = { ...data, admin_notes: reasonText };
 
           await db.logAuditEvent({
             actor_id: 'superadmin-01',
@@ -2067,19 +2084,23 @@ export const db = {
             action: 'TRANSPORTER_REJECTED',
             entity: 'TRANSPORTER_PROFILE',
             entity_id: transporterId,
-            new_state: updatePayload
-          });
+            new_state: { ...updatePayload, rejection_reason: reasonText }
+          }).catch(() => {});
 
-          return data;
+          return { ...data, admin_notes: reasonText };
         }
-      } catch (err) {}
+        if (error) {
+          console.warn('rejectTransporter Supabase error:', error.message);
+        }
+      } catch (err) {
+        console.warn('rejectTransporter exception:', err.message);
+      }
     }
 
     const tp = memoryCache.transporters.find(t => t.id === transporterId || t.user_id === transporterId);
     if (tp) {
-      Object.assign(tp, updatePayload);
+      Object.assign(tp, updatePayload, { admin_notes: reasonText });
     }
-    return tp;
   },
 
   getTransporters: async (filters = {}) => {

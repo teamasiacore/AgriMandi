@@ -123,6 +123,10 @@ Both backend and frontend services are compiled, verified, and running live:
     - **Enrichment Engine (`enrichOffer`)**: When fetched by backend or serverless handler, counter payloads are transparently converted to `status: 'COUNTERED'` with `counter_price_per_qtl` and `counter_notes`.
     - **Buyer Portal Real-Time Action**: Displays the amber "Counter: ₹X/Qtl" badge and active "Accept ₹X/Qtl" CTA in Buyer's "My Placed Bids & Deals" tab.
     - **Accept Counter Flow**: Buyer clicking "Accept Counter" executes atomic update setting `offered_price_per_qtl` to the agreed counter price, status to `ACCEPTED`, and generates the locked Deal contract.
+26. **SuperAdmin Transporter Fleet Desk 1-Click Verification Fix**:
+    - **PGRST204 Schema Cache Mismatch Resolved**: SuperAdmin clicking "Verify & Activate Vehicle" previously threw `"Error approving vehicle: Transporter not found"` because `verifyTransporter` and `rejectTransporter` attempted to write to `admin_notes`, which does not exist in `public.transporter_profiles` on Supabase cloud.
+    - **Clean Payload Alignment**: Stripped `admin_notes` from `transporter_profiles` DML update payload while preserving verification state updates (`is_verified: true`, `status: 'ACTIVE_FOR_BOOKINGS'`, `verified_at`, `verified_by: 'ASIACore'`), parent `users` record sync, and audit logging.
+    - **Tested & Verified**: Verified 1-click approval lifecycle against live Supabase PostgreSQL client with 0 errors. Transporters can now be approved and activated seamlessly.
 
 ### Modular Architecture Structure (No Micro-Component Clutter)
 - `frontend/src/pages/SuperAdminDashboard.jsx` — Dedicated SuperAdmin console at `/admin` (Username: `ASIACore`, Password: `Satya123`). Controls Buyer verification (GSTIN/APMC license approval), Farmer 7/12 land inspection, and storage telemetry.
