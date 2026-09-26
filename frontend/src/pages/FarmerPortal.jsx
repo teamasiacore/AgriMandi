@@ -3,7 +3,7 @@ import {
   TrendingUp, PlusCircle, ShieldCheck, CheckCircle2, 
   MapPin, RefreshCw, BarChart3, Truck, UserCheck, X, AlertCircle,
   Calculator, Sparkles, ArrowRight, ArrowUpRight, Check, Info, ShieldAlert, Award, User, FileText, Printer, Scale,
-  Edit, Trash2, Send, Filter, Clock, Gavel
+  Edit, Trash2, Send, Filter, Clock, Gavel, BadgeCheck
 } from 'lucide-react';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, 

@@ -54,6 +54,22 @@ router.post('/send-otp', async (req, res) => {
 
     console.log(`🔑 [Dynamic OTP] Generated for +91 ${cleanPhone}: ${otpCode} (Valid 5 mins)`);
 
+    // Persist OTP in Supabase verification_cases for serverless resilience
+    if (db.supabase) {
+      try {
+        await db.supabase.from('verification_cases').delete().eq('entity_type', 'AUTH_OTP').eq('entity_id', cleanPhone);
+        await db.supabase.from('verification_cases').insert([{
+          id: `otp-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          entity_type: 'AUTH_OTP',
+          entity_id: cleanPhone,
+          case_type: 'DYNAMIC_OTP',
+          status: 'PENDING',
+          decision_notes: otpCode,
+          expires_at: new Date(now + 5 * 60 * 1000).toISOString()
+        }]);
+      } catch (errDb) {}
+    }
+
     res.json({
       status: 'success',
       message: formattedMessages[language] || formattedMessages.en,
@@ -328,52 +344,97 @@ router.post('/login', async (req, res) => {
       });
     }
 
-    const otpRecord = otpStore.get(cleanPhone);
-    const isDev = process.env.NODE_ENV !== 'production';
+    let validCode = null;
+    let otpExpired = false;
 
-    if (otpRecord) {
-      // Check Expiry (5 minutes)
-      if (Date.now() > otpRecord.expires_at) {
+    // 1. Check in-memory store
+    const memRecord = otpStore.get(cleanPhone);
+    if (memRecord) {
+      if (Date.now() > memRecord.expires_at) {
         otpStore.delete(cleanPhone);
-        return res.status(401).json({
-          status: 'error',
-          code: 'OTP_EXPIRED',
-          message: 'Verification code has expired. Please click "Get OTP" to receive a new code.'
-        });
-      }
-
-      // Check Attempt Limit (Max 3 attempts)
-      if (otpRecord.attempts >= 3) {
+        otpExpired = true;
+      } else if (memRecord.attempts >= 3) {
         otpStore.delete(cleanPhone);
         return res.status(429).json({
           status: 'error',
           code: 'TOO_MANY_ATTEMPTS',
           message: 'Too many incorrect attempts. Please request a fresh OTP.'
         });
+      } else {
+        validCode = memRecord.code;
       }
+    }
 
-      // Verify code match
-      if (submittedOtp !== otpRecord.code && (isDev ? submittedOtp !== '123456' : false)) {
-        otpRecord.attempts += 1;
-        const remaining = 3 - otpRecord.attempts;
+    // 2. If not found in memory (e.g. serverless lambda isolation), check Supabase verification_cases
+    if (!validCode && db.supabase) {
+      try {
+        const { data: dbCase } = await db.supabase
+          .from('verification_cases')
+          .select('*')
+          .eq('entity_type', 'AUTH_OTP')
+          .eq('entity_id', cleanPhone)
+          .eq('status', 'PENDING')
+          .order('submitted_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (dbCase && dbCase.decision_notes) {
+          if (dbCase.expires_at && new Date() > new Date(dbCase.expires_at)) {
+            otpExpired = true;
+            try {
+              await db.supabase.from('verification_cases').update({ status: 'EXPIRED' }).eq('id', dbCase.id);
+            } catch (eExp) {}
+          } else {
+            validCode = dbCase.decision_notes;
+          }
+        }
+      } catch (errDb) {}
+    }
+
+    if (otpExpired) {
+      return res.status(401).json({
+        status: 'error',
+        code: 'OTP_EXPIRED',
+        message: 'Verification code has expired. Please click "Get OTP" to receive a new code.'
+      });
+    }
+
+    if (!validCode) {
+      return res.status(401).json({
+        status: 'error',
+        code: 'OTP_NOT_REQUESTED',
+        message: 'Please click "Get OTP" to receive a fresh verification code on your mobile.'
+      });
+    }
+
+    // STRICT MATCH: Submitted code must match valid generated code
+    if (submittedOtp !== validCode) {
+      if (memRecord) {
+        memRecord.attempts = (memRecord.attempts || 0) + 1;
+        const remaining = 3 - memRecord.attempts;
         return res.status(401).json({
           status: 'error',
           code: 'INVALID_OTP',
-          message: `Invalid verification code. ${remaining} attempt(s) remaining.`
+          message: `Invalid verification code. ${Math.max(0, remaining)} attempt(s) remaining.`
         });
       }
+      return res.status(401).json({
+        status: 'error',
+        code: 'INVALID_OTP',
+        message: 'Invalid verification code. Please enter the correct 6-digit code received on your mobile.'
+      });
+    }
 
-      // Successful verification -> Delete OTP to enforce single-use
-      otpStore.delete(cleanPhone);
-    } else {
-      // If OTP was not requested or expired in production
-      if (!isDev) {
-        return res.status(401).json({
-          status: 'error',
-          code: 'OTP_NOT_REQUESTED',
-          message: 'Please click "Get OTP" to receive a fresh verification code on your mobile.'
-        });
-      }
+    // Successful verification -> Delete OTP to enforce single-use
+    otpStore.delete(cleanPhone);
+    if (db.supabase) {
+      try {
+        await db.supabase
+          .from('verification_cases')
+          .update({ status: 'CONSUMED' })
+          .eq('entity_type', 'AUTH_OTP')
+          .eq('entity_id', cleanPhone);
+      } catch (eCons) {}
     }
 
     // Attach farmer profile if farmer

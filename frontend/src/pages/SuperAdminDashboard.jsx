@@ -381,7 +381,7 @@ export default function SuperAdminDashboard({ currentLang = 'mr' }) {
           </div>
 
           <div className="flex items-center gap-4 text-[11px] text-stone-500">
-            <span>Supabase Target: <code className="font-mono text-stone-800">eizzzlnlcdfuylnojijn.supabase.co</code></span>
+            <span>Supabase Target: <code className="font-mono text-stone-800">lqoychozoysmxibhcmuf.supabase.co</code></span>
             <span>•</span>
             <span className="flex items-center gap-1">
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>

@@ -207,6 +207,7 @@ let memoryCache = {
 };
 
 export const db = {
+  supabase,
   // Check Supabase connectivity status
   getSupabaseStatus: () => ({
     configured: Boolean(SUPABASE_URL && SUPABASE_KEY),
@@ -1853,101 +1854,7 @@ export const db = {
     return newUser;
   },
 
-  verifyFarmer: async (farmerId, verified = true) => {
-    const updatePayload = {
-      is_verified: verified,
-      verified_by: verified ? 'ASIACore' : null,
-      verified_at: verified ? new Date().toISOString() : null
-    };
 
-    if (supabaseConnected) {
-      try {
-        await supabase.from('farmer_profiles').update(updatePayload).eq('user_id', farmerId);
-        await supabase.from('users').update(updatePayload).eq('id', farmerId);
-      } catch (err) {}
-    }
-
-    const farmer = memoryCache.users.find(u => (u.id === farmerId || u.user_id === farmerId));
-    if (farmer) {
-      Object.assign(farmer, updatePayload);
-    }
-    return farmer;
-  },
-
-  deleteUser: async (phoneOrId) => {
-    if (supabaseConnected) {
-      try {
-        await supabase.from('farmer_profiles').delete().or(`user_id.eq.${phoneOrId},phone.eq.${phoneOrId},id.eq.${phoneOrId}`);
-        await supabase.from('buyer_profiles').delete().or(`user_id.eq.${phoneOrId},phone.eq.${phoneOrId},id.eq.${phoneOrId}`);
-        await supabase.from('users').delete().or(`id.eq.${phoneOrId},phone.eq.${phoneOrId}`);
-      } catch (err) {
-        console.warn('Supabase deleteUser error:', err.message);
-      }
-    }
-    memoryCache.users = memoryCache.users.filter(u => u.id !== phoneOrId && u.phone !== phoneOrId && u.user_id !== phoneOrId);
-    memoryCache.buyers = memoryCache.buyers.filter(b => b.id !== phoneOrId && b.phone !== phoneOrId && b.user_id !== phoneOrId);
-    return true;
-  },
-
-  // Admin Stats directly calculated from Supabase
-  getAdminStats: async () => {
-    let farmersCount = memoryCache.users.filter(u => u.role === 'FARMER').length;
-    let verifiedFarmersCount = memoryCache.users.filter(u => u.role === 'FARMER' && u.is_verified).length;
-    let buyersCount = memoryCache.buyers.length;
-    let verifiedBuyersCount = memoryCache.buyers.filter(b => b.is_verified || b.status === 'VERIFIED').length;
-    let pendingBuyersCount = memoryCache.buyers.filter(b => b.status === 'PENDING_VERIFICATION').length;
-    let lotsCount = memoryCache.lots.length;
-    let activeLotsCount = memoryCache.lots.filter(l => l.status === 'LISTED').length;
-    let totalVolumeQtl = memoryCache.lots.reduce((acc, l) => acc + (Number(l.quantity_qtl) || 0), 0);
-    let dealsCount = memoryCache.deals.length;
-    let totalEscrowVal = memoryCache.deals.reduce((acc, d) => acc + (Number(d.total_deal_value) || 0), 0);
-
-    if (supabaseConnected) {
-      try {
-        const [farmersRes, buyersRes, lotsRes, dealsRes] = await Promise.all([
-          supabase.from('farmer_profiles').select('id, is_verified', { count: 'exact' }),
-          supabase.from('buyer_profiles').select('id, status, is_verified', { count: 'exact' }),
-          supabase.from('produce_lots').select('id, quantity_qtl, status'),
-          supabase.from('deals').select('id, total_deal_value')
-        ]);
-
-        if (farmersRes.data) {
-          farmersCount = farmersRes.data.length;
-          verifiedFarmersCount = farmersRes.data.filter(f => f.is_verified).length;
-        }
-        if (buyersRes.data) {
-          buyersCount = buyersRes.data.length;
-          verifiedBuyersCount = buyersRes.data.filter(b => b.is_verified || b.status === 'VERIFIED').length;
-          pendingBuyersCount = buyersRes.data.filter(b => b.status === 'PENDING_VERIFICATION').length;
-        }
-        if (lotsRes.data) {
-          lotsCount = lotsRes.data.length;
-          activeLotsCount = lotsRes.data.filter(l => l.status === 'LISTED').length;
-          totalVolumeQtl = lotsRes.data.reduce((acc, l) => acc + (Number(l.quantity_qtl) || 0), 0);
-        }
-        if (dealsRes.data) {
-          dealsCount = dealsRes.data.length;
-          totalEscrowVal = dealsRes.data.reduce((acc, d) => acc + (Number(d.total_deal_value) || 0), 0);
-        }
-      } catch (err) {
-        console.warn('Supabase getAdminStats exception:', err.message);
-      }
-    }
-
-    return {
-      totalFarmers: farmersCount,
-      verifiedFarmers: verifiedFarmersCount,
-      totalBuyers: buyersCount,
-      verifiedBuyers: verifiedBuyersCount,
-      pendingBuyers: pendingBuyersCount,
-      totalLots: lotsCount,
-      activeLots: activeLotsCount,
-      totalVolumeQtl,
-      totalDeals: dealsCount,
-      totalEscrowVal,
-      supabaseStatus: db.getSupabaseStatus()
-    };
-  },
 
   // ===================== TRANSPORTERS (LOGISTICS) =====================
   createTransporterProfile: async (tpData) => {
@@ -1982,24 +1889,28 @@ export const db = {
           else memoryCache.transporters.unshift(data);
 
           if (data.user_id) {
-            await supabase.from('consents').insert([{
-              id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-              user_id: data.user_id,
-              consent_type: 'TRANSPORTER_LOGISTICS_CONSENT',
-              purpose: 'Explicit consent for agricultural logistics discovery, GPS location tracking during trip, and farm-gate dispatch under DPDP Act',
-              is_granted: true,
-              granted_at: new Date().toISOString()
-            }]).catch(() => {});
+            try {
+              await supabase.from('consents').insert([{
+                id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                user_id: data.user_id,
+                consent_type: 'TRANSPORTER_LOGISTICS_CONSENT',
+                purpose: 'Explicit consent for agricultural logistics discovery, GPS location tracking during trip, and farm-gate dispatch under DPDP Act',
+                is_granted: true,
+                granted_at: new Date().toISOString()
+              }]);
+            } catch (cErr) {}
 
-            await supabase.from('verification_cases').insert([{
-              id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-              entity_type: 'TRANSPORTER',
-              entity_id: data.user_id,
-              case_type: 'VEHICLE_AND_PERMIT',
-              status: 'UNDER_REVIEW',
-              decision_notes: `Vehicle: ${vehicleNumberUpper} (${newTp.vehicle_type}, ${newTp.capacity_mt} MT) in ${newTp.base_district} submitted for verification.`,
-              submitted_at: new Date().toISOString()
-            }]).catch(() => {});
+            try {
+              await supabase.from('verification_cases').insert([{
+                id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                entity_type: 'TRANSPORTER',
+                entity_id: data.user_id,
+                case_type: 'VEHICLE_AND_PERMIT',
+                status: 'UNDER_REVIEW',
+                decision_notes: `Vehicle: ${vehicleNumberUpper} (${newTp.vehicle_type}, ${newTp.capacity_mt} MT) in ${newTp.base_district} submitted for verification.`,
+                submitted_at: new Date().toISOString()
+              }]);
+            } catch (vcErr) {}
           }
 
           await db.logAuditEvent({
@@ -2061,12 +1972,16 @@ export const db = {
         const { data, error } = await supabase.from('transporter_profiles').update(updatePayload).or(`id.eq.${transporterId},user_id.eq.${transporterId}`).select().maybeSingle();
         if (!error && data) {
           if (data.user_id) {
-            await supabase.from('users').update({ is_verified: isVerified }).eq('id', data.user_id).catch(() => {});
-            await supabase.from('verification_cases').update({
-              status: isVerified ? 'APPROVED' : 'UNDER_REVIEW',
-              decision_notes: updatePayload.admin_notes,
-              reviewed_at: new Date().toISOString()
-            }).eq('entity_id', data.user_id).catch(() => {});
+            try {
+              await supabase.from('users').update({ is_verified: isVerified }).eq('id', data.user_id);
+            } catch (uErr) {}
+            try {
+              await supabase.from('verification_cases').update({
+                status: isVerified ? 'APPROVED' : 'UNDER_REVIEW',
+                decision_notes: updatePayload.admin_notes,
+                reviewed_at: new Date().toISOString()
+              }).eq('entity_id', data.user_id);
+            } catch (vcErr) {}
           }
 
           const idx = memoryCache.transporters.findIndex(t => t.id === transporterId || t.user_id === transporterId);
@@ -2079,7 +1994,7 @@ export const db = {
             entity: 'TRANSPORTER_PROFILE',
             entity_id: transporterId,
             details: { admin_notes: updatePayload.admin_notes, status: statusVal }
-          });
+          }).catch(() => {});
 
           return data;
         }
@@ -2112,12 +2027,16 @@ export const db = {
         const { data, error } = await supabase.from('transporter_profiles').update(updatePayload).or(`id.eq.${transporterId},user_id.eq.${transporterId}`).select().maybeSingle();
         if (!error && data) {
           if (data.user_id) {
-            await supabase.from('users').update({ is_verified: false }).eq('id', data.user_id).catch(() => {});
-            await supabase.from('verification_cases').update({
-              status: 'REJECTED',
-              decision_notes: updatePayload.admin_notes,
-              reviewed_at: new Date().toISOString()
-            }).eq('entity_id', data.user_id).catch(() => {});
+            try {
+              await supabase.from('users').update({ is_verified: false }).eq('id', data.user_id);
+            } catch (uErr) {}
+            try {
+              await supabase.from('verification_cases').update({
+                status: 'REJECTED',
+                decision_notes: updatePayload.admin_notes,
+                reviewed_at: new Date().toISOString()
+              }).eq('entity_id', data.user_id);
+            } catch (vcErr) {}
           }
 
           const idx = memoryCache.transporters.findIndex(t => t.id === transporterId || t.user_id === transporterId);
@@ -3287,24 +3206,28 @@ export const db = {
           else memoryCache.buyers.unshift(data);
 
           if (data.user_id) {
-            await supabase.from('consents').insert([{
-              id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-              user_id: data.user_id,
-              consent_type: 'BUYER_TRADE_CONSENT',
-              purpose: 'Explicit consent for commercial buyer onboarding and verification under DPDP Act',
-              is_granted: true,
-              granted_at: new Date().toISOString()
-            }]).catch(() => {});
+            try {
+              await supabase.from('consents').insert([{
+                id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                user_id: data.user_id,
+                consent_type: 'BUYER_TRADE_CONSENT',
+                purpose: 'Explicit consent for commercial buyer onboarding and verification under DPDP Act',
+                is_granted: true,
+                granted_at: new Date().toISOString()
+              }]);
+            } catch (cErr) {}
 
-            await supabase.from('verification_cases').insert([{
-              id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-              entity_type: 'BUYER',
-              entity_id: data.user_id,
-              case_type: 'COMMERCIAL_CREDENTIALS',
-              status: 'UNDER_REVIEW',
-              decision_notes: `GSTIN: ${gstinUpper || 'N/A'} | License: ${buyerData.license_number || 'N/A'} submitted for verification.`,
-              submitted_at: new Date().toISOString()
-            }]).catch(() => {});
+            try {
+              await supabase.from('verification_cases').insert([{
+                id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                entity_type: 'BUYER',
+                entity_id: data.user_id,
+                case_type: 'COMMERCIAL_CREDENTIALS',
+                status: 'UNDER_REVIEW',
+                decision_notes: `GSTIN: ${gstinUpper || 'N/A'} | License: ${buyerData.license_number || 'N/A'} submitted for verification.`,
+                submitted_at: new Date().toISOString()
+              }]);
+            } catch (vcErr) {}
           }
 
           await db.logAuditEvent({
@@ -3385,28 +3308,39 @@ export const db = {
 
     if (supabaseConnected) {
       try {
-        const { data, error } = await supabase.from('buyer_profiles').update(updatePayload).eq('id', buyerId).select().maybeSingle();
-        if (!error && data) {
+        const { data, error } = await supabase.from('buyer_profiles')
+          .update(updatePayload)
+          .or(`id.eq.${buyerId},user_id.eq.${buyerId},phone.eq.${buyerId}`)
+          .select()
+          .maybeSingle();
+
+        if (data) {
           if (data.user_id) {
-            await supabase.from('users').update({ is_verified: verified }).eq('id', data.user_id).catch(() => {});
-            await supabase.from('verification_cases').update({
-              status: verified ? 'APPROVED' : 'UNDER_REVIEW',
-              decision_notes: updatePayload.admin_notes,
-              reviewed_at: new Date().toISOString()
-            }).eq('entity_id', data.user_id).catch(() => {});
+            try {
+              await supabase.from('users').update({ is_verified: verified }).eq('id', data.user_id);
+            } catch (uErr) {}
+            try {
+              await supabase.from('verification_cases').update({
+                status: verified ? 'APPROVED' : 'UNDER_REVIEW',
+                decision_notes: updatePayload.admin_notes,
+                reviewed_at: new Date().toISOString()
+              }).eq('entity_id', data.user_id);
+            } catch (vcErr) {}
           }
 
-          const idx = memoryCache.buyers.findIndex(b => b.id === buyerId);
+          const idx = memoryCache.buyers.findIndex(b => b.id === buyerId || b.user_id === buyerId || b.phone === buyerId);
           if (idx !== -1) memoryCache.buyers[idx] = data;
 
-          await db.logAuditEvent({
-            actor_id: 'superadmin-01',
-            actor_role: 'SUPERADMIN',
-            action: verified ? 'BUYER_VERIFIED' : 'BUYER_REVOKED',
-            entity: 'BUYER_PROFILE',
-            entity_id: buyerId,
-            new_state: updatePayload
-          });
+          try {
+            await db.logAuditEvent({
+              actor_id: 'superadmin-01',
+              actor_role: 'SUPERADMIN',
+              action: verified ? 'BUYER_VERIFIED' : 'BUYER_REVOKED',
+              entity: 'BUYER_PROFILE',
+              entity_id: data.id || buyerId,
+              new_state: updatePayload
+            });
+          } catch (aErr) {}
 
           return data;
         }
@@ -3415,7 +3349,7 @@ export const db = {
       }
     }
 
-    const buyer = memoryCache.buyers.find(b => b.id === buyerId);
+    const buyer = memoryCache.buyers.find(b => b.id === buyerId || b.user_id === buyerId || b.phone === buyerId);
     if (buyer) {
       Object.assign(buyer, updatePayload);
     }
@@ -3433,35 +3367,48 @@ export const db = {
 
     if (supabaseConnected) {
       try {
-        const { data, error } = await supabase.from('buyer_profiles').update(updatePayload).eq('id', buyerId).select().maybeSingle();
-        if (!error && data) {
+        const { data, error } = await supabase.from('buyer_profiles')
+          .update(updatePayload)
+          .or(`id.eq.${buyerId},user_id.eq.${buyerId},phone.eq.${buyerId}`)
+          .select()
+          .maybeSingle();
+
+        if (data) {
           if (data.user_id) {
-            await supabase.from('users').update({ is_verified: false }).eq('id', data.user_id).catch(() => {});
-            await supabase.from('verification_cases').update({
-              status: 'REJECTED',
-              decision_notes: updatePayload.admin_notes,
-              reviewed_at: new Date().toISOString()
-            }).eq('entity_id', data.user_id).catch(() => {});
+            try {
+              await supabase.from('users').update({ is_verified: false }).eq('id', data.user_id);
+            } catch (uErr) {}
+            try {
+              await supabase.from('verification_cases').update({
+                status: 'REJECTED',
+                decision_notes: updatePayload.admin_notes,
+                reviewed_at: new Date().toISOString()
+              }).eq('entity_id', data.user_id);
+            } catch (vcErr) {}
           }
 
-          const idx = memoryCache.buyers.findIndex(b => b.id === buyerId);
+          const idx = memoryCache.buyers.findIndex(b => b.id === buyerId || b.user_id === buyerId || b.phone === buyerId);
           if (idx !== -1) memoryCache.buyers[idx] = data;
 
-          await db.logAuditEvent({
-            actor_id: 'superadmin-01',
-            actor_role: 'SUPERADMIN',
-            action: 'BUYER_REJECTED',
-            entity: 'BUYER_PROFILE',
-            entity_id: buyerId,
-            new_state: updatePayload
-          });
+          try {
+            await db.logAuditEvent({
+              actor_id: 'superadmin-01',
+              actor_role: 'SUPERADMIN',
+              action: 'BUYER_REJECTED',
+              entity: 'BUYER_PROFILE',
+              entity_id: data.id || buyerId,
+              new_state: updatePayload
+            });
+          } catch (aErr) {}
 
           return data;
         }
-      } catch (err) {}
+      } catch (err) {
+        console.warn('rejectBuyer error:', err.message);
+      }
     }
 
-    const buyer = memoryCache.buyers.find(b => b.id === buyerId);
+    const buyer = memoryCache.buyers.find(b => b.id === buyerId || b.user_id === buyerId || b.phone === buyerId);
     if (buyer) {
       Object.assign(buyer, updatePayload);
     }
@@ -3478,25 +3425,47 @@ export const db = {
 
     if (supabaseConnected) {
       try {
-        await supabase.from('farmer_profiles').update(updatePayload).or(`user_id.eq.${farmerId},id.eq.${farmerId}`);
-        await supabase.from('users').update({ is_verified: verified }).eq('id', farmerId);
-        await supabase.from('verification_cases').update({
-          status: verified ? 'APPROVED' : 'REJECTED',
-          reviewed_at: new Date().toISOString()
-        }).eq('entity_id', farmerId).catch(() => {});
+        const { data, error } = await supabase.from('farmer_profiles')
+          .update(updatePayload)
+          .or(`user_id.eq.${farmerId},id.eq.${farmerId},phone.eq.${farmerId}`)
+          .select()
+          .maybeSingle();
 
-        await db.logAuditEvent({
-          actor_id: 'superadmin-01',
-          actor_role: 'SUPERADMIN',
-          action: verified ? 'FARMER_LAND_VERIFIED' : 'FARMER_LAND_UNVERIFIED',
-          entity: 'FARMER_PROFILE',
-          entity_id: farmerId,
-          new_state: updatePayload
-        });
-      } catch (err) {}
+        const userIdToUpdate = data?.user_id || farmerId;
+        try {
+          await supabase.from('users').update({ is_verified: verified }).or(`id.eq.${userIdToUpdate},phone.eq.${userIdToUpdate}`);
+        } catch (uErr) {}
+        try {
+          await supabase.from('verification_cases').update({
+            status: verified ? 'APPROVED' : 'REJECTED',
+            reviewed_at: new Date().toISOString()
+          }).or(`entity_id.eq.${userIdToUpdate},entity_id.eq.${farmerId}`);
+        } catch (vcErr) {}
+
+        try {
+          await db.logAuditEvent({
+            actor_id: 'superadmin-01',
+            actor_role: 'SUPERADMIN',
+            action: verified ? 'FARMER_LAND_VERIFIED' : 'FARMER_LAND_UNVERIFIED',
+            entity: 'FARMER_PROFILE',
+            entity_id: data?.id || farmerId,
+            new_state: updatePayload
+          });
+        } catch (aErr) {}
+
+        if (data) {
+          return {
+            ...data,
+            name: data.full_name || data.name || 'Farmer',
+            full_name: data.full_name || data.name || 'Farmer'
+          };
+        }
+      } catch (err) {
+        console.warn('verifyFarmer error:', err.message);
+      }
     }
 
-    const farmer = memoryCache.users.find(u => (u.id === farmerId || u.user_id === farmerId));
+    const farmer = memoryCache.users.find(u => (u.id === farmerId || u.user_id === farmerId || u.phone === farmerId));
     if (farmer) {
       Object.assign(farmer, updatePayload);
     }

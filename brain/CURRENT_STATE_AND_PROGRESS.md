@@ -3,8 +3,8 @@
 > **CRITICAL CONTEXT FOR ANY AI ASSISTANT / DEVELOPER:**  
 > This file tracks the exact runtime state, active ports, installed dependencies, verified database credentials, tested API endpoints, and user preferences. Read this file first to know where the project currently stands.
 
-**Last Updated:** September 23, 2026  
-**Active Project Phase:** All 20 Canonical Milestones Completed (AG-001 through AG-020) — 100% Production Certified & Hardened  
+**Last Updated:** September 26, 2026  
+**Active Project Phase:** All 20 Canonical Milestones Completed (AG-001 through AG-020) — Full System Runtime, API, Backend, Pipeline & Performance Audit Completed  
 **User Working Mode:** Mentoring & Teaching Mode (Friendly Hinglish, Step-by-Step Guidance)
 
 ---
@@ -1075,6 +1075,32 @@ Executed comprehensive production hardening and an 8-stage Master End-to-End Smo
 - **Automated Master Test**: `backend/test_ag020_e2e_master_smoke.mjs` completed with exit code 0.
 - **Production Bundle**: `npm run build` in `frontend/` completed in 3.87s with 0 errors.
 - **Milestone Completion Status**: **ALL 20 CANONICAL MILESTONES (AG-001 TO AG-020) ARE 100% COMPLETE, VERIFIED, AND DEPLOYED!**
+
+---
+
+## 25. September 25, 2026 — Critical Production Glitches & Security Hardening Fixes (COMPLETED)
+
+### Overview
+Addressed and completely resolved 4 critical user-facing issues reported during pilot testing across the Farmer Portal, SuperAdmin Dashboard, and Authentication Engine:
+1. **Farmer Profile Edit & Verification Crash (`ReferenceError: BadgeCheck is not defined`)**:
+   - `FarmerPortal.jsx` line 738 rendered `<BadgeCheck />` when `user.is_verified` was active, but `BadgeCheck` was missing from the `lucide-react` import statement.
+   - Resulted in ErrorBoundary crash ("View Update Required") whenever a verified farmer's dashboard or updated profile was loaded.
+   - **Fix**: Added `BadgeCheck` to the `lucide-react` imports in `FarmerPortal.jsx`. Production build passed with 0 errors.
+2. **SuperAdmin Verification Failures ("Buyer not found" / "Farmer not found")**:
+   - In `backend/src/services/db.js` and `frontend/api/services/db.js`:
+     - `verifyBuyer`, `rejectBuyer`, and `verifyFarmer` invoked `.catch(() => {})` directly on Supabase PostgREST query builders, throwing `TypeError: ... .catch is not a function`.
+     - `verifyFarmer` and `verifyBuyer` were not returning the updated record from Supabase Cloud; instead falling back to empty/cold `memoryCache`, causing API routes to return HTTP 404 (`Farmer not found` / `Buyer not found`).
+   - **Fix**: Replaced all `.catch()` calls with safe `try/catch` blocks, updated queries to match across `id`, `user_id`, or `phone`, and returned the updated entity directly from Supabase Cloud.
+3. **SuperAdmin Multi-Entity Visibility & Sync**:
+   - Cleaned duplicate stale definitions of `verifyFarmer`, `deleteUser`, and `getAdminStats` from `db.js`.
+   - Updated `SuperAdminDashboard.jsx`, `frontend/.env`, and `supabaseClient.js` from deprecated project reference to active production database `lqoychozoysmxibhcmuf.supabase.co`.
+4. **Authentication & Dynamic OTP Security Vulnerability**:
+   - Discovered a critical Boolean operator precedence bug in `authRoutes.js`:
+     `if (submittedOtp !== otpRecord.code && (isDev ? submittedOtp !== '123456' : false))`
+     In production (`isDev = false`), `(isDev ? ... : false)` evaluated to `false`, causing the entire `if` condition to evaluate to `false`. As a result, invalid OTPs were never rejected and allowed unauthenticated login.
+   - In serverless multi-instance deployments (Vercel), in-memory `otpStore` was isolated across different lambdas, leading to OTP not found errors.
+   - **Fix**: Completely rewrote OTP verification with strict code matching (`submittedOtp !== validCode`), added persistent cross-lambda OTP verification in Supabase `verification_cases` with 5-minute expiry, and strictly return HTTP 401 (`INVALID_OTP` / `OTP_EXPIRED` / `OTP_NOT_REQUESTED`).
+
 
 
 

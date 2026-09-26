@@ -95,15 +95,14 @@ app.use(errorHandler);
 
 // Start Server
 app.listen(PORT, () => {
-  console.log(`=============================================`);
-  console.log(`🌾 AgriMandi REST API Server is LIVE`);
-  console.log(`📡 URL: http://localhost:${PORT}`);
-  console.log(`📊 Health: http://localhost:${PORT}/api/health`);
-  console.log(`🚦 Readiness: http://localhost:${PORT}/api/ready`);
-  console.log(`🏛️ Live Rates: http://localhost:${PORT}/api/mandi/live`);
-  console.log(`🚜 Produce Lots: http://localhost:${PORT}/api/lots`);
-  console.log(`💼 Verified Buyers: http://localhost:${PORT}/api/buyers`);
-  console.log(`=============================================`);
+  console.log(` AgriMandi REST API Server is LIVE`);
+  console.log(` URL: http://localhost:${PORT}`);
+  console.log(` Health: http://localhost:${PORT}/api/health`);
+  console.log(` Readiness: http://localhost:${PORT}/api/ready`);
+  console.log(` Live Rates: http://localhost:${PORT}/api/mandi/live`);
+  console.log(` Produce Lots: http://localhost:${PORT}/api/lots`);
+  console.log(` Verified Buyers: http://localhost:${PORT}/api/buyers`);
+
 
   // Start 24x7 Mandi APMC background sync worker
   mandiService.initBackgroundSyncWorker();
