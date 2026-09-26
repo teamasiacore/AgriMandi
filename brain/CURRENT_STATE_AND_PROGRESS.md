@@ -127,6 +127,11 @@ Both backend and frontend services are compiled, verified, and running live:
     - **PGRST204 Schema Cache Mismatch Resolved**: SuperAdmin clicking "Verify & Activate Vehicle" previously threw `"Error approving vehicle: Transporter not found"` because `verifyTransporter` and `rejectTransporter` attempted to write to `admin_notes`, which does not exist in `public.transporter_profiles` on Supabase cloud.
     - **Clean Payload Alignment**: Stripped `admin_notes` from `transporter_profiles` DML update payload while preserving verification state updates (`is_verified: true`, `status: 'ACTIVE_FOR_BOOKINGS'`, `verified_at`, `verified_by: 'ASIACore'`), parent `users` record sync, and audit logging.
     - **Tested & Verified**: Verified 1-click approval lifecycle against live Supabase PostgreSQL client with 0 errors. Transporters can now be approved and activated seamlessly.
+27. **Complete Test Data Cleanup & Reset Executed**:
+    - Executed user-approved irreversible cleanup of all dummy and test entities across Supabase PostgreSQL (`lqoychozoysmxibhcmuf.supabase.co`).
+    - Successfully reset to 0 rows: `deals` (0), `offers` (0), `produce_lots` (0), `transporter_profiles` (0), `farmer_profiles` (0), `buyer_profiles` (0), `users` (0).
+    - Preserved 100% of live government market benchmark prices in `mandi_prices` (654 records intact).
+    - System is now in a pristine, production-ready state for fresh user onboarding and pilot trades.
 
 ### Modular Architecture Structure (No Micro-Component Clutter)
 - `frontend/src/pages/SuperAdminDashboard.jsx` — Dedicated SuperAdmin console at `/admin` (Username: `ASIACore`, Password: `Satya123`). Controls Buyer verification (GSTIN/APMC license approval), Farmer 7/12 land inspection, and storage telemetry.
