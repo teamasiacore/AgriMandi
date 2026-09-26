@@ -449,8 +449,15 @@ router.post('/login', async (req, res) => {
     // Attach buyer profile if buyer
     let buyerProfile = null;
     if (user.role === 'BUYER') {
-      const allBuyers = await db.getAllBuyers();
-      buyerProfile = allBuyers.find(b => b.phone === cleanPhone || b.user_id === user.id);
+      buyerProfile = (await db.getBuyerProfile(cleanPhone)) || (await db.getBuyerProfile(user.id));
+      if (buyerProfile) {
+        user = {
+          ...user,
+          ...buyerProfile,
+          status: buyerProfile.status || user.status,
+          is_verified: Boolean(buyerProfile.is_verified || buyerProfile.status === 'VERIFIED')
+        };
+      }
     }
 
     // Attach FPO profile if FPO
@@ -501,6 +508,21 @@ router.put('/farmer/profile/:identifier', async (req, res) => {
       return res.status(404).json({ status: 'error', message: 'Farmer profile could not be updated or does not exist.' });
     }
     res.json({ status: 'success', message: 'Profile updated successfully!', profile: updated });
+  } catch (err) {
+    res.status(500).json({ status: 'error', message: err.message });
+  }
+});
+
+// GET Buyer Profile
+router.get('/buyer/profile/:identifier', async (req, res) => {
+  try {
+    const { identifier } = req.params;
+    const cleanId = identifier.replace(/\D/g, '') || identifier;
+    const profile = await db.getBuyerProfile(cleanId);
+    if (!profile) {
+      return res.status(404).json({ status: 'error', message: 'Buyer profile not found.' });
+    }
+    res.json({ status: 'success', profile });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
   }

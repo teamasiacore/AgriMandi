@@ -1169,64 +1169,7 @@ export const db = {
     return newBuyer;
   },
 
-  verifyBuyer: async (buyerId, verified = true, adminNotes = '') => {
-    const updatePayload = {
-      is_verified: verified,
-      status: verified ? 'VERIFIED' : 'PENDING_VERIFICATION',
-      verified_at: verified ? new Date().toISOString() : null,
-      verified_by: verified ? 'ASIACore' : null,
-      ...(adminNotes ? { admin_notes: adminNotes } : {})
-    };
 
-    if (supabaseConnected) {
-      try {
-        const { data, error } = await supabase.from('buyer_profiles').update(updatePayload).eq('id', buyerId).select().single();
-        if (!error && data) {
-          if (data.user_id) {
-            await supabase.from('users').update({
-              is_verified: verified,
-              status: verified ? 'ACTIVE' : 'PENDING_VERIFICATION'
-            }).eq('id', data.user_id);
-          }
-          const idx = memoryCache.buyers.findIndex(b => b.id === buyerId);
-          if (idx !== -1) memoryCache.buyers[idx] = data;
-          return data;
-        }
-      } catch (err) {}
-    }
-
-    const buyer = memoryCache.buyers.find(b => b.id === buyerId);
-    if (buyer) {
-      Object.assign(buyer, updatePayload);
-    }
-    return buyer;
-  },
-
-  rejectBuyer: async (buyerId, rejectionReason = '') => {
-    const updatePayload = {
-      is_verified: false,
-      status: 'REJECTED',
-      admin_notes: rejectionReason || 'Information does not match official APMC/GSTIN records.',
-      verified_by: 'ASIACore'
-    };
-
-    if (supabaseConnected) {
-      try {
-        const { data, error } = await supabase.from('buyer_profiles').update(updatePayload).eq('id', buyerId).select().single();
-        if (!error && data) {
-          const idx = memoryCache.buyers.findIndex(b => b.id === buyerId);
-          if (idx !== -1) memoryCache.buyers[idx] = data;
-          return data;
-        }
-      } catch (err) {}
-    }
-
-    const buyer = memoryCache.buyers.find(b => b.id === buyerId);
-    if (buyer) {
-      Object.assign(buyer, updatePayload);
-    }
-    return buyer;
-  },
 
   // ===================== DEALS =====================
   getDeals: async (filters = {}) => {
@@ -3317,7 +3260,10 @@ export const db = {
         if (data) {
           if (data.user_id) {
             try {
-              await supabase.from('users').update({ is_verified: verified }).eq('id', data.user_id);
+              await supabase.from('users').update({ 
+                is_verified: verified,
+                status: verified ? 'ACTIVE' : 'PENDING_VERIFICATION'
+              }).eq('id', data.user_id);
             } catch (uErr) {}
             try {
               await supabase.from('verification_cases').update({

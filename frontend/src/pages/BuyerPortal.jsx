@@ -194,9 +194,12 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
   useEffect(() => {
     const savedUser = localStorage.getItem('agri_user');
     let uProfile = buyerProfile;
+    let currentUserObj = null;
     if (savedUser) {
       try {
         const u = JSON.parse(savedUser);
+        currentUserObj = u;
+        const isVer = Boolean(u.is_verified || u.status === 'VERIFIED');
         uProfile = {
           id: u.id || `byr-${u.phone || Date.now()}`,
           phone: u.phone || '',
@@ -206,11 +209,44 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
           city: u.district ? `MIDC ${u.district}` : 'MIDC Industrial Area',
           district: u.district || 'Latur',
           license: u.license_type || 'APMC Direct Purchase License',
-          status: u.status || 'UNDER_REVIEW',
-          is_verified: Boolean(u.is_verified && u.status === 'VERIFIED')
+          status: isVer ? 'VERIFIED' : (u.status || 'UNDER_REVIEW'),
+          is_verified: isVer
         };
         setBuyerProfile(uProfile);
       } catch (e) {}
+    }
+
+    // Always fetch latest authoritative buyer profile from database to reflect admin verification immediately
+    const lookupId = currentUserObj?.phone || currentUserObj?.id || uProfile.phone || uProfile.id;
+    if (lookupId) {
+      api.getBuyerProfile(lookupId).then(res => {
+        if (res && res.profile) {
+          const bp = res.profile;
+          const isVerifiedFresh = Boolean(bp.is_verified || bp.status === 'VERIFIED');
+          const freshProfile = {
+            ...uProfile,
+            id: bp.id || uProfile.id,
+            name: bp.representative_name || bp.name || uProfile.name,
+            company: bp.company_name || bp.company || uProfile.company,
+            gstin: bp.gstin || uProfile.gstin,
+            district: bp.district || uProfile.district,
+            city: bp.city || uProfile.city,
+            license: bp.license_type || uProfile.license,
+            status: isVerifiedFresh ? 'VERIFIED' : (bp.status || 'UNDER_REVIEW'),
+            is_verified: isVerifiedFresh
+          };
+          setBuyerProfile(freshProfile);
+          if (currentUserObj) {
+            const updatedUser = {
+              ...currentUserObj,
+              ...bp,
+              status: isVerifiedFresh ? 'VERIFIED' : bp.status,
+              is_verified: isVerifiedFresh
+            };
+            localStorage.setItem('agri_user', JSON.stringify(updatedUser));
+          }
+        }
+      }).catch(() => {});
     }
 
     loadMarketData(uProfile);
@@ -343,7 +379,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
 
   const handleOpenBidModal = (lot) => {
     const isVerified = Boolean(buyerProfile.is_verified || buyerProfile.status === 'VERIFIED');
-    if (!isVerified || buyerProfile.status === 'PENDING_VERIFICATION' || buyerProfile.status === 'UNDER_REVIEW' || buyerProfile.status === 'DOCUMENTS_SUBMITTED') {
+    if (!isVerified || buyerProfile.status === 'REJECTED') {
       alert(
         currentLang === 'en'
           ? 'Your account is under administrative review by ASIACore. Live counter-bidding unlocks once your GSTIN and APMC license are verified.'

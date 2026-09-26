@@ -73,6 +73,7 @@ export const api = {
   login: (data) => client.post('/auth/login', data).then(res => res.data),
   register: (data) => client.post('/auth/register', data).then(res => res.data),
   getFarmerProfile: (id) => client.get(`/auth/farmer/profile/${id}`).then(res => res.data),
+  getBuyerProfile: (id) => client.get(`/auth/buyer/profile/${id}`).then(res => res.data),
   updateFarmerProfile: (id, data) => client.put(`/auth/farmer/profile/${id}`, data).then(res => res.data),
 
   // SuperAdmin Desk (ASIACore / Satya123)
