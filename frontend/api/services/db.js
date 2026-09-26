@@ -206,6 +206,30 @@ let memoryCache = {
   ]
 };
 
+export function enrichOffer(offer) {
+  if (!offer) return offer;
+  let o = { ...offer };
+  if (o.rejection_reason && typeof o.rejection_reason === 'string') {
+    if (o.rejection_reason.includes('"is_counter":true')) {
+      try {
+        const parsed = JSON.parse(o.rejection_reason);
+        if (parsed.is_counter) {
+          o.status = 'COUNTERED';
+          o.counter_price_per_qtl = Number(parsed.counter_price_per_qtl);
+          o.counter_notes = parsed.counter_notes || '';
+          o.countered_at = parsed.countered_at || o.updated_at;
+        }
+      } catch (e) {}
+    } else if (o.rejection_reason.includes('"is_withdrawn":true') || o.rejection_reason.startsWith('WITHDRAWN:')) {
+      o.status = 'WITHDRAWN';
+      o.withdrawn_reason = o.rejection_reason.replace('WITHDRAWN:', '').trim();
+    }
+  } else if (o.counter_price_per_qtl && o.status === 'PENDING') {
+    o.status = 'COUNTERED';
+  }
+  return o;
+}
+
 export const db = {
   // Check Supabase connectivity status
   getSupabaseStatus: () => ({
@@ -477,51 +501,83 @@ export const db = {
       try {
         let query = supabase.from('offers').select('*').order('created_at', { ascending: false });
         if (filters.lot_id) query = query.eq('lot_id', filters.lot_id);
-        if (filters.buyer_id) query = query.eq('buyer_id', filters.buyer_id);
-        if (filters.buyer_phone) query = query.eq('buyer_phone', filters.buyer_phone);
-        if (filters.status) query = query.eq('status', filters.status);
+
+        const buyerIds = [filters.buyer_id, filters.buyer_user_id].filter(Boolean);
+        const buyerPhone = filters.buyer_phone;
+
+        if (buyerIds.length > 0 && buyerPhone) {
+          const idConds = buyerIds.map(id => `buyer_id.eq.${id}`).join(',');
+          query = query.or(`${idConds},buyer_phone.eq.${buyerPhone}`);
+        } else if (buyerIds.length > 0) {
+          if (buyerIds.length === 1) {
+            query = query.eq('buyer_id', buyerIds[0]);
+          } else {
+            query = query.in('buyer_id', buyerIds);
+          }
+        } else if (buyerPhone) {
+          query = query.eq('buyer_phone', buyerPhone);
+        }
+
+        if (filters.status) {
+          if (filters.status === 'COUNTERED') {
+            query = query.or('status.eq.COUNTERED,rejection_reason.ilike.%"is_counter":true%');
+          } else if (filters.status === 'WITHDRAWN') {
+            query = query.or('status.eq.WITHDRAWN,rejection_reason.ilike.%"is_withdrawn":true%');
+          } else {
+            query = query.eq('status', filters.status);
+          }
+        }
+
         const { data, error } = await query;
-        if (!error && data) return data;
+        if (!error && data) return data.map(enrichOffer);
+        if (error) console.warn('Supabase getOffers error:', error.message);
       } catch (err) {
         console.warn('Supabase getOffers error:', err.message);
       }
     }
     let result = [...memoryCache.offers];
     if (filters.lot_id) result = result.filter(o => o.lot_id === filters.lot_id);
-    if (filters.buyer_id) result = result.filter(o => o.buyer_id === filters.buyer_id);
-    if (filters.buyer_phone) result = result.filter(o => o.buyer_phone === filters.buyer_phone);
+    const buyerIds = [filters.buyer_id, filters.buyer_user_id].filter(Boolean);
+    const buyerPhone = filters.buyer_phone;
+    if (buyerIds.length > 0 && buyerPhone) {
+      result = result.filter(o => buyerIds.includes(o.buyer_id) || o.buyer_phone === buyerPhone);
+    } else if (buyerIds.length > 0) {
+      result = result.filter(o => buyerIds.includes(o.buyer_id));
+    } else if (buyerPhone) {
+      result = result.filter(o => o.buyer_phone === buyerPhone);
+    }
     if (filters.status) result = result.filter(o => o.status === filters.status);
-    return result;
+    return result.map(enrichOffer);
   },
 
   getOffersByLotId: async (lotId) => {
     if (supabaseConnected) {
       try {
         const { data, error } = await supabase.from('offers').select('*').eq('lot_id', lotId).order('created_at', { ascending: false });
-        if (!error && data) return data;
+        if (!error && data) return data.map(enrichOffer);
       } catch (err) {}
     }
-    return memoryCache.offers.filter(o => o.lot_id === lotId);
+    return memoryCache.offers.filter(o => o.lot_id === lotId).map(enrichOffer);
   },
 
   getOffersByBuyerId: async (buyerId) => {
     if (supabaseConnected) {
       try {
         const { data, error } = await supabase.from('offers').select('*').eq('buyer_id', buyerId).order('created_at', { ascending: false });
-        if (!error && data) return data;
+        if (!error && data) return data.map(enrichOffer);
       } catch (err) {}
     }
-    return memoryCache.offers.filter(o => o.buyer_id === buyerId);
+    return memoryCache.offers.filter(o => o.buyer_id === buyerId).map(enrichOffer);
   },
 
   getAllOffers: async () => {
     if (supabaseConnected) {
       try {
         const { data, error } = await supabase.from('offers').select('*').order('created_at', { ascending: false });
-        if (!error && data) return data;
+        if (!error && data) return data.map(enrichOffer);
       } catch (err) {}
     }
-    return memoryCache.offers;
+    return memoryCache.offers.map(enrichOffer);
   },
 
   createOffer: async (offerData) => {
@@ -722,24 +778,33 @@ export const db = {
 
     let updatedOffer = null;
     const now = new Date().toISOString();
+    const counterPayload = {
+      is_counter: true,
+      counter_price_per_qtl: counterPrice,
+      counter_notes: counter_notes || '',
+      countered_at: now
+    };
 
     if (supabaseConnected) {
       try {
         const { data, error } = await supabase
           .from('offers')
           .update({ 
-            status: 'COUNTERED',
-            counter_price_per_qtl: counterPrice,
-            counter_notes,
-            countered_at: now,
+            status: 'PENDING',
+            rejection_reason: JSON.stringify(counterPayload),
             updated_at: now
           })
           .eq('id', offerId)
           .select()
           .single();
-        if (!error && data) updatedOffer = data;
+
+        if (!error && data) {
+          updatedOffer = enrichOffer(data);
+        } else if (error) {
+          console.warn('Supabase counterOffer notice:', error.message);
+        }
       } catch (err) {
-        console.warn('Supabase counterOffer notice:', err.message);
+        console.warn('Supabase counterOffer exception:', err.message);
       }
     }
 
@@ -750,6 +815,7 @@ export const db = {
       memOffer.counter_notes = counter_notes;
       memOffer.countered_at = now;
       memOffer.updated_at = now;
+      memOffer.rejection_reason = JSON.stringify(counterPayload);
       if (!updatedOffer) updatedOffer = memOffer;
     }
 
@@ -762,7 +828,7 @@ export const db = {
       new_state: { status: 'COUNTERED', counter_price_per_qtl: counterPrice, counter_notes }
     });
 
-    return updatedOffer;
+    return updatedOffer || enrichOffer({ id: offerId, status: 'COUNTERED', counter_price_per_qtl: counterPrice, counter_notes });
   },
 
   acceptCounterOffer: async (offerId, { actor_id } = {}) => {
@@ -771,7 +837,7 @@ export const db = {
     if (supabaseConnected) {
       try {
         const { data } = await supabase.from('offers').select('*').eq('id', offerId).single();
-        if (data) offer = data;
+        if (data) offer = enrichOffer(data);
       } catch (e) {}
     }
     if (!offer) offer = memoryCache.offers.find(o => o.id === offerId);
@@ -786,6 +852,7 @@ export const db = {
         await supabase.from('offers').update({
           offered_price_per_qtl: agreedPrice,
           total_amount: agreedPrice * qty,
+          rejection_reason: null,
           updated_at: new Date().toISOString()
         }).eq('id', offerId);
       } catch (e) {}
@@ -795,6 +862,8 @@ export const db = {
     if (memOffer) {
       memOffer.offered_price_per_qtl = agreedPrice;
       memOffer.total_amount = agreedPrice * qty;
+      memOffer.rejection_reason = null;
+      memOffer.counter_price_per_qtl = null;
     }
 
     // 3. Trigger acceptOffer which locks lot, rejects competing offers, and generates official Deal
@@ -815,20 +884,22 @@ export const db = {
   withdrawOffer: async (offerId, { actor_id } = {}) => {
     let updatedOffer = null;
     const now = new Date().toISOString();
+    const withdrawPayload = JSON.stringify({ is_withdrawn: true, reason: 'Withdrawn by buyer before acceptance' });
 
     if (supabaseConnected) {
       try {
         const { data, error } = await supabase
           .from('offers')
           .update({ 
-            status: 'WITHDRAWN',
-            rejection_reason: 'Withdrawn by buyer before acceptance',
+            status: 'REJECTED',
+            rejection_reason: withdrawPayload,
             updated_at: now
           })
           .eq('id', offerId)
           .select()
           .single();
-        if (!error && data) updatedOffer = data;
+        if (!error && data) updatedOffer = enrichOffer(data);
+        if (error) console.warn('Supabase withdrawOffer notice:', error.message);
       } catch (err) {
         console.warn('Supabase withdrawOffer notice:', err.message);
       }
@@ -837,7 +908,7 @@ export const db = {
     const memOffer = memoryCache.offers.find(o => o.id === offerId);
     if (memOffer) {
       memOffer.status = 'WITHDRAWN';
-      memOffer.rejection_reason = 'Withdrawn by buyer';
+      memOffer.rejection_reason = withdrawPayload;
       memOffer.updated_at = now;
       if (!updatedOffer) updatedOffer = memOffer;
     }
@@ -851,7 +922,7 @@ export const db = {
       new_state: { status: 'WITHDRAWN' }
     });
 
-    return updatedOffer;
+    return updatedOffer || { id: offerId, status: 'WITHDRAWN' };
   },
 
   // ===================== DEALS =====================
@@ -859,7 +930,21 @@ export const db = {
     if (supabaseConnected) {
       try {
         let query = supabase.from('deals').select('*').order('created_at', { ascending: false });
-        if (filters.buyer_id) query = query.eq('buyer_id', filters.buyer_id);
+        const buyerIds = [filters.buyer_id, filters.buyer_user_id].filter(Boolean);
+        const buyerPhone = filters.buyer_phone;
+        if (buyerIds.length > 0 && buyerPhone) {
+          const idConds = buyerIds.map(id => `buyer_id.eq.${id}`).join(',');
+          query = query.or(`${idConds},buyer_phone.eq.${buyerPhone}`);
+        } else if (buyerIds.length > 0) {
+          if (buyerIds.length === 1) {
+            query = query.eq('buyer_id', buyerIds[0]);
+          } else {
+            query = query.in('buyer_id', buyerIds);
+          }
+        } else if (buyerPhone) {
+          query = query.eq('buyer_phone', buyerPhone);
+        }
+
         if (filters.lot_id) query = query.eq('lot_id', filters.lot_id);
         if (filters.farmer_phone) query = query.eq('farmer_phone', filters.farmer_phone);
         if (filters.delivery_status) query = query.eq('delivery_status', filters.delivery_status);
@@ -870,7 +955,15 @@ export const db = {
       }
     }
     let result = [...memoryCache.deals];
-    if (filters.buyer_id) result = result.filter(d => d.buyer_id === filters.buyer_id);
+    const buyerIds = [filters.buyer_id, filters.buyer_user_id].filter(Boolean);
+    const buyerPhone = filters.buyer_phone;
+    if (buyerIds.length > 0 && buyerPhone) {
+      result = result.filter(d => buyerIds.includes(d.buyer_id) || d.buyer_phone === buyerPhone);
+    } else if (buyerIds.length > 0) {
+      result = result.filter(d => buyerIds.includes(d.buyer_id));
+    } else if (buyerPhone) {
+      result = result.filter(d => d.buyer_phone === buyerPhone);
+    }
     if (filters.lot_id) result = result.filter(d => d.lot_id === filters.lot_id);
     if (filters.farmer_phone) result = result.filter(d => d.farmer_phone === filters.farmer_phone);
     if (filters.delivery_status) result = result.filter(d => d.delivery_status === filters.delivery_status);
@@ -1170,24 +1263,7 @@ export const db = {
 
 
 
-  // ===================== DEALS =====================
-  getDeals: async (filters = {}) => {
-    if (supabaseConnected) {
-      try {
-        let query = supabase.from('deals').select('*').order('created_at', { ascending: false });
-        if (filters.buyer_id) query = query.eq('buyer_id', filters.buyer_id);
-        if (filters.farmer_phone) query = query.eq('farmer_phone', filters.farmer_phone);
-        if (filters.lot_id) query = query.eq('lot_id', filters.lot_id);
-        const { data, error } = await query;
-        if (!error && data) return data;
-      } catch (err) {}
-    }
-    let result = [...memoryCache.deals];
-    if (filters.buyer_id) result = result.filter(d => d.buyer_id === filters.buyer_id);
-    if (filters.farmer_phone) result = result.filter(d => d.farmer_phone === filters.farmer_phone);
-    if (filters.lot_id) result = result.filter(d => d.lot_id === filters.lot_id);
-    return result;
-  },
+
 
   // ===================== USERS & FARMERS =====================
   getUserByPhone: async (phone) => {

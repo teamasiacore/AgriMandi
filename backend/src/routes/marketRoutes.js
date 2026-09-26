@@ -150,8 +150,8 @@ router.delete('/lots/:id', async (req, res) => {
 // Get Offers
 router.get('/offers', async (req, res) => {
   try {
-    const { lot_id, buyer_id, buyer_phone, status } = req.query;
-    const offers = await db.getOffers({ lot_id, buyer_id, buyer_phone, status });
+    const { lot_id, buyer_id, buyer_user_id, buyer_phone, status } = req.query;
+    const offers = await db.getOffers({ lot_id, buyer_id, buyer_user_id, buyer_phone, status });
     res.json({ status: 'success', count: offers.length, offers });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });
@@ -316,8 +316,8 @@ router.get('/buyers', async (req, res) => {
 // Get Executed Deals
 router.get('/deals', async (req, res) => {
   try {
-    const { buyer_id, farmer_phone, lot_id } = req.query;
-    const deals = await db.getDeals({ buyer_id, farmer_phone, lot_id });
+    const { buyer_id, buyer_user_id, buyer_phone, farmer_phone, lot_id } = req.query;
+    const deals = await db.getDeals({ buyer_id, buyer_user_id, buyer_phone, farmer_phone, lot_id });
     res.json({ status: 'success', count: deals.length, deals });
   } catch (err) {
     res.status(500).json({ status: 'error', message: err.message });

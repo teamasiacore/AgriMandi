@@ -226,6 +226,8 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
           const freshProfile = {
             ...uProfile,
             id: bp.id || uProfile.id,
+            user_id: bp.user_id || currentUserObj?.id || uProfile.user_id,
+            phone: bp.phone || uProfile.phone,
             name: bp.representative_name || bp.name || uProfile.name,
             company: bp.company_name || bp.company || uProfile.company,
             gstin: bp.gstin || uProfile.gstin,
@@ -245,6 +247,7 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
             };
             localStorage.setItem('agri_user', JSON.stringify(updatedUser));
           }
+          loadMarketData(freshProfile);
         }
       }).catch(() => {});
     }
@@ -255,13 +258,14 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
   const loadMarketData = (currentBuyer = buyerProfile) => {
     setLoading(true);
     const buyerId = currentBuyer?.id;
+    const buyerUserId = currentBuyer?.user_id;
     const buyerPhone = currentBuyer?.phone;
 
     Promise.all([
       api.getLots(),
       api.getBuyers(),
-      api.getOffers(buyerId ? { buyer_id: buyerId } : (buyerPhone ? { buyer_phone: buyerPhone } : {})),
-      api.getDeals(buyerId ? { buyer_id: buyerId } : {})
+      api.getOffers({ buyer_id: buyerId, buyer_user_id: buyerUserId, buyer_phone: buyerPhone }),
+      api.getDeals({ buyer_id: buyerId, buyer_user_id: buyerUserId, buyer_phone: buyerPhone })
     ]).then(([lotsRes, buyersRes, offersRes, dealsRes]) => {
       setLots(lotsRes.lots || []);
       setBuyers(buyersRes.buyers || []);
@@ -904,7 +908,13 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                     { key: 'ACCEPTED', label: currentLang === 'en' ? 'Accepted' : 'स्वीकृत' },
                     { key: 'REJECTED', label: currentLang === 'en' ? 'Rejected' : 'नाकारले' }
                   ].map(tab => {
-                    const count = tab.key === 'ALL' ? myOffers.length : myOffers.filter(o => o.status === tab.key).length;
+                    const count = tab.key === 'ALL'
+                      ? myOffers.length
+                      : tab.key === 'COUNTERED'
+                      ? myOffers.filter(o => o.status === 'COUNTERED' || Boolean(o.counter_price_per_qtl)).length
+                      : tab.key === 'PENDING'
+                      ? myOffers.filter(o => (o.status === 'PENDING' || !o.status) && !o.counter_price_per_qtl).length
+                      : myOffers.filter(o => o.status === tab.key).length;
                     const isActive = bidFilter === tab.key;
                     return (
                       <button
@@ -955,13 +965,18 @@ export default function BuyerPortal({ currentLang = 'mr' }) {
                     </thead>
                     <tbody className="divide-y divide-[#E5DFD4]">
                       {myOffers
-                        .filter(o => bidFilter === 'ALL' ? true : o.status === bidFilter)
+                        .filter(o => {
+                          if (bidFilter === 'ALL') return true;
+                          if (bidFilter === 'COUNTERED') return o.status === 'COUNTERED' || Boolean(o.counter_price_per_qtl);
+                          if (bidFilter === 'PENDING') return (o.status === 'PENDING' || !o.status) && !o.counter_price_per_qtl;
+                          return o.status === bidFilter;
+                        })
                         .map((off) => {
                           const isAccepted = off.status === 'ACCEPTED';
-                          const isCountered = off.status === 'COUNTERED';
-                          const isRejected = off.status === 'REJECTED';
+                          const isCountered = off.status === 'COUNTERED' || Boolean(off.counter_price_per_qtl);
+                          const isRejected = off.status === 'REJECTED' && !isCountered;
                           const isWithdrawn = off.status === 'WITHDRAWN';
-                          const isPending = off.status === 'PENDING';
+                          const isPending = (off.status === 'PENDING' || !off.status) && !isCountered && !isAccepted && !isRejected && !isWithdrawn;
 
                           return (
                             <tr key={off.id} className={`transition-colors ${isCountered ? 'bg-amber-50/40 hover:bg-amber-50/70' : 'hover:bg-[#FCFAF6]'}`}>

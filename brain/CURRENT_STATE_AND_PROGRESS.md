@@ -117,6 +117,12 @@ Both backend and frontend services are compiled, verified, and running live:
     - **English (`en`)**: 100% Pure English throughout the entire application.
     - **Hindi (`hi`)**: 100% Pure authentic Hindi throughout the entire application.
     - **Marathi (`mr`)**: 100% Pure authentic Marathi throughout the entire application.
+25. **Farmer Counter-Offer & Buyer Placed Bids Synchronization Complete**:
+    - **Dual ID & Phone Filtering**: Resolved 0 placed bids display in Buyer Portal by updating `loadMarketData`, `api.getOffers`, and `db.getOffers` to query using PostgreSQL `OR` (`buyer_id.eq.${buyer_id},buyer_id.eq.${buyer_user_id},buyer_phone.eq.${buyer_phone}`). Placed bids now consistently appear regardless of whether buyer references `buyer_profiles.id` or `users.id`.
+    - **Zero-DDL Resilient Counter-Offer Storage**: Supabase cloud PostgreSQL `offers` table check constraint (`offers_status_check`) strictly permits `('PENDING', 'ACCEPTED', 'REJECTED', 'EXPIRED')`. Counter negotiations are now seamlessly persisted into the existing `rejection_reason` column as structured JSON: `{"is_counter":true,"counter_price_per_qtl":...,"counter_notes":...}` with status remaining `PENDING` in Postgres.
+    - **Enrichment Engine (`enrichOffer`)**: When fetched by backend or serverless handler, counter payloads are transparently converted to `status: 'COUNTERED'` with `counter_price_per_qtl` and `counter_notes`.
+    - **Buyer Portal Real-Time Action**: Displays the amber "Counter: ₹X/Qtl" badge and active "Accept ₹X/Qtl" CTA in Buyer's "My Placed Bids & Deals" tab.
+    - **Accept Counter Flow**: Buyer clicking "Accept Counter" executes atomic update setting `offered_price_per_qtl` to the agreed counter price, status to `ACCEPTED`, and generates the locked Deal contract.
 
 ### Modular Architecture Structure (No Micro-Component Clutter)
 - `frontend/src/pages/SuperAdminDashboard.jsx` — Dedicated SuperAdmin console at `/admin` (Username: `ASIACore`, Password: `Satya123`). Controls Buyer verification (GSTIN/APMC license approval), Farmer 7/12 land inspection, and storage telemetry.

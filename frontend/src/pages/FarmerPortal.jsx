@@ -1893,10 +1893,10 @@ export default function FarmerPortal({ currentLang = 'mr' }) {
                           <div className="space-y-2">
                             {lotOffers.map((off) => {
                               const isAccepted = off.status === 'ACCEPTED';
-                              const isCountered = off.status === 'COUNTERED';
-                              const isRejected = off.status === 'REJECTED';
+                              const isCountered = off.status === 'COUNTERED' || Boolean(off.counter_price_per_qtl);
+                              const isRejected = off.status === 'REJECTED' && !isCountered;
                               const isWithdrawn = off.status === 'WITHDRAWN';
-                              const isPending = off.status === 'PENDING';
+                              const isPending = (off.status === 'PENDING' || !off.status) && !isCountered && !isAccepted && !isRejected && !isWithdrawn;
 
                               return (
                                 <div 
