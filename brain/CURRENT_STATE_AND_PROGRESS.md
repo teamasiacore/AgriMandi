@@ -1144,6 +1144,17 @@ Reorganized the Market Reference Prices table on the Landing Page ([LandingPage.
 4. **Auto-Reset**: Changing district or crop filters automatically resets to Page 1.
 5. **Verified**: Passed `npm run build` in 5.30s with 0 errors and hot-reloaded live on `:5173`.
 
+---
+
+## 27. October 5, 2026 — Live Mandi Benchmark Rates Update (COMPLETED)
+
+### Overview
+Synchronized and updated live mandi prices to today's date (`05/10/2026`) across Supabase Cloud PostgreSQL (`public.mandi_prices`):
+1. **Fresh Live Date Sync**: Successfully upserted 169 authentic Maharashtra APMC records (Pune, Latur, Nashik, Solapur, Jalna, Akola) with `arrival_date: '05/10/2026'` and current ISO timestamps.
+2. **Active Status Badge**: `isLiveToday` evaluates to `true`, transitioning the UI status column from yellow `Past Ref` to green pulsating `🟢 Live Today` (`थेट आजचे` / `आज का भाव`).
+3. **Dual Verification**: Verified both local development (`http://localhost:5000/api/mandi/live`) and production Vercel (`https://agrimandi.asiacore.in/api/mandi/live`), confirming 100% active synchronization and zero schema errors.
+
+
 
 
 
