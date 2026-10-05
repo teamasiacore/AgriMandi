@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { 
   TrendingUp, ShieldCheck, Truck, ArrowRight, CheckCircle2, 
-  MapPin, RefreshCw, BarChart3, Building2, ChevronRight,
-  Info, Phone, Mail
+  MapPin, RefreshCw, BarChart3, Building2, ChevronRight, ChevronLeft,
+  ChevronsLeft, ChevronsRight, Info, Phone, Mail
 } from 'lucide-react';
 import api from '../services/api';
 import { translations } from '../utils/translations';
@@ -16,6 +16,8 @@ export default function LandingPage({ currentLang = 'mr' }) {
   const [selectedDistrict, setSelectedDistrict] = useState('all');
   const [showAboutData, setShowAboutData] = useState(false);
   const [ratesError, setRatesError] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Interactive Realization Quick Calculator state
   const [calcCrop, setCalcCrop] = useState('Soybean');
@@ -44,6 +46,7 @@ export default function LandingPage({ currentLang = 'mr' }) {
     api.getLiveRates({ commodity: selectedCrop, district: selectedDistrict })
       .then(res => {
         setLiveRates(res.records || []);
+        setCurrentPage(1);
         setLoadingRates(false);
       })
       .catch(() => {
@@ -53,8 +56,33 @@ export default function LandingPage({ currentLang = 'mr' }) {
   };
 
   useEffect(() => {
+    setCurrentPage(1);
     fetchRates();
   }, [selectedCrop, selectedDistrict]);
+
+  // Grouping & Pagination calculations
+  const totalPages = Math.ceil(liveRates.length / pageSize) || 1;
+  const startIndex = (currentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, liveRates.length);
+  const currentRates = liveRates.slice(startIndex, endIndex);
+
+  const handlePageChange = (newPage) => {
+    if (newPage < 1 || newPage > totalPages) return;
+    setCurrentPage(newPage);
+  };
+
+  const getPageNumbers = () => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (currentPage <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (currentPage >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+  };
 
   const calculateNetRealization = () => {
     api.calculateRealization({
@@ -392,8 +420,8 @@ export default function LandingPage({ currentLang = 'mr' }) {
                         </div>
                       </td>
                     </tr>
-                  ) : liveRates.length > 0 ? (
-                    liveRates.map((r, i) => (
+                  ) : currentRates.length > 0 ? (
+                    currentRates.map((r, i) => (
                       <tr key={i} className="hover:bg-[#FCFAF6] transition-colors">
                         <td className="py-3.5 px-4 font-bold text-[#1B4332] flex items-center gap-1.5">
                           <MapPin className="w-3.5 h-3.5 text-[#C86432] shrink-0" />
@@ -458,6 +486,113 @@ export default function LandingPage({ currentLang = 'mr' }) {
                 </tbody>
               </table>
             </div>
+
+            {/* Pagination & Grouping Footer Bar */}
+            {!loadingRates && !ratesError && liveRates.length > 0 && (
+              <div className="px-4 py-3.5 bg-[#FCFAF6] border-t border-[#E5DFD4] flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                
+                {/* Left: Summary Count & Page Size Selector */}
+                <div className="flex flex-wrap items-center gap-3 text-stone-600 font-medium">
+                  <span>
+                    {t.showingRates || 'Showing'}{' '}
+                    <strong className="text-[#1B4332] font-bold">{startIndex + 1}–{endIndex}</strong>{' '}
+                    {t.ofTotal || 'of'}{' '}
+                    <strong className="text-[#1B4332] font-bold">{liveRates.length}</strong>{' '}
+                    {t.ratesShown || 'market rates'}
+                  </span>
+
+                  <span className="hidden sm:inline text-stone-300">|</span>
+
+                  {/* Group Size Pills (10 per page default) */}
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-stone-500">{t.perPage || 'Per page'}:</span>
+                    {[10, 20, 50].map((size) => (
+                      <button
+                        key={size}
+                        onClick={() => {
+                          setPageSize(size);
+                          setCurrentPage(1);
+                        }}
+                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all cursor-pointer ${
+                          pageSize === size
+                            ? 'bg-[#1B4332] text-white shadow-2xs'
+                            : 'bg-white border border-[#E5DFD4] text-stone-700 hover:bg-[#F3EDE2]'
+                        }`}
+                      >
+                        {size}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Right: Modern Responsive Pagination Controls */}
+                <div className="flex items-center gap-1">
+                  {/* First Page */}
+                  <button
+                    onClick={() => handlePageChange(1)}
+                    disabled={currentPage === 1}
+                    className="p-1.5 rounded-lg border border-[#E5DFD4] bg-white hover:bg-[#F3EDE2] text-stone-700 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="First Page"
+                  >
+                    <ChevronsLeft className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Previous Page */}
+                  <button
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    className="px-2.5 py-1.5 rounded-lg border border-[#E5DFD4] bg-white hover:bg-[#F3EDE2] text-stone-700 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{t.pagePrev || 'Previous'}</span>
+                  </button>
+
+                  {/* Page Numbers */}
+                  <div className="flex items-center gap-1 px-1">
+                    {getPageNumbers().map((num, idx) => (
+                      num === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="px-1.5 text-stone-400 font-bold select-none">
+                          ...
+                        </span>
+                      ) : (
+                        <button
+                          key={num}
+                          onClick={() => handlePageChange(num)}
+                          className={`min-w-[30px] h-[30px] px-2 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                            currentPage === num
+                              ? 'bg-[#1B4332] text-white shadow-xs'
+                              : 'bg-white border border-[#E5DFD4] text-stone-700 hover:bg-[#F3EDE2]'
+                          }`}
+                        >
+                          {num}
+                        </button>
+                      )
+                    ))}
+                  </div>
+
+                  {/* Next Page */}
+                  <button
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    className="px-2.5 py-1.5 rounded-lg border border-[#E5DFD4] bg-white hover:bg-[#F3EDE2] text-stone-700 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed font-bold transition-colors flex items-center gap-1 cursor-pointer"
+                  >
+                    <span className="hidden sm:inline">{t.pageNext || 'Next'}</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+
+                  {/* Last Page */}
+                  <button
+                    onClick={() => handlePageChange(totalPages)}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 rounded-lg border border-[#E5DFD4] bg-white hover:bg-[#F3EDE2] text-stone-700 disabled:opacity-40 disabled:hover:bg-white disabled:cursor-not-allowed transition-colors cursor-pointer"
+                    title="Last Page"
+                  >
+                    <ChevronsRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+              </div>
+            )}
           </div>
 
         </div>

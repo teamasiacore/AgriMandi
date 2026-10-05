@@ -1129,6 +1129,22 @@ Addressed and completely resolved 4 critical user-facing issues reported during 
    - In serverless multi-instance deployments (Vercel), in-memory `otpStore` was isolated across different lambdas, leading to OTP not found errors.
    - **Fix**: Completely rewrote OTP verification with strict code matching (`submittedOtp !== validCode`), added persistent cross-lambda OTP verification in Supabase `verification_cases` with 5-minute expiry, and strictly return HTTP 401 (`INVALID_OTP` / `OTP_EXPIRED` / `OTP_NOT_REQUESTED`).
 
+---
+
+## 26. September 26, 2026 — Market Reference Rates 10-Item Grouping & Interactive Pagination (COMPLETED)
+
+### Overview
+Reorganized the Market Reference Prices table on the Landing Page ([LandingPage.jsx](file:///d:/AgriMandi/frontend/src/pages/LandingPage.jsx)) into clean, professional 10-item pages as requested:
+1. **10-Item Default Grouping**: Added `pageSize` (default 10) and `currentPage` states, slicing `liveRates` dynamically so only 10 items show per page instead of an endless, boring 7,700px scroll.
+2. **Interactive Group Size Selector**: Users can toggle between `[10]`, `[20]`, or `[50]` items per page with immediate recalculation.
+3. **Smart Responsive Pagination Bar**:
+   - Indicator: Showing `1–10 of X market rates` in Marathi, Hindi, and English.
+   - Navigation: First (`ChevronsLeft`), Prev (`ChevronLeft`), Page Number Buttons (with ellipsis `...`), Next (`ChevronRight`), and Last (`ChevronsRight`).
+   - Clean brand styling: Active page pill highlighted in `#1B4332` forest green with white text, inactive pills in sand border `#E5DFD4`.
+4. **Auto-Reset**: Changing district or crop filters automatically resets to Page 1.
+5. **Verified**: Passed `npm run build` in 5.30s with 0 errors and hot-reloaded live on `:5173`.
+
+
 
 
 
