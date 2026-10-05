@@ -13,9 +13,13 @@ const BASE_URL = `https://api.data.gov.in/resource/${RESOURCE_ID}`;
 // Selected 6 Core Agricultural Hub Districts of Maharashtra
 export const TARGET_DISTRICTS = ['Latur', 'Nashik', 'Solapur', 'Jalna', 'Akola', 'Pune'];
 
+const getCleanEnv = (val) => (val && typeof val === 'string' && val.trim().length > 0 ? val.trim() : null);
+
 // Supabase PostgreSQL Client for Mandi Prices Persistence
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://lqoychozoysmxibhcmuf.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxxb3ljaG96b3lzbXhpYmhjbXVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MTc1OTksImV4cCI6MjEwNTI5MzU5OX0.tcdf86elJblU81Y9HvPfImKfsZJxCSDYYoU0kC_O6xk';
+const SUPABASE_URL = getCleanEnv(process.env.SUPABASE_URL) || 'https://lqoychozoysmxibhcmuf.supabase.co';
+const SUPABASE_KEY = getCleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY) || 
+  getCleanEnv(process.env.SUPABASE_KEY) || 
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxxb3ljaG96b3lzbXhpYmhjbXVmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTcxNzU5OSwiZXhwIjoyMTA1MjkzNTk5fQ.utCd2abUEr2GLcmL6Fwd1gkZ7M7Eqv0VGA_wr2rVrK4';
 
 let supabase = null;
 if (SUPABASE_URL && SUPABASE_KEY) {
