@@ -4,12 +4,17 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-// Configuration with reliable fallbacks
-const SUPABASE_URL = process.env.SUPABASE_URL || 'https://lqoychozoysmxibhcmuf.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxxb3ljaG96b3lzbXhpYmhjbXVmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3MTc1OTksImV4cCI6MjEwNTI5MzU5OX0.tcdf86elJblU81Y9HvPfImKfsZJxCSDYYoU0kC_O6xk';
+const getCleanEnv = (val) => (val && typeof val === 'string' && val.trim().length > 0 ? val.trim() : null);
 
-const API_KEY = process.env.DATA_GOV_IN_API_KEY || '579b464db66ec23bdd000001d4d3eb54d4134d624b3aecd686e285a1';
-const RESOURCE_ID = process.env.DATA_GOV_IN_RESOURCE_ID || '9ef84268-d588-465a-a308-a864a43d0070';
+// Configuration with reliable production fallbacks
+const SUPABASE_URL = getCleanEnv(process.env.SUPABASE_URL) || 'https://lqoychozoysmxibhcmuf.supabase.co';
+const SUPABASE_KEY = getCleanEnv(process.env.SUPABASE_SERVICE_ROLE_KEY) || 
+  getCleanEnv(process.env.SUPABASE_KEY) || 
+  getCleanEnv(process.env.SUPABASE_ANON_KEY) || 
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxxb3ljaG96b3lzbXhpYmhjbXVmIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4OTcxNzU5OSwiZXhwIjoyMTA1MjkzNTk5fQ.utCd2abUEr2GLcmL6Fwd1gkZ7M7Eqv0VGA_wr2rVrK4';
+
+const API_KEY = getCleanEnv(process.env.DATA_GOV_IN_API_KEY) || '579b464db66ec23bdd000001d4d3eb54d4134d624b3aecd686e285a1';
+const RESOURCE_ID = getCleanEnv(process.env.DATA_GOV_IN_RESOURCE_ID) || '9ef84268-d588-465a-a308-a864a43d0070';
 const BASE_URL = `https://api.data.gov.in/resource/${RESOURCE_ID}`;
 
 // Selected 6 Core Agricultural Hub Districts of Maharashtra (AG-009)
