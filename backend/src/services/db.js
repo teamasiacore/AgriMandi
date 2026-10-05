@@ -1606,7 +1606,7 @@ export const db = {
                 address: userData.address || '',
                 target_crops: targetCrops,
                 operating_districts: [data.district || 'Latur'],
-                status: 'UNDER_REVIEW',
+                status: 'PENDING_VERIFICATION',
                 is_verified: false,
                 rating: 5.0,
                 reviews_count: 0,
@@ -1652,7 +1652,7 @@ export const db = {
                     gstin: gstinUpper,
                     buyer_category: buyerCategory,
                     district: data.district,
-                    status: 'UNDER_REVIEW'
+                    status: 'PENDING_VERIFICATION'
                   }
                 })
               ]).catch(() => {});
@@ -3085,7 +3085,7 @@ export const db = {
       address: buyerData.address || '',
       target_crops: targetCrops,
       operating_districts: buyerData.operating_districts || [buyerData.district || 'Latur'],
-      status: buyerData.status || 'UNDER_REVIEW',
+      status: buyerData.status || 'PENDING_VERIFICATION',
       is_verified: Boolean(buyerData.is_verified),
       rating: 5.0,
       reviews_count: 0,
