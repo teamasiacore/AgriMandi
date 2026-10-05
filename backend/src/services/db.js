@@ -1376,8 +1376,16 @@ export const db = {
     const validRoles = ['FARMER', 'BUYER', 'TRANSPORTER', 'ADMIN', 'SUPERADMIN'];
     const dbRole = validRoles.includes(userData.role) ? userData.role : 'FARMER';
 
+    let existingId = userData.id;
+    if (!existingId && supabaseConnected) {
+      try {
+        const { data: exist } = await supabase.from('users').select('id').eq('phone', userData.phone).maybeSingle();
+        if (exist) existingId = exist.id;
+      } catch (e) {}
+    }
+
     const userTablePayload = {
-      id: userData.id || `usr-${Date.now()}`,
+      id: existingId || `usr-${Date.now()}`,
       phone: userData.phone,
       role: dbRole,
       name: userData.name || userData.full_name || 'Agri User',
@@ -1409,12 +1417,12 @@ export const db = {
                  bank_ifsc: userData.bank_ifsc || '',
                  bank_account: userData.bank_account || '',
                  verification_status: verificationStatus,
-                 is_verified: false // Land record verification requires administrative review
+                 is_verified: false
                }], { onConflict: 'user_id' });
 
-              // Record DPDP explicit onboarding consent (AG-006)
-              if (userData.consent_accepted) {
-                await supabase.from('consents').insert([{
+              // Parallel non-blocking compliance & audit logging
+              Promise.allSettled([
+                userData.consent_accepted ? supabase.from('consents').insert([{
                   id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
                   user_id: data.id,
                   consent_type: 'ONBOARDING_DATA_CONSENT',
@@ -1423,12 +1431,8 @@ export const db = {
                   ip_address: userData.ip_address || null,
                   user_agent: userData.user_agent || null,
                   granted_at: new Date().toISOString()
-                }]);
-              }
-
-              // Create review case if 7/12 land record was submitted
-              if (hasSaatBara) {
-                await supabase.from('verification_cases').insert([{
+                }]) : Promise.resolve(),
+                hasSaatBara ? supabase.from('verification_cases').insert([{
                   id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
                   entity_type: 'FARMER_LAND',
                   entity_id: data.id,
@@ -1436,25 +1440,23 @@ export const db = {
                   status: 'SUBMITTED',
                   decision_notes: `7/12 Land record survey #${userData.saat_bara_number} submitted for verification.`,
                   submitted_at: new Date().toISOString()
-                }]);
-              }
-
-              // Immutable Audit Event
-              await db.logAuditEvent({
-                actor_id: data.id,
-                actor_role: 'FARMER',
-                action: 'FARMER_ONBOARDING_COMPLETED',
-                entity: 'USER',
-                entity_id: data.id,
-                new_state: {
-                  name: data.name,
-                  district: data.district,
-                  taluka: userData.taluka,
-                  crops: userData.crops,
-                  has_saat_bara: hasSaatBara,
-                  verification_status: verificationStatus
-                }
-              });
+                }]) : Promise.resolve(),
+                db.logAuditEvent({
+                  actor_id: data.id,
+                  actor_role: 'FARMER',
+                  action: 'FARMER_ONBOARDING_COMPLETED',
+                  entity: 'USER',
+                  entity_id: data.id,
+                  new_state: {
+                    name: data.name,
+                    district: data.district,
+                    taluka: userData.taluka,
+                    crops: userData.crops,
+                    has_saat_bara: hasSaatBara,
+                    verification_status: verificationStatus
+                  }
+                })
+              ]).catch(() => {});
             } catch (errProfile) {
               console.warn('farmer_profiles upsert notice:', errProfile?.message);
             }
@@ -1477,7 +1479,7 @@ export const db = {
                 is_available: true,
                 rating: 5.0,
                 trips_completed: 0,
-                is_verified: false, // Strict review-based verification
+                is_verified: false,
                 status: 'PROFILE_SUBMITTED',
                 created_at: new Date().toISOString()
               };
@@ -1486,44 +1488,42 @@ export const db = {
               if (existingTpIdx !== -1) memoryCache.transporters[existingTpIdx] = tpData;
               else memoryCache.transporters.unshift(tpData);
 
-              // DPDP Explicit Logistics Consent (AG-008)
-              await supabase.from('consents').insert([{
-                id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-                user_id: data.id,
-                consent_type: 'TRANSPORTER_LOGISTICS_CONSENT',
-                purpose: 'Explicit consent for agricultural logistics discovery, GPS location tracking during trip, and farm-gate dispatch under DPDP Act',
-                is_granted: true,
-                ip_address: userData.ip_address || null,
-                user_agent: userData.user_agent || null,
-                granted_at: new Date().toISOString()
-              }]);
-
-              // RTO & Fleet Verification Case (AG-008)
-              await supabase.from('verification_cases').insert([{
-                id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-                entity_type: 'TRANSPORTER',
-                entity_id: data.id,
-                case_type: 'VEHICLE_AND_PERMIT',
-                status: 'UNDER_REVIEW',
-                decision_notes: `Vehicle: ${vehicleNumberUpper} (${tpData.vehicle_type}, ${tpData.capacity_mt} MT) in ${tpData.base_district} submitted for verification.`,
-                submitted_at: new Date().toISOString()
-              }]);
-
-              // Immutable Audit Event (AG-008)
-              await db.logAuditEvent({
-                actor_id: data.id,
-                actor_role: 'TRANSPORTER',
-                action: 'TRANSPORTER_REGISTERED',
-                entity: 'TRANSPORTER_PROFILE',
-                entity_id: tpId,
-                new_state: {
-                  vehicle_number: tpData.vehicle_number,
-                  vehicle_type: tpData.vehicle_type,
-                  capacity_mt: tpData.capacity_mt,
-                  base_district: tpData.base_district,
-                  status: 'PROFILE_SUBMITTED'
-                }
-              });
+              // Non-blocking parallel inserts
+              Promise.allSettled([
+                supabase.from('consents').insert([{
+                  id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  user_id: data.id,
+                  consent_type: 'TRANSPORTER_LOGISTICS_CONSENT',
+                  purpose: 'Explicit consent for agricultural logistics discovery, GPS location tracking during trip, and farm-gate dispatch under DPDP Act',
+                  is_granted: true,
+                  ip_address: userData.ip_address || null,
+                  user_agent: userData.user_agent || null,
+                  granted_at: new Date().toISOString()
+                }]),
+                supabase.from('verification_cases').insert([{
+                  id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  entity_type: 'TRANSPORTER',
+                  entity_id: data.id,
+                  case_type: 'VEHICLE_AND_PERMIT',
+                  status: 'UNDER_REVIEW',
+                  decision_notes: `Vehicle: ${vehicleNumberUpper} (${tpData.vehicle_type}, ${tpData.capacity_mt} MT) in ${tpData.base_district} submitted for verification.`,
+                  submitted_at: new Date().toISOString()
+                }]),
+                db.logAuditEvent({
+                  actor_id: data.id,
+                  actor_role: 'TRANSPORTER',
+                  action: 'TRANSPORTER_REGISTERED',
+                  entity: 'TRANSPORTER_PROFILE',
+                  entity_id: tpId,
+                  new_state: {
+                    vehicle_number: tpData.vehicle_number,
+                    vehicle_type: tpData.vehicle_type,
+                    capacity_mt: tpData.capacity_mt,
+                    base_district: tpData.base_district,
+                    status: 'PROFILE_SUBMITTED'
+                  }
+                })
+              ]).catch(() => {});
             } catch (errTp) {
               console.warn('Transporter onboarding notice:', errTp?.message);
             }
@@ -1555,25 +1555,25 @@ export const db = {
                 status: 'ACTIVE'
               }], { onConflict: 'user_id,organisation_id' });
 
-              // 3. Persist DPDP consent
-              await supabase.from('consents').insert([{
-                id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-                user_id: data.id,
-                consent_type: 'FPO_AGGREGATION_CONSENT',
-                purpose: 'FPO farm pooling, member aggregation, and direct trade coordination consent under DPDP Act',
-                is_granted: true,
-                granted_at: new Date().toISOString()
-              }]);
-
-              // 4. Record audit event
-              await db.logAuditEvent({
-                actor_id: data.id,
-                actor_role: 'FPO',
-                action: 'FPO_ONBOARDING_COMPLETED',
-                entity: 'ORGANISATION',
-                entity_id: orgId,
-                new_state: { fpo_name: fpoName, registration_no: regNo, district: data.district }
-              });
+              // Non-blocking parallel inserts
+              Promise.allSettled([
+                supabase.from('consents').insert([{
+                  id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  user_id: data.id,
+                  consent_type: 'FPO_AGGREGATION_CONSENT',
+                  purpose: 'FPO farm pooling, member aggregation, and direct trade coordination consent under DPDP Act',
+                  is_granted: true,
+                  granted_at: new Date().toISOString()
+                }]),
+                db.logAuditEvent({
+                  actor_id: data.id,
+                  actor_role: 'FPO',
+                  action: 'FPO_ONBOARDING_COMPLETED',
+                  entity: 'ORGANISATION',
+                  entity_id: orgId,
+                  new_state: { fpo_name: fpoName, registration_no: regNo, district: data.district }
+                })
+              ]).catch(() => {});
             } catch (errFpo) {
               console.warn('FPO onboarding notice:', errFpo?.message);
             }
@@ -1613,50 +1613,51 @@ export const db = {
                 created_at: new Date().toISOString()
               };
 
-              await supabase.from('buyer_profiles').upsert([buyerPayload], { onConflict: 'gstin' });
+              const { data: createdBuyer } = await supabase.from('buyer_profiles').upsert([buyerPayload], { onConflict: 'gstin' }).select().maybeSingle();
+              const finalBuyer = createdBuyer || buyerPayload;
 
               const existingBIdx = memoryCache.buyers.findIndex(b => b.phone === data.phone || (gstinUpper && b.gstin === gstinUpper));
-              if (existingBIdx !== -1) memoryCache.buyers[existingBIdx] = buyerPayload;
-              else memoryCache.buyers.unshift(buyerPayload);
+              if (existingBIdx !== -1) memoryCache.buyers[existingBIdx] = finalBuyer;
+              else memoryCache.buyers.unshift(finalBuyer);
 
-              // DPDP Consent for Buyer (AG-007)
-              await supabase.from('consents').insert([{
-                id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-                user_id: data.id,
-                consent_type: 'BUYER_TRADE_CONSENT',
-                purpose: 'Explicit consent for commercial buyer onboarding, statutory document verification (GSTIN/APMC), and market trade execution under DPDP Act',
-                is_granted: true,
-                ip_address: userData.ip_address || null,
-                user_agent: userData.user_agent || null,
-                granted_at: new Date().toISOString()
-              }]);
+              // Non-blocking parallel background inserts for compliance & audit logs
+              Promise.allSettled([
+                supabase.from('consents').insert([{
+                  id: `cns-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  user_id: data.id,
+                  consent_type: 'BUYER_TRADE_CONSENT',
+                  purpose: 'Explicit consent for commercial buyer onboarding, statutory document verification (GSTIN/APMC), and market trade execution under DPDP Act',
+                  is_granted: true,
+                  ip_address: userData.ip_address || null,
+                  user_agent: userData.user_agent || null,
+                  granted_at: new Date().toISOString()
+                }]),
+                supabase.from('verification_cases').insert([{
+                  id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+                  entity_type: 'BUYER',
+                  entity_id: data.id,
+                  case_type: 'COMMERCIAL_CREDENTIALS',
+                  status: 'UNDER_REVIEW',
+                  decision_notes: `GSTIN: ${gstinUpper || 'N/A'} | License: ${userData.license_number || 'N/A'} submitted for verification. Category: ${buyerCategory}`,
+                  submitted_at: new Date().toISOString()
+                }]),
+                db.logAuditEvent({
+                  actor_id: data.id,
+                  actor_role: 'BUYER',
+                  action: 'BUYER_ONBOARDING_COMPLETED',
+                  entity: 'BUYER_PROFILE',
+                  entity_id: buyerId,
+                  new_state: {
+                    company_name: companyName,
+                    gstin: gstinUpper,
+                    buyer_category: buyerCategory,
+                    district: data.district,
+                    status: 'UNDER_REVIEW'
+                  }
+                })
+              ]).catch(() => {});
 
-              // Commercial Verification Case (AG-007)
-              await supabase.from('verification_cases').insert([{
-                id: `vc-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-                entity_type: 'BUYER',
-                entity_id: data.id,
-                case_type: 'COMMERCIAL_CREDENTIALS',
-                status: 'UNDER_REVIEW',
-                decision_notes: `GSTIN: ${gstinUpper || 'N/A'} | License: ${userData.license_number || 'N/A'} submitted for verification. Category: ${buyerCategory}`,
-                submitted_at: new Date().toISOString()
-              }]);
-
-              // Immutable Audit Event (AG-007)
-              await db.logAuditEvent({
-                actor_id: data.id,
-                actor_role: 'BUYER',
-                action: 'BUYER_ONBOARDING_COMPLETED',
-                entity: 'BUYER_PROFILE',
-                entity_id: buyerId,
-                new_state: {
-                  company_name: companyName,
-                  gstin: gstinUpper,
-                  buyer_category: buyerCategory,
-                  district: data.district,
-                  status: 'UNDER_REVIEW'
-                }
-              });
+              userData.buyerProfile = finalBuyer;
             } catch (errBuyer) {
               console.warn('Buyer onboarding notice:', errBuyer?.message);
             }

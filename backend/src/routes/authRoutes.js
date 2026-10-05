@@ -263,7 +263,7 @@ router.post('/register', async (req, res) => {
         verification_status: 'SUBMITTED'
       });
 
-      buyerProfile = await db.createBuyerProfile({
+      buyerProfile = user.buyerProfile || (await db.getBuyerById(user.id)) || {
         user_id: user.id,
         company_name: company_name.trim(),
         legal_name: company_name.trim(),
@@ -280,7 +280,7 @@ router.post('/register', async (req, res) => {
         target_crops: user.target_crops,
         status: 'PENDING_VERIFICATION',
         is_verified: false
-      });
+      };
     }
 
     res.status(201).json({

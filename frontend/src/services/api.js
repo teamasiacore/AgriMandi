@@ -10,7 +10,7 @@ const client = axios.create({
   headers: {
     'Content-Type': 'application/json'
   },
-  timeout: 15000
+  timeout: 30000
 });
 
 // Automatic Bearer Token Authorization Interceptor (SIH P0 Security)
