@@ -5,8 +5,8 @@ import { signToken, requireAuth, requireRole } from '../middleware/auth.js';
 const router = express.Router();
 
 // SuperAdmin Credentials from environment with fallback
-const SUPERADMIN_USERNAME = process.env.ADMIN_USERNAME || 'ASIACore';
-const SUPERADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Satya123';
+const SUPERADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
+const SUPERADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin';
 
 // 1. SuperAdmin Login
 router.post('/login', (req, res) => {
